@@ -60,6 +60,11 @@ def handle_message(event):
                 TextSendMessage(text=mess2)
             ]
         )
+    if text == "?ほんちゃんはゲイ？":
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="少し。。。")
+        )
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
