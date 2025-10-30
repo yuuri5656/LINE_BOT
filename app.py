@@ -28,34 +28,37 @@ def handle_message(event):
             TextSendMessage(text="草ｗｗｗ")
         )
     if text == "?おみくじ":
+        num = random.randint(1, 8)
+        if num == 1:
+            mess1 = ("大吉でした")
+            mess2 = ("とても良い一日になるでしょう！")
+        elif num == 2:
+            mess1 = ("中吉でした")
+            mess2 = ("そこそこ良い一日になるでしょう")
+        elif num == 3:
+            mess1 = ("小吉でした")
+            mess2 = ("いい感じですね！良い一日を！")
+        elif num == 4:
+            mess1 = ("吉でした")
+            mess2 = ("いいですね！良い一日を！")
+        elif num == 5:
+            mess1 = ("末吉でした")
+            mess2 = ("まあまあですね")
+        elif num == 6:
+            mess1 = ("凶でした")
+            mess2 = ("まだいけますよ！良い一日を！")
+        elif num == 7:
+            mess1 = ("小凶でした.....残念.........")
+            mess2 = ("大丈夫です！良い一日を！")
+        else:
+            mess1 = ("大凶でした")
+            mess2 = ("気を取り直してください！良い一日を！")
         line_bot_api.reply_message(
             event.reply_token,
-            num = random.randint(1,8)
-            if num == 1:
-                mess1 = ("大吉でした")
-                mess2 = ("とても良い一日になるでしょう！")
-            elif num == 2:
-                mess1 = ("中吉でした")
-                mess2 = ("そこそこ良い一日になるでしょう")
-            elif num == 3:
-                mess1 = ("小吉でした")
-                mess2 = ("いい感じですね！良い一日を！")
-            elif num == 4:
-                mess1 = ("吉でした")
-                mess2 = ("いいですね！良い一日を！")
-            elif num == 5:
-                mess1 = ("末吉でした")
-                mess2 = ("まあまあですね")
-            elif num == 6:
-                mess1 = ("凶でした")
-                mess2 = ("まだいけますよ！良い一日を！")
-            elif num == 7:
-                mess1 = ("小凶でした.....残念.........")
-                mess2 = ("大丈夫です！良い一日を！")
-            else:
-                mess1 = ("大凶でした")
-                mess2 = ("気を取り直してください！良い一日を！")
             TextSendMessage(text=mess1)
+        )
+        line_bot_api.reply_message(
+            event.reply_token,
             TextSendMessage(text=mess2)
         )
 
