@@ -61,9 +61,14 @@ def handle_message(event):
             ]
         )
     if text == "?ほんちゃんはゲイ？":
+        num = random.randint(1,3)
+        if num == 1 or num == 2:
+            mess = "少し。。。"
+        else:
+            mess = "はいそうです！！！"
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text="少し。。。")
+            TextSendMessage(text=mess)
         )
 
 if __name__ == "__main__":
