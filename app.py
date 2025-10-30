@@ -55,11 +55,10 @@ def handle_message(event):
             mess2 = ("気を取り直してください！良い一日を！")
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=mess1)
-        )
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=mess2)
+            messages=[
+                TextSendMessage(text=mess1),
+                TextSendMessage(text=mess2)
+            ]
         )
 
 if __name__ == "__main__":
