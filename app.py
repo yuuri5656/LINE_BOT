@@ -74,37 +74,49 @@ def handle_message(event):
         N = text.split()[-1]
         stack = []
 
-        for i in range(len(N)):
-            if N[i].isdigit():
-                stack.append(int(N[i]))
-            elif N[i] == "+":
-                add()
-            elif N[i] == "-":
-                sub()
-            elif N[i] == "*":
-                mul()
-            elif N[i] == "/":
-                div()
+        try:
+            for c in N:
+                if c.isdigit():
+                    stack.append(int(c))
+                elif c in "+-*/":
+                    if len(stack) < 2:
+                        raise ValueError("演算子の前に十分なオペランドがありません")
+                    val = stack.pop()
+                    if c == "+": stack[0] += val
+                    elif c == "-": stack[0] -= val
+                    elif c == "*": stack[0] *= val
+                    elif c == "/":
+                        if val == 0:
+                            raise ZeroDivisionError("0で割ろうとしました")
+                        stack[0] //= val
+                else:
+                    raise ValueError(f"不正な文字: {c}")
 
-        def add():
-            val = stack.pop()
-            stack[0] += val
+            if len(stack) != 1:
+                raise ValueError("式の構文が正しくありません")
 
-        def sub():
-            val = stack.pop()
-            stack[0] -= val
+            result = str(stack[0])
 
-        def mul():
-            val = stack.pop()
-            stack[0] *= val
-
-        def div():
-            val = stack.pop()
-            stack[0] //= val
+        except Exception as e:
+            result = f"エラー: {e}"
 
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=stack[0])
+            TextSendMessage(text=result)
+        )
+
+    if text == "?おみくじを何回も引くのは犯罪ですか？":
+        num = random.randint(1,3)
+
+        if num == 1:
+            mess = "結論:死刑！"
+        elif num == 2:
+            mess = "ｼｵｼﾞ様に限り合法"
+        elif num == 3:
+            mess = "開示だな。"
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=mess)
         )
 
 if __name__ == "__main__":
