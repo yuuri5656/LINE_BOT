@@ -104,7 +104,6 @@ def handle_message(event):
             event.reply_token,
             TextSendMessage(text=result)
         )
-
     if text == "?おみくじを何回も引くのは犯罪ですか？":
         num = random.randint(1,3)
 
@@ -117,6 +116,25 @@ def handle_message(event):
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text=mess)
+        )
+    if text == "?ほんちゃんは童貞？":
+        num = random.randint(1,6)
+
+        if num == 1:
+            result = "同級生とノリで卒業しましたｗ"
+        elif num == 2:
+            result = "ソープランドで卒業しました。"
+        elif num == 3:
+            result = "ﾌｰｿﾞｸに行きましたが卒業できませんでした。"
+        elif num == 4:
+            result = "JSにレ……この続きは規制されました。"
+        elif num == 5:
+            result = "実は。。。。まだチェリーボーイ？"
+        else:
+            result = "ｼｵｼﾞと。。。。？"
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=result)
         )
 
 if __name__ == "__main__":
