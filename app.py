@@ -129,7 +129,7 @@ def handle_message(event):
         elif num == 3:
             result = "ﾌｰｿﾞｸに行きましたが卒業できませんでした。"
         elif num == 4:
-            result = "JSにレ……この続きは規制されました。"
+            result = "JSにレ……この続きは当局により規制されました。"
         elif num == 5:
             result = "実は。。。。まだチェリーボーイ？"
         else:
