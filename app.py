@@ -71,26 +71,27 @@ def handle_message(event):
             TextSendMessage(text=mess)
         )
     if text.startswith("?RPN"):
-        N = text.split()[-1]
+        tokens = text.split()[1:]  # "?RPN"の後ろの部分
         stack = []
 
         try:
-            for c in N:
-                if c.isdigit():
-                    stack.append(int(c))
-                elif c in "+-*/":
+            for token in tokens:
+                if token.isdigit():
+                    stack.append(int(token))
+                elif token in "+-*/":
                     if len(stack) < 2:
                         raise ValueError("演算子の前に十分なオペランドがありません")
-                    val = stack.pop()
-                    if c == "+": stack[0] += val
-                    elif c == "-": stack[0] -= val
-                    elif c == "*": stack[0] *= val
-                    elif c == "/":
-                        if val == 0:
+                    b = stack.pop()
+                    a = stack.pop()
+                    if token == "+": stack.append(a + b)
+                    elif token == "-": stack.append(a - b)
+                    elif token == "*": stack.append(a * b)
+                    elif token == "/":
+                        if b == 0:
                             raise ZeroDivisionError("0で割ろうとしました")
-                        stack[0] //= val
+                        stack.append(a // b)
                 else:
-                    raise ValueError(f"不正な文字: {c}")
+                    raise ValueError(f"不正なトークン: {token}")
 
             if len(stack) != 1:
                 raise ValueError("式の構文が正しくありません")
@@ -104,6 +105,7 @@ def handle_message(event):
             event.reply_token,
             TextSendMessage(text=result)
         )
+
     if text == "?おみくじを何回も引くのは犯罪ですか？":
         num = random.randint(1,3)
 
