@@ -70,6 +70,42 @@ def handle_message(event):
             event.reply_token,
             TextSendMessage(text=mess)
         )
+    if text.startswith("?RPN"):
+        N = text.split()[-1]
+        stack = []
+
+        for i in range(len(N)):
+            if N[i].isdigit():
+                stack.append(int(N[i]))
+            elif N[i] == "+":
+                add()
+            elif N[i] == "-":
+                sub()
+            elif N[i] == "*":
+                mul()
+            elif N[i] == "/":
+                div()
+
+        def add():
+            val = stack.pop()
+            stack[0] += val
+
+        def sub():
+            val = stack.pop()
+            stack[0] -= val
+
+        def mul():
+            val = stack.pop()
+            stack[0] *= val
+
+        def div():
+            val = stack.pop()
+            stack[0] //= val
+
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=stack[0])
+        )
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
