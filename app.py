@@ -22,6 +22,17 @@ def callback():
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     text = event.message.text
+    user_id = event.source.user_id  # ← ここでユーザーIDを取得
+    print("User ID:", user_id)      # Renderのログで確認可能
+
+    text = event.message.text
+    # ↓例：?userid で自分のIDを返信
+    if text == "?userid":
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=f"あなたのユーザーIDは\n{user_id}\nです。")
+        )
+        return
     if text == "?塩爺の好きな食べ物は？":
         line_bot_api.reply_message(
             event.reply_token,
