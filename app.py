@@ -154,16 +154,22 @@ def handle_message(event):
         num = random.randint(1,12)
         if num == 1:
             result = "ん…くっさぁ…♡"
-        if num == 2:
+        elif num == 2:
             result = "ほんちゃん♡♡イケメンっ///♡"
-        if num == 3:
+        elif num == 3:
             result = "ほんちゃん♡♡すっごいイケボｯｯｯ♡"
-        if num == 4:
+        elif num == 4:
             result = "ざぁこ♡ざぁこ♡"
-        if num == 5:
+        elif num == 5:
             result = "ざぁこ♡オレの勝ち♡♡何で負けたか明日までに考えといて下さい♡♡♡"
-        if num == 6:
+        elif num == 6:
             result = "ほらほら♡がんばれ♡がんばれ♡"
+        
+        if num <= 6:
+            line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=result)
+        )
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
