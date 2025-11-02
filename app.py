@@ -150,6 +150,16 @@ def handle_message(event):
             event.reply_token,
             TextSendMessage(text=result)
         )
+    if user_id == "U2fca94c4700a475955d241b2a7ed1a15":
+        num = random.randint(1,8)
+        if num == 1:
+            result = "ははっ"
+        if num == 2:
+            result = "イケメンっ///"
+        if num == 3:
+            result = "イケボｯｯｯ"
+        if num == 4:
+            result = "ふふっ"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
