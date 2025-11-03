@@ -164,7 +164,7 @@ def handle_message(event):
             result = "ざぁこ♡オレの勝ち♡♡何で負けたか明日までに考えといて下さい♡♡♡"
         elif num == 6:
             result = "ほらほら♡がんばれ♡がんばれ♡"
-        
+
         if num <= 6:
             line_bot_api.reply_message(
                 event.reply_token,
@@ -211,6 +211,12 @@ def handle_message(event):
         result = ""
         for _ in range(length):
             result += random.choice(word)
+
+            num = random.randint(1,20)
+            if num == 1 or num == 5:
+                result += "、"
+            elif num == 6:
+                result += "。"
 
         line_bot_api.reply_message(
             event.reply_token,
