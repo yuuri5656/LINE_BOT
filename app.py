@@ -4,6 +4,7 @@ from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 import random
 import os
+import psycopg2
 
 app = Flask(__name__)
 
