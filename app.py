@@ -2,6 +2,7 @@ from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
+from datetime import datetime, timezone, timedelta
 import random
 import os
 import psycopg2
@@ -31,9 +32,11 @@ def handle_message(event):
     try:
         conn = psycopg2.connect(os.environ["DATABASE_URL"])
         cur = conn.cursor()
+        JST = timezone(timedelta(hours=9))
+        jst_now = datetime.now(timezone.utc).astimezone(JST)
         cur.execute(
-            "INSERT INTO logs (line_id, message) VALUES (%s, %s)",
-            (user_id, text)
+            "INSERT INTO logs (line_id, message, sent_at) VALUES (%s, %s, %s)",
+            (user_id, text, jst_now)
         )
         conn.commit()
     except Exception as e:
