@@ -209,7 +209,7 @@ def handle_message(event):
 
         length = random.randint(200, 500)
         result = ""
-        if random.choice(True, False):
+        if random.choice([True, False]):
             for _ in range(length):
                 result += random.choice(word)
 
