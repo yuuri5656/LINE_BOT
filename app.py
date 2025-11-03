@@ -27,7 +27,15 @@ def handle_message(event):
     user_id = event.source.user_id  # ← ここでユーザーIDを取得
     print("User ID:", user_id)      # Renderのログで確認可能
 
-    text = event.message.text
+    # データベース接続
+    conn = psycopg2.connect(os.environ["DATABASE_URL"])
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO logs (line_id, message) VALUE (%s, %s)",
+        (user_id, text)
+    )
+    conn.commit()
+
     # ↓例：?userid で自分のIDを返信
     if text == "?userid":
         line_bot_api.reply_message(
