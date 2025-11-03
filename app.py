@@ -207,7 +207,7 @@ def handle_message(event):
             "おこ", "ぷん", "にっこり", "うとうと", "ぐすん", "しょぼん", "てへ", "ほっこり"
         ]
 
-        length = random.randint(30, 100)
+        length = random.randint(200, 500)
         result = ""
         for _ in range(length):
             result += random.choice(word)
