@@ -170,7 +170,7 @@ def handle_message(event):
                 event.reply_token,
                 TextSendMessage(text=result)
             )
-    if user_id == "unknown" or text == "?tyobun":
+    if user_id == "U97337d58d0553ff88495f42085dd94eb" or text == "?tyobun":
         word = ["こんにちは", "ハゲ", "こんばんは", "ございます", "です。", "よろしく", "まして", "おなら", "ほんちゃん", "シオジ", "ですよ", "ごはん"]
         length = random.randint(30, 100)
         result = ""
