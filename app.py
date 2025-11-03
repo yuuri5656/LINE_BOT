@@ -28,13 +28,20 @@ def handle_message(event):
     print("User ID:", user_id)      # Renderのログで確認可能
 
     # データベース接続
-    conn = psycopg2.connect(os.environ["DATABASE_URL"])
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO logs (line_id, message) VALUE (%s, %s)",
-        (user_id, text)
-    )
-    conn.commit()
+    try:
+        conn = psycopg2.connect(os.environ["DATABASE_URL"])
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO logs (line_id, message) VALUES (%s, %s)",
+            (user_id, text)
+        )
+        conn.commit()
+    except Exception as e:
+        print("DB Error:", e)
+    finally:
+        cur.close()
+        conn.close()
+
 
     # ↓例：?userid で自分のIDを返信
     if text == "?userid":
