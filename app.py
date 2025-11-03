@@ -41,9 +41,6 @@ def handle_message(event):
         conn.commit()
     except Exception as e:
         print("DB Error:", e)
-    finally:
-        cur.close()
-        conn.close()
 
 
     # ↓例：?userid で自分のIDを返信
@@ -242,6 +239,21 @@ def handle_message(event):
             event.reply_token,
             TextSendMessage(text=result)
         )
+    if text.startswith("?setname"):
+        my_name = "".join(text.split()[1:])
+        cur.execute("""
+            INSERT INTO users (line_id, my_name)
+            VALUES (%s, %s)
+            ON CONFLICT (line_id)
+            DO UPDATE SET my_name = EXCLUDED.my_name
+        """, (user_id, my_name))
+        conn.commit()
+
+    # データベースとの接続を切断
+    cur.close()
+    conn.close()
+
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
