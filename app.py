@@ -172,11 +172,11 @@ def handle_message(event):
             )
     if user_id == "unknown" or text == "?tyobun":
         word = ["こんにちは", "ハゲ", "こんばんは", "ございます", "です。", "よろしく", "まして", "おなら", "ほんちゃん", "シオジ", "ですよ", "ごはん"]
-        len = random.randint(30, 100)
+        length = random.randint(30, 100)
         result = ""
         for _ in range(len):
-            num = random.randint(0, len(word))
-            result + word[num]
+            num = random.randint(0, len(word)-1)
+            result += word[num]
 
         line_bot_api.reply_message(
             event.reply_token,
