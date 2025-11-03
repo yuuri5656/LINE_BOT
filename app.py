@@ -209,14 +209,15 @@ def handle_message(event):
 
         length = random.randint(200, 500)
         result = ""
-        for _ in range(length):
-            result += random.choice(word)
+        if random.choice(True, False):
+            for _ in range(length):
+                result += random.choice(word)
 
-            num = random.randint(1,20)
-            if num == 1 or num == 5:
-                result += "、"
-            elif num == 6:
-                result += "。"
+                num = random.randint(1,20)
+                if num == 1 or num == 5:
+                    result += "、"
+                elif num == 6:
+                    result += "。"
 
         line_bot_api.reply_message(
             event.reply_token,
