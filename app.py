@@ -34,9 +34,13 @@ def handle_message(event):
         cur = conn.cursor()
         JST = timezone(timedelta(hours=9))
         jst_now = datetime.now(timezone.utc).astimezone(JST)
-        cur.execute(
-            "INSERT INTO logs (line_id, message, sent_at) VALUES (%s, %s, %s)",
-            (user_id, text, jst_now)
+        cur.execute("""
+            INSERT INTO logs (line_id, message, sent_at, my_name)
+            SELECT %s, %s, %s, my_name
+            FROM users
+            WHERE line_id = %s
+            """,
+            (user_id, text, jst_now, user_id)
         )
         conn.commit()
     except Exception as e:
