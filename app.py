@@ -60,37 +60,46 @@ def handle_message(event):
             TextSendMessage(text="草ｗｗｗ")
         )
     if text == "?おみくじ":
+        messages = []
+
+        cur.execute("SELECT my_name FROM users WHERE line_id = %s", (user_id,))
+        result = cur.fetchone()
+        if result[0] != "not_set":
+            messages.append(TextSendMessage(text=result[0]+"さんの運勢は……"))
+        else:
+            messages.append(TextSendMessage(text="あなたの運勢は……"))
+
         num = random.randint(1, 8)
         if num == 1:
             mess1 = ("大吉でした")
-            mess2 = ("とても良い一日になるでしょう！")
+            mess2 = ("とても良い一日になるでしょう！……ﾊｱ羨ましい……")
         elif num == 2:
             mess1 = ("中吉でした")
-            mess2 = ("そこそこ良い一日になるでしょう")
+            mess2 = ("そこそこ良い一日になるでしょう……マアマアやなあw")
         elif num == 3:
             mess1 = ("小吉でした")
-            mess2 = ("いい感じですね！良い一日を！")
+            mess2 = ("いい感じですね！良い一日を！……微妙で草ｗ")
         elif num == 4:
             mess1 = ("吉でした")
-            mess2 = ("いいですね！良い一日を！")
+            mess2 = ("いいですね！良い一日を！……ｷﾁｯ")
         elif num == 5:
             mess1 = ("末吉でした")
-            mess2 = ("まあまあですね")
+            mess2 = ("まあまあですね……ギリギリで草ｗ")
         elif num == 6:
             mess1 = ("凶でした")
-            mess2 = ("まだいけますよ！良い一日を！")
+            mess2 = ("まだいけますよ！良い一日を！……ﾌﾟｯｗ")
         elif num == 7:
             mess1 = ("小凶でした.....残念.........")
-            mess2 = ("大丈夫です！良い一日を！")
+            mess2 = ("大丈夫です！良い一日を！……ﾄﾞﾝﾏｲｗ")
         else:
             mess1 = ("大凶でした")
-            mess2 = ("気を取り直してください！良い一日を！")
+            mess2 = ("気を取り直してください！良い一日を！……ﾀﾞｲｷｮｳﾀﾞｲｷｮｳｗｗｗ")
+
+        messages.append(TextSendMessage(text=mess1))
+        messages.append(TextSendMessage(text=mess2))
+
         line_bot_api.reply_message(
-            event.reply_token,
-            messages=[
-                TextSendMessage(text=mess1),
-                TextSendMessage(text=mess2)
-            ]
+            event.reply_token, messages
         )
     if text == "?ほんちゃんはゲイ？":
         num = random.randint(1,3)
