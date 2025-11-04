@@ -64,7 +64,7 @@ def handle_message(event):
 
         cur.execute("SELECT my_name FROM users WHERE line_id = %s", (user_id,))
         result = cur.fetchone()
-        if result[0] != "not_set":
+        if result[0] != "not_set" or result[0] != "":
             messages.append(TextSendMessage(text=result[0]+"さんの運勢は……"))
         else:
             messages.append(TextSendMessage(text="あなたの運勢は……"))
@@ -253,14 +253,25 @@ def handle_message(event):
             TextSendMessage(text=result)
         )
     if text.startswith("?setname"):
-        my_name = "".join(text.split()[1:])
-        cur.execute("""
-            INSERT INTO users (line_id, my_name)
-            VALUES (%s, %s)
-            ON CONFLICT (line_id)
-            DO UPDATE SET my_name = EXCLUDED.my_name
-        """, (user_id, my_name))
-        conn.commit()
+        if user_id != "U5631e4bcb598c6b7c59cde211bf32f27" or user_id != "U2fca94c4700a475955d241b2a7ed1a15":
+            my_name = "".join(text.split()[1:])
+            if len(my_name) <= 1 or len(my_name) >= 20:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text="名前が短すぎるか長すぎます。")
+                )
+            cur.execute("""
+                INSERT INTO users (line_id, my_name)
+                VALUES (%s, %s)
+                ON CONFLICT (line_id)
+                DO UPDATE SET my_name = EXCLUDED.my_name
+            """, (user_id, my_name))
+            conn.commit()
+        else:
+            line_bot_api.reply_message(Add restrictions to name settings
+                event.reply_token,
+                TextSendMessage(text="残念ながらあなたの名前は変えられませんｗｗｗ")
+            )
 
     # データベースとの接続を切断
     cur.close()
