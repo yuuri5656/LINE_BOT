@@ -253,7 +253,7 @@ def handle_message(event):
             TextSendMessage(text=result)
         )
     if text.startswith("?setname"):
-        if user_id != "U5631e4bcb598c6b7c59cde211bf32f27" or user_id != "U2fca94c4700a475955d241b2a7ed1a15":
+        if user_id not in ["U5631e4bcb598c6b7c59cde211bf32f27", "U2fca94c4700a475955d241b2a7ed1a15"]:
             my_name = "".join(text.split()[1:])
             if len(my_name) <= 1 or len(my_name) >= 20:
                 line_bot_api.reply_message(
@@ -268,7 +268,7 @@ def handle_message(event):
             """, (user_id, my_name))
             conn.commit()
         else:
-            line_bot_api.reply_message(Add restrictions to name settings
+            line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text="残念ながらあなたの名前は変えられませんｗｗｗ")
             )
