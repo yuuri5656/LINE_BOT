@@ -26,7 +26,8 @@ def callback():
 def handle_message(event):
     text = event.message.text
     user_id = event.source.user_id  # ← ここでユーザーIDを取得
-    print("User ID:", user_id)      # Renderのログで確認可能
+    if event.source.type == 'group':
+        group_id = event.source.group_id # グループの場合のみグループidを取得
 
     # データベース接続
     try:
@@ -62,12 +63,15 @@ def handle_message(event):
     if text == "?おみくじ":
         messages = []
 
-        cur.execute("SELECT my_name FROM users WHERE line_id = %s", (user_id,))
-        result = cur.fetchone()
-        if result[0] != "not_set" or result[0] != "":
-            messages.append(TextSendMessage(text=result[0]+"さんの運勢は……"))
-        else:
-            messages.append(TextSendMessage(text="あなたの運勢は……"))
+        # cur.execute("SELECT my_name FROM users WHERE line_id = %s", (user_id,))
+        # result = cur.fetchone()
+        # if result[0] != "not_set" or result[0] != "":
+        #     messages.append(TextSendMessage(text=result[0]+"さんの運勢は……"))
+        # else:
+        #     messages.append(TextSendMessage(text="あなたの運勢は……"))
+
+        profile = line_bot_api.get_group_member_profile(group_id, user_id)
+        messages.append(TextSendMessage(text=profile.display_name+"さんの運勢は……"))
 
         num = random.randint(1, 8)
         if num == 1:
