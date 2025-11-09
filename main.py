@@ -1,6 +1,7 @@
 from flask import Flask, request, abort
 from linebot.exceptions import InvalidSignatureError
 from core.api import handler
+import core.handler
 
 app = Flask(__name__)
 
