@@ -4,6 +4,8 @@ import config
 
 def recording_logs(event, user_id, text, display_name):
     # データベースに接続し、メッセージログを記録
+    conn = None
+    cur = None
     try:
         conn = psycopg2.connect(config.DATABASE_URL)
         cur = conn.cursor()
@@ -18,5 +20,8 @@ def recording_logs(event, user_id, text, display_name):
         conn.commit()
     except Exception as e:
         print("DB Error:", e)
-    cur.close()
-    conn.close()
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()

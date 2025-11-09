@@ -1,5 +1,11 @@
 import os
 
-LINE_CHANNEL_SECRET = os.environ['LINE_CHANNEL_SECRET']
-LINE_CHANNEL_ACCESS_TOKEN = os.environ['LINE_CHANNEL_ACCESS_TOKEN']
-DATABASE_URL = os.environ["DATABASE_URL"]
+def _get_env_or_raise(key: str) -> str:
+	val = os.environ.get(key)
+	if not val:
+		raise RuntimeError(f"Required environment variable '{key}' is not set")
+	return val
+
+LINE_CHANNEL_SECRET = _get_env_or_raise('LINE_CHANNEL_SECRET')
+LINE_CHANNEL_ACCESS_TOKEN = _get_env_or_raise('LINE_CHANNEL_ACCESS_TOKEN')
+DATABASE_URL = _get_env_or_raise('DATABASE_URL')

@@ -4,7 +4,7 @@ import config
 import random
 import psycopg2
 
-def auto_reply(event, text, user_id, group_id):
+def auto_reply(event, text, user_id, group_id, display_name):
     conn = None
     cur = None
 
@@ -29,8 +29,8 @@ def auto_reply(event, text, user_id, group_id):
         # else:
         #     messages.append(TextSendMessage(text="あなたの運勢は……"))
 
-        profile = line_bot_api.get_group_member_profile(group_id, user_id)
-        messages.append(TextSendMessage(text=profile.display_name+"さんの運勢は……"))
+        # handler already fetched profile.display_name; use it to avoid extra API calls
+        messages.append(TextSendMessage(text=display_name+"さんの運勢は……"))
 
         num = random.randint(1, 8)
         if num == 1:
@@ -163,13 +163,26 @@ def auto_reply(event, text, user_id, group_id):
                 TextSendMessage(text=result)
             )
     elif text.startswith("?setname"):
-        if user_id not in ["U5631e4bcb598c6b7c59cde211bf32f27", "U2fca94c4700a475955d241b2a7ed1a15"]:
-            my_name = "".join(text.split()[1:])
-            if len(my_name) <= 1 or len(my_name) >= 20:
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text="名前が短すぎるか長すぎます。")
-                )
+        # only allow certain users to be blocked from changing name
+        if user_id in ["U5631e4bcb598c6b7c59cde211bf32f27", "U2fca94c4700a475955d241b2a7ed1a15"]:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="残念ながらあなたの名前は変えられませんｗｗｗ")
+            )
+            return
+
+        my_name = "".join(text.split()[1:])
+        if len(my_name) <= 1 or len(my_name) >= 20:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="名前が短すぎるか長すぎます。")
+            )
+            return
+
+        # open DB connection only when we need to write
+        try:
+            conn = psycopg2.connect(config.DATABASE_URL)
+            cur = conn.cursor()
             cur.execute("""
                 INSERT INTO users (line_id, my_name)
                 VALUES (%s, %s)
@@ -177,11 +190,17 @@ def auto_reply(event, text, user_id, group_id):
                 DO UPDATE SET my_name = EXCLUDED.my_name
             """, (user_id, my_name))
             conn.commit()
-        else:
+        except Exception as e:
+            print("DB Error (setname):", e)
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="残念ながらあなたの名前は変えられませんｗｗｗ")
+                TextSendMessage(text="名前の保存中にエラーが発生しました。")
             )
+        finally:
+            if cur:
+                cur.close()
+            if conn:
+                conn.close()
 
     # データベースとの接続を切断
     if cur:

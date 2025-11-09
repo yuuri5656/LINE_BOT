@@ -17,4 +17,4 @@ def on_message(event):
     display_name = profile.display_name
 
     recording_logs(event, user_id, text, display_name)
-    auto_reply(event, text, user_id, group_id)
+    auto_reply(event, text, user_id, group_id, display_name)
