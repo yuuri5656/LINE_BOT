@@ -5,7 +5,7 @@ from apps.recording_logs import recording_logs
 
 @handler.add(MessageEvent, message=TextMessage)
 def on_message(event):
-    print("イベント受信:", event.message.text) # ログに受信メッセージを表示
+    # print("イベント受信:", event.message.text) # ログに受信メッセージを表示
     text = event.message.text # メッセージのテキストを取得
     user_id = event.source.user_id  # ユーザーIDを取得
     group_id = None
