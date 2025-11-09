@@ -1,21 +1,22 @@
 import psycopg2
 from datetime import datetime, timezone, timedelta
+import config
 
-# データベースに接続し、メッセージログを記録
-def recording_log(user_id, text):
+def recording_logs(event, user_id, text, display_name):
+    # データベースに接続し、メッセージログを記録
     try:
-        conn = psycopg2.connect(os.environ["DATABASE_URL"])
+        conn = psycopg2.connect(config.DATABASE_URL)
         cur = conn.cursor()
         JST = timezone(timedelta(hours=9))
         jst_now = datetime.now(timezone.utc).astimezone(JST)
         cur.execute("""
-            INSERT INTO logs (line_id, message, sent_at, my_name)
-            SELECT %s, %s, %s, my_name
-            FROM users
-            WHERE line_id = %s
+            INSERT INTO logs (user_id, message, sent_at, display_name)
+            VALUES (%s, %s, %s, %s)
             """,
-            (user_id, text, jst_now, user_id)
+            (user_id, text, jst_now, display_name)
         )
         conn.commit()
     except Exception as e:
         print("DB Error:", e)
+    cur.close()
+    conn.close()
