@@ -7,6 +7,7 @@ import psycopg2
 def auto_reply(event, text, user_id, group_id, display_name):
     conn = None
     cur = None
+    state = sessions.get(user_id)
 
     if text == "?userid":
         line_bot_api.reply_message(
@@ -201,6 +202,25 @@ def auto_reply(event, text, user_id, group_id, display_name):
                 cur.close()
             if conn:
                 conn.close()
+
+    elif text == "?じゃんけん":
+        messages = []
+        sessions[user_id] = "waiting_for_hand"
+        messages.append(TextSendMessage("最初はグー！じゃんけん……"))
+    elif state == "waiting_for_hand":
+        if text == ["グー", "ぐー", "チョキ", "ちょき", "パー", "ぱー"]:
+            hand = {"ぐー": "グー", "ちょき": "チョキ", "ぱー": "パー"}.get(text, text)
+            win_hand = {"グー": "パー", "チョキ": "グー", "パー": "チョキ"}[hand]
+            messages.append(TextSendMessage(f"ﾎﾟﾝｯｯ!{win_hand}\n俺の勝ち!俺の勝ち!"))
+            messages.append(TextSendMessage("何で負けたか明日までに考えといてください。\nそしたら何かが見えてくるはずです。"))
+            messages.append(TextSendMessage("ほな、いただきます。"))
+        else:
+            messages.append(TextSendMessage("逃げるな卑怯者！！！じゃんけんから逃げるなーーー！！！"))
+            sessions.pop(user_id, None)
+        sessions.pop(user_id, None)
+    line_bot_api.reply_message(
+        event.reply_token, messages
+    )
 
     # データベースとの接続を切断
     if cur:
