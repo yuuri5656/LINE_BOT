@@ -4,7 +4,7 @@ import config
 import random
 import psycopg2
 
-def auto_reply(event, text, user_id, group_id, display_name):
+def auto_reply(event, text, user_id, group_id, display_name, sessions):
     conn = None
     cur = None
     state = sessions.get(user_id)
