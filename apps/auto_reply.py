@@ -1,5 +1,5 @@
 from core.api import handler, line_bot_api
-from linebot.models import MessageEvent, TextMessage, TextSendMessage
+from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
 import config
 import random
 import psycopg2
@@ -223,6 +223,10 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             messages.append(TextSendMessage(text=f"ﾎﾟﾝｯｯ!{win_hand}\n俺の勝ち!俺の勝ち!"))
             messages.append(TextSendMessage(text="何で負けたか明日までに考えといてください。\nそしたら何かが見えてくるはずです。"))
             messages.append(TextSendMessage(text="ほな、いただきます。"))
+            messages.append(ImageSendMessage(
+                original_content_url='https://i.imgur.com/HV1x5vV.png',
+                preview_image_url='https://i.imgur.com/HV1x5vV.png'
+            ))
         else:
             messages.append(TextSendMessage(text="逃げるな卑怯者！！！じゃんけんから逃げるなーーー！！！"))
 
@@ -230,10 +234,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         sessions.pop(user_id, None)
 
         # 応答を送信
-        line_bot_api.reply_message(
-            event.reply_token,
-            messages
-        )
+        line_bot_api.reply_message(event.reply_token, messages)
         return
 
     # データベースとの接続を切断
