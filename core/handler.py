@@ -2,6 +2,7 @@ from linebot.models import MessageEvent, TextMessage
 from .api import handler, line_bot_api
 from apps.auto_reply import auto_reply
 from apps.recording_logs import recording_logs
+from sessions import sessions
 
 @handler.add(MessageEvent, message=TextMessage)
 def on_message(event):
@@ -18,4 +19,4 @@ def on_message(event):
     display_name = profile.display_name
 
     recording_logs(event, user_id, text, display_name)
-    auto_reply(event, text, user_id, group_id, display_name)
+    auto_reply(event, text, user_id, group_id, display_name, sessions)
