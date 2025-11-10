@@ -2,7 +2,7 @@ from linebot.models import MessageEvent, TextMessage
 from .api import handler, line_bot_api
 from apps.auto_reply import auto_reply
 from apps.recording_logs import recording_logs
-from sessions import sessions
+from core.sessions import sessions
 
 @handler.add(MessageEvent, message=TextMessage)
 def on_message(event):
