@@ -143,26 +143,26 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             event.reply_token,
             TextSendMessage(text=result)
         )
-    elif user_id == "U2fca94c4700a475955d241b2a7ed1a15" or text == "?mesugaki":
-        num = random.randint(1,12)
-        if num == 1:
-            result = "ん…くっさぁ…♡"
-        elif num == 2:
-            result = "ほんちゃん♡♡イケメンっ///♡"
-        elif num == 3:
-            result = "ほんちゃん♡♡すっごいイケボｯｯｯ♡"
-        elif num == 4:
-            result = "ざぁこ♡ざぁこ♡"
-        elif num == 5:
-            result = "ざぁこ♡オレの勝ち♡♡何で負けたか明日までに考えといて下さい♡♡♡"
-        elif num == 6:
-            result = "ほらほら♡がんばれ♡がんばれ♡"
+    # elif user_id == "U2fca94c4700a475955d241b2a7ed1a15" or text == "?mesugaki":
+    #     num = random.randint(1,12)
+    #     if num == 1:
+    #         result = "ん…くっさぁ…♡"
+    #     elif num == 2:
+    #         result = "ほんちゃん♡♡イケメンっ///♡"
+    #     elif num == 3:
+    #         result = "ほんちゃん♡♡すっごいイケボｯｯｯ♡"
+    #     elif num == 4:
+    #         result = "ざぁこ♡ざぁこ♡"
+    #     elif num == 5:
+    #         result = "ざぁこ♡オレの勝ち♡♡何で負けたか明日までに考えといて下さい♡♡♡"
+    #     elif num == 6:
+    #         result = "ほらほら♡がんばれ♡がんばれ♡"
 
-        if num <= 6:
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=result)
-            )
+    #     if num <= 6:
+    #         line_bot_api.reply_message(
+    #             event.reply_token,
+    #             TextSendMessage(text=result)
+    #         )
     elif text.startswith("?setname"):
         # only allow certain users to be blocked from changing name
         if user_id in ["U5631e4bcb598c6b7c59cde211bf32f27", "U2fca94c4700a475955d241b2a7ed1a15"]:
