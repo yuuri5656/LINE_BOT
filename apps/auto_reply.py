@@ -215,8 +215,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
 
     elif state == "waiting_for_hand":
         messages = []
-        valid_hands = ["グー", "ぐー", "チョキ", "ちょき", "パー", "ぱー"]
-        if text in valid_hands:
+        if text in ["グー", "ぐー", "チョキ", "ちょき", "パー", "ぱー"]:
             # 入力を標準形に変換
             hand = {"ぐー": "グー", "ちょき": "チョキ", "ぱー": "パー"}.get(text, text)
             # 必ず勝つ手を選ぶ
@@ -226,10 +225,10 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             messages.append(TextSendMessage(text="ほな、いただきます。"))
         else:
             messages.append(TextSendMessage(text="逃げるな卑怯者！！！じゃんけんから逃げるなーーー！！！"))
-        
+
         # セッション状態をクリア
         sessions.pop(user_id, None)
-        
+
         # 応答を送信
         line_bot_api.reply_message(
             event.reply_token,
