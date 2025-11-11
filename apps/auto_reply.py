@@ -3,11 +3,18 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSend
 import config
 import random
 import psycopg2
+from apps.minigame.bank_reception import bank_reception
 
 def auto_reply(event, text, user_id, group_id, display_name, sessions):
     conn = None
     cur = None
     state = sessions.get(user_id)
+
+    # ユーザーチャット（グループチャットではない）での"?口座開設"メッセージを処理
+    if text == "?口座開設" or (isinstance(state, dict) and state.get("step")):
+        if event.source.type == 'user':  # ユーザーチャットのみ対応
+            bank_reception(event, text, user_id, display_name, sessions)
+            return
 
     if text == "?userid":
         line_bot_api.reply_message(
