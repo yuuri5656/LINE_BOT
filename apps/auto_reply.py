@@ -42,11 +42,11 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         if not weekday_num >= 5:
             messages.append(TextSendMessage(text=f"明日、{tomorrow.month}月{tomorrow.day}日{weekday_jp}曜日のC組の時間割は以下の通り。"))
             for i in range(len(subject[weekday_num])):
-                subject_message += f"{i+1}時間目: {subject[weekday_num][i]}\n"
-        else:
-            messages.append(TextSendMessage(text=f"明日、{tomorrow.month}月{tomorrow.day}日{weekday_jp}曜日は学校がありません。"))
+            subject_message += f"{i+1}時間目: {subject[weekday_num][i]}\n"
         subject_message = subject_message.strip()
         messages.append(TextSendMessage(text=subject_message))
+        else:
+            messages.append(TextSendMessage(text=f"明日、{tomorrow.month}月{tomorrow.day}日{weekday_jp}曜日は学校がありません。"))
         messages.append(TextSendMessage(text="※この時間割はあくまで予定であり、実際の時間割とは異なる場合があります。"))
         line_bot_api.reply_message(event.reply_token, messages)
         return
