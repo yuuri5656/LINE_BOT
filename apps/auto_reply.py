@@ -5,7 +5,7 @@ import random
 import psycopg2
 from apps.minigame.bank_reception import bank_reception
 from datetime import datetime, timedelta
-from zoneinfo import Zoneinfo
+from zoneinfo import ZoneInfo
 
 def auto_reply(event, text, user_id, group_id, display_name, sessions):
     conn = None
