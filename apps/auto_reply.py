@@ -4,13 +4,14 @@ import config
 import random
 import psycopg2
 from apps.minigame.bank_reception import bank_reception
+import datetime
 
 def auto_reply(event, text, user_id, group_id, display_name, sessions):
     conn = None
     cur = None
     state = sessions.get(user_id)
 
-    # ユーザーチャット（グループチャットではない）での"?口座開設"メッセージを処理
+    # ユーザーチャットでの"?口座開設"メッセージを処理
     if text == "?口座開設" or (isinstance(state, dict) and state.get("step")):
         if event.source.type == 'user':  # ユーザーチャットのみ対応
             bank_reception(event, text, user_id, display_name, sessions)
@@ -21,6 +22,19 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             event.reply_token,
             TextSendMessage(text=f"あなたのユーザーIDは\n{user_id}\nです。")
         )
+        return
+    elif text == "?明日の時間割":
+        today = datetime.date.today()
+        tomorrow = today + datetime.timedelta(days=1)
+        weekday_num = tomorrow.weekday()
+        weekday_jp = ["月", "火", "水", "木", "金", "土", "日"][weekday_num]
+        subject = [
+            ["学活", "音楽", "英語", "社会", "美術", "総合"],
+            ["英語", "理科", "国語", "社会", "数学", "保体"],
+            ["数学", "理科", "技術•家庭", "国語", "道徳"],
+            ["保体", "英語", "", "", "", ""],
+            ["", "", "", "", "", ""]
+        ]
         return
     elif text == "?塩爺の好きな食べ物は？":
         line_bot_api.reply_message(
