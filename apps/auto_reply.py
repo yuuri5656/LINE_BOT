@@ -4,7 +4,8 @@ import config
 import random
 import psycopg2
 from apps.minigame.bank_reception import bank_reception
-import datetime
+from datetime import datetime, timedelta
+from zoneinfo import Zoneinfo
 
 def auto_reply(event, text, user_id, group_id, display_name, sessions):
     conn = None
@@ -26,7 +27,8 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
     elif text == "?明日の時間割":
         messages = []
         subject_message = ""
-        today = datetime.date.today()
+        now = datetime.now(ZoneInfo("Asia/Tokyo"))
+        today = now.date()
         tomorrow = today + datetime.timedelta(days=1)
         weekday_num = tomorrow.weekday()
         weekday_jp = ["月", "火", "水", "木", "金", "土", "日"][weekday_num]
@@ -43,8 +45,9 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
                 subject_message += f"{i+1}時間目: {subject[weekday_num][i]}\n"
         else:
             messages.append(TextSendMessage(text=f"明日、{tomorrow.month}月{tomorrow.day}日{weekday_jp}曜日は学校がありません。"))
+        subject_message = subject_message.strip()
         messages.append(TextSendMessage(text=subject_message))
-        messages.append(TextSendMessage(text="※注意:この時間割はあくまで予定であり、実際の時間割とは異なる場合があります。\nより正確な時間割は各自の忘れないぞう等を参照する様にして下さい。"))
+        messages.append(TextSendMessage(text="※この時間割はあくまで予定であり、実際の時間割とは異なる場合があります。"))
         line_bot_api.reply_message(event.reply_token, messages)
         return
     elif text == "?塩爺の好きな食べ物は？":
