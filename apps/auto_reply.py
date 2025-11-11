@@ -29,7 +29,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         subject_message = ""
         now = datetime.now(ZoneInfo("Asia/Tokyo"))
         today = now.date()
-        tomorrow = today + datetime.timedelta(days=1)
+        tomorrow = today + timedelta(days=1)
         weekday_num = tomorrow.weekday()
         weekday_jp = ["月", "火", "水", "木", "金", "土", "日"][weekday_num]
         subject = [
