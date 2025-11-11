@@ -64,9 +64,9 @@ def create_account(event, account_info, sessions, user_id):
         # ここでDB操作を実行する前に、クライアントに確認メッセージを送信
         messages = []
         messages.append(TextSendMessage(
-            text=f"{display_name}様、ご登録ありがとうございます。\n\n"
+            text=f"{display_name} 様、ご登録ありがとうございます。\n\n"
                 f"以下の内容で口座を開設いたします：\n"
-                f"- お名前: {account_info.get('full_name')}様\n"
+                f"- お名前: {account_info.get('full_name')} 様\n"
                 f"- 生年月日: {account_info.get('birth_date')}\n"
                 f"- 口座種別: {account_info.get('account_type')}"
         ))

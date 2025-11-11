@@ -39,7 +39,7 @@ def bank_reception(event, text, user_id, display_name, sessions):
         sessions[user_id] = {"step": 1}
         line_bot_api.reply_message(
             event.reply_token,
-            [TextSendMessage(text=f"{display_name}様、口座開設のご依頼を承りました。\nただいまから手続きを進めてまいりますので、以下の質問にお答えください。\nまた、手続き中は'?戻る'と入力することで、前の質問に戻ることができます。"),
+            [TextSendMessage(text=f"{display_name} 様、口座開設のご依頼を承りました。\nただいまから手続きを進めてまいりますので、以下の質問にお答えください。\nまた、手続き中は'?戻る'と入力することで、前の質問に戻ることができます。"),
             TextSendMessage(text="まず、ご自身のフルネームを教えてください。\nまた、苗字と名前の間には半角スペースを挿入してください。(例:本田 春輝)")]
         )
         return
@@ -56,7 +56,7 @@ def bank_reception(event, text, user_id, display_name, sessions):
                 sessions[user_id]["full_name"] = full_name
                 sessions[user_id]["step"] = 2
 
-            messages.append(TextSendMessage(text=f"{display_name}様、ありがとうございます。\n「{full_name + "様"}」で登録させて頂きます。"))
+            messages.append(TextSendMessage(text=f"{display_name} 様、ありがとうございます。\n「{full_name} 様」で登録させて頂きます。"))
             messages.append(TextSendMessage(text="次に、ご自身の生年月日を「YYYY-MM-DD」の形式で教えてください。(例:2011-03-25)"))
             line_bot_api.reply_message(
                 event.reply_token,
@@ -77,7 +77,7 @@ def bank_reception(event, text, user_id, display_name, sessions):
             sessions[user_id]["birth_date"] = birth_date_str
             sessions[user_id]["step"] = 3
 
-            messages.append(TextSendMessage(text=f"{display_name}様、生年月日のご提供ありがとうございます。「{birth_date_str}」で登録させて頂きます。"))
+            messages.append(TextSendMessage(text=f"{display_name} 様、生年月日のご提供ありがとうございます。「{birth_date_str}」で登録させて頂きます。"))
             messages.append(TextSendMessage(text="次に、ご自身の希望する口座種別を、普通預金・当座預金・定期預金からお選び下さい。"))
             line_bot_api.reply_message(
                 event.reply_token,
@@ -99,7 +99,7 @@ def bank_reception(event, text, user_id, display_name, sessions):
 
             line_bot_api.reply_message(
                 event.reply_token,
-                [TextSendMessage(text=f"{display_name}様、口座種別「{account_type}」で承りました。"),
+                [TextSendMessage(text=f"{display_name} 様、口座種別「{account_type}」で承りました。"),
                 TextSendMessage(text="最後に、4桁の暗証番号を設定してください。(例:1234)\nまた、セキュリティの観点から、ご自身の誕生日や連続した数字、同じ数字の繰り返しは避けてください.")]
             )
         else:
