@@ -24,6 +24,8 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         )
         return
     elif text == "?明日の時間割":
+        messages = []
+        subject_message = ""
         today = datetime.date.today()
         tomorrow = today + datetime.timedelta(days=1)
         weekday_num = tomorrow.weekday()
@@ -33,14 +35,21 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             ["英語", "理科", "国語", "社会", "数学", "保体"],
             ["数学", "理科", "技術•家庭", "国語", "道徳"],
             ["保体", "英語", "理科", "国語", "数学", "社会"],
-            ["", "", "", "", "", ""]
+            ["英語", "数学", "社会", "保体", "理科", "総合"]
         ]
+        messages.append(TextSendMessage(text=f"明日、{tomorrow.month()}月{tmorrow.day()}日{weekday_jp}曜日の時間割は以下の通り。"))
+        for i in range(len(subject[weekday_num])):
+            subject_message += f"\n{i}時間目: {subject[weekday_num][i]}"
+        message.strip()
+        messages.append(TextSendMessage(text=subject_message))
+        line_bot_api.reply_message(event.reply_token, messages)
         return
     elif text == "?塩爺の好きな食べ物は？":
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text="草ｗｗｗ")
         )
+        return
     elif text == "?おみくじ":
         messages = []
 
