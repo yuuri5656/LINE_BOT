@@ -52,10 +52,10 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             ["保体", "英語", "理科", "国語", "数学", "社会"],
             ["英語", "数学", "社会", "保体", "理科", "総合"]
         ]
-        if not weekday_num >= 5:
+        if weekday_num < 5:
             messages.append(TextSendMessage(text=f"明日、{tomorrow.month}月{tomorrow.day}日{weekday_jp}曜日のC組の時間割は以下の通り。"))
             for i in range(len(subject[weekday_num])):
-            subject_message += f"{i+1}時間目: {subject[weekday_num][i]}\n"
+                subject_message += f"{i+1}時間目: {subject[weekday_num][i]}\n"
         subject_message = subject_message.strip()
         messages.append(TextSendMessage(text=subject_message))
         else:
@@ -71,8 +71,8 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         return
     elif text == "?おみくじ":
         conn = psycopg2.connect(config.DATABASE_URL)
+　　　　　messages =  []
         if not check_message_today(conn, user_id, text):
-            messages = []
             messages.append(TextSendMessage(text=display_name+"さんの運勢は……"))
             num = random.randint(1, 8)
             if num == 1:
