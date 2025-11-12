@@ -7,6 +7,19 @@ from apps.minigame.bank_reception import bank_reception
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+def check_message_today(conn, user_id, text):
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM logs
+                WHERE user_id = %s
+                  AND message = %s
+                  AND sented_at AT TIME ZONE 'Asia/Tokyo'::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Tokyo')::date
+            )
+        """, (user_id, text))
+        return cur.fetchone()[0]
+
 def auto_reply(event, text, user_id, group_id, display_name, sessions):
     conn = None
     cur = None
@@ -57,50 +70,42 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         )
         return
     elif text == "?おみくじ":
-        messages = []
-
-        # cur.execute("SELECT my_name FROM users WHERE line_id = %s", (user_id,))
-        # result = cur.fetchone()
-        # if result[0] != "not_set" or result[0] != "":
-        #     messages.append(TextSendMessage(text=result[0]+"さんの運勢は……"))
-        # else:
-        #     messages.append(TextSendMessage(text="あなたの運勢は……"))
-
-        # handler already fetched profile.display_name; use it to avoid extra API calls
-        messages.append(TextSendMessage(text=display_name+"さんの運勢は……"))
-
-        num = random.randint(1, 8)
-        if num == 1:
-            mess1 = ("大吉でした")
-            mess2 = ("とても良い一日になるでしょう！……ﾊｱ羨ましい……")
-        elif num == 2:
-            mess1 = ("中吉でした")
-            mess2 = ("そこそこ良い一日になるでしょう……マアマアやなあw")
-        elif num == 3:
-            mess1 = ("小吉でした")
-            mess2 = ("いい感じですね！良い一日を！……微妙で草ｗ")
-        elif num == 4:
-            mess1 = ("吉でした")
-            mess2 = ("いいですね！良い一日を！……ｷﾁｯ")
-        elif num == 5:
-            mess1 = ("末吉でした")
-            mess2 = ("まあまあですね……ギリギリで草ｗ")
-        elif num == 6:
-            mess1 = ("凶でした")
-            mess2 = ("まだいけますよ！良い一日を！……ﾌﾟｯｗ")
-        elif num == 7:
-            mess1 = ("小凶でした.....残念.........")
-            mess2 = ("大丈夫です！良い一日を！……ﾄﾞﾝﾏｲｗ")
+        conn = psycopg2.connect(config.DATABASE_URL)
+        if not check_message_today(conn, user_id, text):
+            messages = []
+            messages.append(TextSendMessage(text=display_name+"さんの運勢は……"))
+            num = random.randint(1, 8)
+            if num == 1:
+                mess1 = ("大吉でした")
+                mess2 = ("とても良い一日になるでしょう！……ﾊｱ羨ましい……")
+            elif num == 2:
+                mess1 = ("中吉でした")
+                mess2 = ("そこそこ良い一日になるでしょう……マアマアやなあw")
+            elif num == 3:
+                mess1 = ("小吉でした")
+                mess2 = ("いい感じですね！良い一日を！……微妙で草ｗ")
+            elif num == 4:
+                mess1 = ("吉でした")
+                mess2 = ("いいですね！良い一日を！……ｷﾁｯ")
+            elif num == 5:
+                mess1 = ("末吉でした")
+                mess2 = ("まあまあですね……ギリギリで草ｗ")
+            elif num == 6:
+                mess1 = ("凶でした")
+                mess2 = ("まだいけますよ！良い一日を！……ﾌﾟｯｗ")
+            elif num == 7:
+                mess1 = ("小凶でした.....残念.........")
+                mess2 = ("大丈夫です！良い一日を！……ﾄﾞﾝﾏｲｗ")
+            else:
+                mess1 = ("大凶でした")
+                mess2 = ("気を取り直してください！良い一日を！……ﾀﾞｲｷｮｳﾀﾞｲｷｮｳｗｗｗ")
+            messages.append(TextSendMessage(text=mess1))
+            messages.append(TextSendMessage(text=mess2))
         else:
-            mess1 = ("大凶でした")
-            mess2 = ("気を取り直してください！良い一日を！……ﾀﾞｲｷｮｳﾀﾞｲｷｮｳｗｗｗ")
+            messages.append(TextSendMessage(text="御神籤は一日に一度迄です。\n許されるのは塩路様だけです。"))
 
-        messages.append(TextSendMessage(text=mess1))
-        messages.append(TextSendMessage(text=mess2))
-
-        line_bot_api.reply_message(
-            event.reply_token, messages
-        )
+        line_bot_api.reply_message(event.reply_token, messages)
+        return
     elif text == "?ほんちゃんはゲイ？":
         num = random.randint(1,3)
         if num == 1 or num == 2:
