@@ -76,7 +76,7 @@ def bank_reception(event, text, user_id, display_name, sessions):
 
             messages.append(TextSendMessage(text=f"{display_name} 様、生年月日のご提供ありがとうございます。「{birth_date_str}」で登録させて頂きます。"))
             messages.append(TextSendMessage(text="次に、ご自身の希望する支店を以下から支店名でお選び下さい。\n※どの支店を選んで頂いてもご利用に影響はございません。"))
-            messages.append(TextSendMessage(text="支店名　　　　支店番号\n塩路支店　　　001\nメガネ支店　　002\nバナナ支店　　003\nボラ部支店　　004\nゴリラ支店　　005\nマッコリ支店　006\nビースト支店　810")
+            messages.append(TextSendMessage(text="支店名　　　　支店番号\n塩路支店　　　001\nメガネ支店　　002\nバナナ支店　　003\nボラ部支店　　004\nゴリラ支店　　005\nマッコリ支店　006\nビースト支店　810"))
             # messages.append(TextSendMessage(text="次に、ご自身の希望する口座種別を、普通預金・定期預金からお選び下さい。"))
             line_bot_api.reply_message(
                 event.reply_token,
