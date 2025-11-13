@@ -56,8 +56,8 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             messages.append(TextSendMessage(text=f"明日、{tomorrow.month}月{tomorrow.day}日{weekday_jp}曜日のC組の時間割は以下の通り。"))
             for i in range(len(subject[weekday_num])):
                 subject_message += f"{i+1}時間目: {subject[weekday_num][i]}\n"
-        subject_message = subject_message.strip()
-        messages.append(TextSendMessage(text=subject_message))
+            subject_message = subject_message.strip()
+            messages.append(TextSendMessage(text=subject_message))
         else:
             messages.append(TextSendMessage(text=f"明日、{tomorrow.month}月{tomorrow.day}日{weekday_jp}曜日は学校がありません。"))
         messages.append(TextSendMessage(text="※この時間割はあくまで予定であり、実際の時間割とは異なる場合があります。"))
@@ -71,7 +71,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         return
     elif text == "?おみくじ":
         conn = psycopg2.connect(config.DATABASE_URL)
-　　　　　messages =  []
+        messages = []
         if not check_message_today(conn, user_id, text):
             messages.append(TextSendMessage(text=display_name+"さんの運勢は……"))
             num = random.randint(1, 8)
@@ -105,6 +105,8 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             messages.append(TextSendMessage(text="御神籤は一日に一度迄です。\n許されるのは塩路様だけです。"))
 
         line_bot_api.reply_message(event.reply_token, messages)
+        if conn:
+            conn.close()
         return
     elif text == "?ほんちゃんはゲイ？":
         num = random.randint(1,3)
@@ -116,6 +118,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             event.reply_token,
             TextSendMessage(text=mess)
         )
+        return
     elif text.startswith("?RPN"):
         tokens = text.split()[1:]  # "?RPN"の後ろの部分
         stack = []
