@@ -198,6 +198,12 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
                 DO UPDATE SET my_name = EXCLUDED.my_name
             """, (user_id, my_name))
             conn.commit()
+            # 確認メッセージを送信してユーザーに保存成功を通知
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="名前を保存しました。")
+            )
+            return
         except Exception as e:
             print("DB Error (setname):", e)
             line_bot_api.reply_message(
