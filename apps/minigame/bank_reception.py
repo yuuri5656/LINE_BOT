@@ -92,7 +92,7 @@ def bank_reception(event, text, user_id, display_name, sessions):
         messages= []
         branche_name = text.strip()
         valid_branchs = {"塩路支店": "001", "メガネ支店": "002","バナナ支店": "003", "ボラ部支店": "004", "ゴリラ支店": "005", "マッコリ支店": "006", "ビースト支店": "810"}
-        brancge_num = valid_branches[branche_name]
+        branche_num = valid_branches[branche_name]
         if branche_name in list(valid_branches.keys()):
             sessions[user_id]["branche_num"] = branche_num
             sessions[user_id]["step"] = 4
