@@ -4,13 +4,28 @@ import config
 import random
 import psycopg2
 from apps.minigame.bank_reception import bank_reception
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+def check_message_today(conn, user_id, text):
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM logs
+                WHERE user_id = %s
+                  AND message = %s
+                  AND sented_at AT TIME ZONE 'Asia/Tokyo'::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Tokyo')::date
+            )
+        """, (user_id, text))
+        return cur.fetchone()[0]
 
 def auto_reply(event, text, user_id, group_id, display_name, sessions):
     conn = None
     cur = None
     state = sessions.get(user_id)
 
-    # ユーザーチャット（グループチャットではない）での"?口座開設"メッセージを処理
+    # ユーザーチャットでの"?口座開設"メッセージを処理
     if text == "?口座開設" or (isinstance(state, dict) and state.get("step")):
         if event.source.type == 'user':  # ユーザーチャットのみ対応
             bank_reception(event, text, user_id, display_name, sessions)
@@ -22,56 +37,75 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             TextSendMessage(text=f"あなたのユーザーIDは\n{user_id}\nです。")
         )
         return
+    elif text == "?明日の時間割":
+        messages = []
+        subject_message = ""
+        now = datetime.now(ZoneInfo("Asia/Tokyo"))
+        today = now.date()
+        tomorrow = today + timedelta(days=1)
+        weekday_num = tomorrow.weekday()
+        weekday_jp = ["月", "火", "水", "木", "金", "土", "日"][weekday_num]
+        subject = [
+            ["学活", "音楽", "英語", "社会", "美術", "総合"],
+            ["英語", "理科", "国語", "社会", "数学", "保体"],
+            ["数学", "理科", "技術•家庭", "国語", "道徳"],
+            ["保体", "英語", "理科", "国語", "数学", "社会"],
+            ["英語", "数学", "社会", "保体", "理科", "総合"]
+        ]
+        if weekday_num < 5:
+            messages.append(TextSendMessage(text=f"明日、{tomorrow.month}月{tomorrow.day}日{weekday_jp}曜日のC組の時間割は以下の通り。"))
+            for i in range(len(subject[weekday_num])):
+                subject_message += f"{i+1}時間目: {subject[weekday_num][i]}\n"
+        subject_message = subject_message.strip()
+        messages.append(TextSendMessage(text=subject_message))
+        else:
+            messages.append(TextSendMessage(text=f"明日、{tomorrow.month}月{tomorrow.day}日{weekday_jp}曜日は学校がありません。"))
+        messages.append(TextSendMessage(text="※この時間割はあくまで予定であり、実際の時間割とは異なる場合があります。"))
+        line_bot_api.reply_message(event.reply_token, messages)
+        return
     elif text == "?塩爺の好きな食べ物は？":
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text="草ｗｗｗ")
         )
+        return
     elif text == "?おみくじ":
-        messages = []
-
-        # cur.execute("SELECT my_name FROM users WHERE line_id = %s", (user_id,))
-        # result = cur.fetchone()
-        # if result[0] != "not_set" or result[0] != "":
-        #     messages.append(TextSendMessage(text=result[0]+"さんの運勢は……"))
-        # else:
-        #     messages.append(TextSendMessage(text="あなたの運勢は……"))
-
-        # handler already fetched profile.display_name; use it to avoid extra API calls
-        messages.append(TextSendMessage(text=display_name+"さんの運勢は……"))
-
-        num = random.randint(1, 8)
-        if num == 1:
-            mess1 = ("大吉でした")
-            mess2 = ("とても良い一日になるでしょう！……ﾊｱ羨ましい……")
-        elif num == 2:
-            mess1 = ("中吉でした")
-            mess2 = ("そこそこ良い一日になるでしょう……マアマアやなあw")
-        elif num == 3:
-            mess1 = ("小吉でした")
-            mess2 = ("いい感じですね！良い一日を！……微妙で草ｗ")
-        elif num == 4:
-            mess1 = ("吉でした")
-            mess2 = ("いいですね！良い一日を！……ｷﾁｯ")
-        elif num == 5:
-            mess1 = ("末吉でした")
-            mess2 = ("まあまあですね……ギリギリで草ｗ")
-        elif num == 6:
-            mess1 = ("凶でした")
-            mess2 = ("まだいけますよ！良い一日を！……ﾌﾟｯｗ")
-        elif num == 7:
-            mess1 = ("小凶でした.....残念.........")
-            mess2 = ("大丈夫です！良い一日を！……ﾄﾞﾝﾏｲｗ")
+        conn = psycopg2.connect(config.DATABASE_URL)
+　　　　　messages =  []
+        if not check_message_today(conn, user_id, text):
+            messages.append(TextSendMessage(text=display_name+"さんの運勢は……"))
+            num = random.randint(1, 8)
+            if num == 1:
+                mess1 = ("大吉でした")
+                mess2 = ("とても良い一日になるでしょう！……ﾊｱ羨ましい……")
+            elif num == 2:
+                mess1 = ("中吉でした")
+                mess2 = ("そこそこ良い一日になるでしょう……マアマアやなあw")
+            elif num == 3:
+                mess1 = ("小吉でした")
+                mess2 = ("いい感じですね！良い一日を！……微妙で草ｗ")
+            elif num == 4:
+                mess1 = ("吉でした")
+                mess2 = ("いいですね！良い一日を！……ｷﾁｯ")
+            elif num == 5:
+                mess1 = ("末吉でした")
+                mess2 = ("まあまあですね……ギリギリで草ｗ")
+            elif num == 6:
+                mess1 = ("凶でした")
+                mess2 = ("まだいけますよ！良い一日を！……ﾌﾟｯｗ")
+            elif num == 7:
+                mess1 = ("小凶でした.....残念.........")
+                mess2 = ("大丈夫です！良い一日を！……ﾄﾞﾝﾏｲｗ")
+            else:
+                mess1 = ("大凶でした")
+                mess2 = ("気を取り直してください！良い一日を！……ﾀﾞｲｷｮｳﾀﾞｲｷｮｳｗｗｗ")
+            messages.append(TextSendMessage(text=mess1))
+            messages.append(TextSendMessage(text=mess2))
         else:
-            mess1 = ("大凶でした")
-            mess2 = ("気を取り直してください！良い一日を！……ﾀﾞｲｷｮｳﾀﾞｲｷｮｳｗｗｗ")
+            messages.append(TextSendMessage(text="御神籤は一日に一度迄です。\n許されるのは塩路様だけです。"))
 
-        messages.append(TextSendMessage(text=mess1))
-        messages.append(TextSendMessage(text=mess2))
-
-        line_bot_api.reply_message(
-            event.reply_token, messages
-        )
+        line_bot_api.reply_message(event.reply_token, messages)
+        return
     elif text == "?ほんちゃんはゲイ？":
         num = random.randint(1,3)
         if num == 1 or num == 2:
