@@ -15,7 +15,7 @@ def check_message_today(conn, user_id, text):
                 FROM logs
                 WHERE user_id = %s
                 AND message = %s
-                AND (sented_at AT TIME ZONE 'Asia/Tokyo')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Tokyo')::date
+                AND (sent_at AT TIME ZONE 'Asia/Tokyo')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Tokyo')::date
             )
         """, (user_id, text))
         return cur.fetchone()[0]
