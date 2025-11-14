@@ -50,15 +50,15 @@ def create_account(event, account_info, sessions, user_id):
 
         # 日本語の口座種別を DB の ENUM 用に英語にマッピング
         account_type_mapping = {
-            "普通預金": "savings",
-            "当座預金": "checking",
-            "定期預金": "time_deposit"
+            "普通預金": "ordinary",
+            # "当座預金": "checking",
+            "定期預金": "time"
         }
 
         account_type_en = account_type_mapping.get(account_info.get('account_type'))
         if account_type_en is None:
-            # 予期しない値が来た場合はデフォルトを 'savings' にする
-            account_type_en = 'savings'
+            # 予期しない値が来た場合はデフォルトを 'ordinary' にする
+            account_type_en = 'ordinary'
 
         # DBへ送る想定のペイロード
         db_payload = {
@@ -77,7 +77,7 @@ def create_account(event, account_info, sessions, user_id):
         # デフォルトブランチを取得または作成（システムの初期化時に必要に応じて設定）
         # ここでは、branch_id=1 を仮定（実運用では設定可能に）
         default_branch_id = 1
-        
+
         # Account オブジェクトを生成
         new_account = Account(
             user_id=db_payload['user_id'],
