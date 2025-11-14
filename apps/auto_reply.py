@@ -7,18 +7,17 @@ from apps.minigame.bank_reception import bank_reception
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-def check_message_today(conn, user_id, text):
+def check_message_count_today(conn, user_id, message):
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT EXISTS (
-                SELECT 1
-                FROM logs
-                WHERE user_id = %s
-                AND message = %s
-                AND (sent_at AT TIME ZONE 'Asia/Tokyo')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Tokyo')::date
-            )
-        """, (user_id, text))
-        return cur.fetchone()[0]
+            SELECT COUNT(*)
+            FROM logs
+            WHERE user_id = %s
+            AND message LIKE %s
+            AND (sent_at AT TIME ZONE 'Asia/Tokyo')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Tokyo')::date
+        """, (user_id, message))
+        count = cur.fetchone()[0]
+        return count >= 1
 
 def auto_reply(event, text, user_id, group_id, display_name, sessions):
     conn = None
