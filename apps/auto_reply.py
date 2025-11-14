@@ -3,11 +3,12 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSend
 import config
 import random
 import psycopg2
-from apps.minigame import bank_reception, RPS_game
+from apps.minigame.bank_reception import bank_reception
+from apps.minigame.rps_game import play_rps_game
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-def check_message_count_today(conn, user_id, message):
+def check_message_today(conn, user_id, message):
     with conn.cursor() as cur:
         cur.execute("""
             SELECT COUNT(*)
@@ -17,7 +18,7 @@ def check_message_count_today(conn, user_id, message):
             AND (sent_at AT TIME ZONE 'Asia/Tokyo')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Tokyo')::date
         """, (user_id, message))
         count = cur.fetchone()[0]
-        return count >= 1
+        return count > 1
 
 def auto_reply(event, text, user_id, group_id, display_name, sessions):
     conn = None
@@ -71,7 +72,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
     elif text == "?おみくじ":
         conn = psycopg2.connect(config.DATABASE_URL)
         messages = []
-        if not check_message_count_today(conn, user_id, text):
+        if not check_message_today(conn, user_id, text):
             messages.append(TextSendMessage(text=display_name+"さんの運勢は……"))
             num = random.randint(1, 8)
             if num == 1:
@@ -252,7 +253,10 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             if conn:
                 conn.close()
 
-    # elif text == "?じゃんけん":
+    elif text == "?じゃんけん":
+        if event.source.type == 'group':  # グループチャットのみ対応
+            pass
+    # ---以下旧じゃんけん機能は新機能開発のため一時無効化---
     #     messages = []
     #     sessions[user_id] = "waiting_for_hand"
     #     messages.append(TextSendMessage(text="最初はグー！じゃんけん……"))
