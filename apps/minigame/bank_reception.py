@@ -141,6 +141,7 @@ def bank_reception(event, text, user_id, display_name, sessions):
                 "user_id": user_id,
                 "full_name": sessions[user_id].get("full_name"),
                 "birth_date": sessions[user_id].get("birth_date"),
+                "branch_num": sessions[user_id].get("branch_num"),
                 "account_type": sessions[user_id].get("account_type"),
                 "pin_code": pin_code,
                 "display_name": display_name

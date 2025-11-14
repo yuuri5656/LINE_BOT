@@ -1,7 +1,7 @@
 """
-1.グループチャット内で"?じゃんけん"と入力する
-2.送信者に有効な銀行口座が存在し、最低参加費用（例:110JPY）を満たしているか確認。
-3.存在しない場合、口座開設を促すメッセージを送信。
+1.グループチャット内で"?じゃんけん"と入力する。 ←達成
+2.送信者に有効な銀行口座が存在し、最低参加費用（例:110JPY）を満たしているか確認。 ←達成
+3.存在しない場合、口座開設を促すメッセージを送信。 ←達成
 4.存在する場合、参加者の募集を開始し、参加希望者を募る。
 5.参加希望者は"?参加"と入力して参加表明を行う。
 6.送信者に有効な銀行口座が存在し、最低参加費用（例:110JPY）を満たしているか確認し、満たしていない場合は参加を拒否する。
@@ -23,5 +23,38 @@
 - 送金処理は銀行システムのAPIを使用して行う。
 - 参加者が最低2人以上必要。
 """
+import psycopg2
+import config
+from core.api import handler, line_bot_api
+from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
+def check_account_existence_and_balance(conn, user_id, min_balance):
+    cur = conn.cursor()
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT balance
+            FROM accounts
+            WHERE user_id = %s
+        """, (user_id,))
+        result = cur.fetchone()
+        if result is None:
+            return False  # 口座が存在しない
+        balance = result[0]
+        return balance >= min_balance  # 最低残高を満たしているか確認
+
 def play_rps_game(event, user_id, text, display_name, sessions):
-    pass
+    conn = psycopg2.connect(config.DATABASE_URL)
+    min_balance = 110  # 最低参加費用
+    if not check_account_existence_and_balance(conn, user_id, min_balance):
+        line_bot_api.reply_message(
+            event.reply_token,
+            [TextSendMessage(text=f"{display_name} 様、申し訳ございませんが、じゃんけんゲームを開始するためには有効な銀行口座と最低残高 {min_balance} JPY が必要です。"),
+            TextSendMessage(text="口座をお持ちでない場合は、塩爺との個別チャットにて'?口座開設' と入力して口座を開設してください。")]
+        )
+        conn.close()
+        return
+    # ここにじゃんけんゲームのロジックを実装する
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=f"{display_name}が参加者を募集しています。参加希望の方は'?参加'と入力してください。")
+    )
+
