@@ -27,13 +27,15 @@ import psycopg2
 import config
 from core.api import handler, line_bot_api
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
+
+# 口座が存在し、かつアクティブ状態であり、残金がmin_balanceを満たしているかどうかを確認。
 def check_account_existence_and_balance(conn, user_id, min_balance):
     cur = conn.cursor()
     with conn.cursor() as cur:
         cur.execute("""
             SELECT balance
             FROM accounts
-            WHERE user_id = %s
+            WHERE user_id = %s AND status = 'active'
         """, (user_id,))
         result = cur.fetchone()
         if result is None:
@@ -57,4 +59,3 @@ def play_rps_game(event, user_id, text, display_name, sessions):
         event.reply_token,
         TextSendMessage(text=f"{display_name}が参加者を募集しています。参加希望の方は'?参加'と入力してください。")
     )
-
