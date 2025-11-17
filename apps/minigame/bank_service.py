@@ -62,31 +62,6 @@ def create_account_optimized(event, account_info: dict, sessions: dict, operator
     display_name = account_info.get("display_name")
     db = SessionLocal()
     try:
-        # 支店指定がある場合は code（branch_num）で取得または作成
-        branch = None
-        branch_num = account_info.get('branch_num')
-        if branch_num:
-            branch = db.execute(select(Branch).filter_by(code=str(branch_num))).scalars().first()
-            if not branch:
-                # 存在しなければ新規作成して確定する（branch_id はシーケンスで割り当て）
-                branch = Branch(code=str(branch_num), name=f"Branch {branch_num}")
-                db.add(branch)
-                db.commit()
-                db.refresh(branch)
-        else:
-            # デフォルト支店（code='001' を優先）
-            branch = db.execute(select(Branch).filter_by(code='001')).scalars().first()
-            if not branch:
-                branch = db.execute(select(Branch).filter_by(branch_id=1)).scalars().first()
-            if not branch:
-                branch = Branch(code="001", name="Main Branch")
-                db.add(branch)
-                db.commit()
-                db.refresh(branch)
-
-        # 口座番号生成
-        account_number = generate_account_number(db, branch)
-
         currency = "JPY"
         account_type_mapping = {
             "普通預金": "ordinary",
@@ -94,18 +69,41 @@ def create_account_optimized(event, account_info: dict, sessions: dict, operator
         }
         account_type_en = account_type_mapping.get(account_info.get('account_type'), 'ordinary')
 
-        new_account = Account(
-            user_id=account_info.get('user_id'),
-            account_number=account_number,
-            balance=Decimal('0'),
-            currency=currency,
-            type=account_type_en,
-            branch_id=branch.branch_id,
-            status='active',
-        )
-
-        # トランザクション内で確実に保存
+        # 単一トランザクションで branch の取得/作成と口座生成・挿入を行う
         with db.begin():
+            # 支店指定がある場合は code（branch_num）で取得または作成
+            branch = None
+            branch_num = account_info.get('branch_num')
+            if branch_num:
+                branch = db.execute(select(Branch).filter_by(code=str(branch_num))).scalars().first()
+                if not branch:
+                    branch = Branch(code=str(branch_num), name=f"Branch {branch_num}")
+                    db.add(branch)
+                    db.flush()
+
+            else:
+                # デフォルト支店（code='001' を優先）
+                branch = db.execute(select(Branch).filter_by(code='001')).scalars().first()
+                if not branch:
+                    branch = db.execute(select(Branch).filter_by(branch_id=1)).scalars().first()
+                if not branch:
+                    branch = Branch(code="001", name="Main Branch")
+                    db.add(branch)
+                    db.flush()
+
+            # 口座番号生成
+            account_number = generate_account_number(db, branch)
+
+            new_account = Account(
+                user_id=account_info.get('user_id'),
+                account_number=account_number,
+                balance=Decimal('0'),
+                currency=currency,
+                type=account_type_en,
+                branch_id=branch.branch_id,
+                status='active',
+            )
+
             db.add(new_account)
 
         # 返信はイベントに対して行うのはそのまま行う（呼び出し元でreplyされる想定）
