@@ -240,6 +240,99 @@ def get_active_account_by_user(user_id: str):
         db.close()
 
 
+def get_account_info_by_user(user_id: str):
+    """ユーザーIDから口座の主要情報を辞書で返す。口座が無ければ None を返す。"""
+    db = SessionLocal()
+    try:
+        acc = db.execute(select(Account).filter_by(user_id=user_id)).scalars().first()
+        if not acc:
+            return None
+
+        # branch はリレーション経由で取得可能（セッション内）
+        branch_code = None
+        branch_name = None
+        try:
+            if getattr(acc, 'branch', None):
+                branch_code = getattr(acc.branch, 'code', None)
+                branch_name = getattr(acc.branch, 'name', None)
+        except Exception:
+            branch_code = None
+            branch_name = None
+
+        balance = getattr(acc, 'balance', None)
+        balance_str = format(balance, '.2f') if balance is not None else None
+
+        info = {
+            'account_id': getattr(acc, 'account_id', None),
+            'account_number': getattr(acc, 'account_number', None),
+            'balance': balance_str,
+            'currency': getattr(acc, 'currency', None),
+            'type': getattr(acc, 'type', None),
+            'branch_code': branch_code,
+            'branch_name': branch_name,
+            'status': getattr(acc, 'status', None),
+            'created_at': getattr(acc, 'created_at', None),
+        }
+        return info
+    finally:
+        db.close()
+
+
+def get_account_transactions_by_user(user_id: str, limit: int = 20):
+    """指定ユーザーの口座について、取引履歴（最近のものから）をリストで返す。
+    各要素は dict を返す。口座が無ければ空リストを返す。
+    """
+    db = SessionLocal()
+    try:
+        acc = db.execute(select(Account).filter_by(user_id=user_id)).scalars().first()
+        if not acc:
+            return []
+
+        # 口座関係のトランザクションを取得（from または to）
+        txs = (
+            db.execute(
+                select(Transaction)
+                .filter((Transaction.from_account_id == acc.account_id) | (Transaction.to_account_id == acc.account_id))
+                .order_by(Transaction.executed_at.desc().nullslast(), Transaction.created_at.desc())
+                .limit(limit)
+            )
+            .scalars()
+            .all()
+        )
+
+        result = []
+        for t in txs:
+            try:
+                direction = '出金' if t.from_account_id == acc.account_id else '入金'
+                other_acc_num = None
+                try:
+                    if t.from_account_id == acc.account_id:
+                        other_acc_num = getattr(t.to_account, 'account_number', None)
+                    else:
+                        other_acc_num = getattr(t.from_account, 'account_number', None)
+                except Exception:
+                    other_acc_num = None
+
+                dt = t.executed_at if getattr(t, 'executed_at', None) else getattr(t, 'created_at', None)
+
+                result.append({
+                    'transaction_id': getattr(t, 'transaction_id', None),
+                    'direction': direction,
+                    'type': getattr(t, 'type', None),
+                    'amount': format(getattr(t, 'amount', 0), '.2f'),
+                    'currency': getattr(t, 'currency', None),
+                    'other_account_number': other_acc_num,
+                    'executed_at': dt,
+                    'status': getattr(t, 'status', None),
+                })
+            except Exception:
+                continue
+
+        return result
+    finally:
+        db.close()
+
+
 def reply_account_creation(event, account_info: dict, account_data: dict):
     """
     `create_account_optimized` の呼び出し元に対して、

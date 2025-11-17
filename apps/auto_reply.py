@@ -6,6 +6,7 @@ import psycopg2
 from apps.minigame.minigames import Player, GameSession, Group, GroupManager, manager, join_game_session, reset_game_session, cancel_game_session, GameState
 from apps.minigame.bank_reception import bank_reception
 from apps.minigame.rps_game import play_rps_game
+from apps.minigame import bank_service
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -37,6 +38,59 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             event.reply_token,
             TextSendMessage(text=f"あなたのユーザーIDは\n{user_id}\nです。")
         )
+        return
+    elif text == "?口座情報":
+        # 個別チャットでのみ口座情報を表示
+        if event.source.type != 'user':
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="個別チャットでのみ利用可能です。塩爺に直接メッセージを送ってください。"))
+            return
+
+        info = bank_service.get_account_info_by_user(user_id)
+        if not info:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="有効な口座が見つかりません。'?口座開設' を入力して口座を作成してください。"))
+            return
+
+        lines = []
+        lines.append("口座情報:")
+        lines.append(f"口座番号: {info.get('account_number')}")
+        lines.append(f"残高: {info.get('balance') or '0.00'} {info.get('currency') or ''}")
+        lines.append(f"種類: {info.get('type') or '（不明）'}")
+        bc = info.get('branch_code') or ''
+        bn = info.get('branch_name') or ''
+        if bc or bn:
+            lines.append(f"支店: {bc} {bn}")
+        lines.append(f"状態: {info.get('status')}")
+        if info.get('created_at'):
+            try:
+                lines.append(f"作成日: {info.get('created_at')}")
+            except Exception:
+                pass
+
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="\n".join(lines)))
+        return
+    elif text == "?通帳":
+        # 個別チャットでのみ通帳（最近の履歴）を表示
+        if event.source.type != 'user':
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="個別チャットでのみ利用可能です。塩爺に直接メッセージを送ってください。"))
+            return
+
+        txs = bank_service.get_account_transactions_by_user(user_id, limit=20)
+        if not txs:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="取引履歴が見つかりません。"))
+            return
+
+        # 履歴を整形して送信（長すぎる場合は要分割だが簡易実装）
+        lines = ["最近の通帳（最新20件まで）:"]
+        for t in txs:
+            dt = t.get('executed_at')
+            try:
+                dt_str = dt.strftime("%Y-%m-%d %H:%M") if dt else "-"
+            except Exception:
+                dt_str = str(dt)
+            other = t.get('other_account_number') or '―'
+            lines.append(f"{dt_str} {t.get('direction')} {t.get('amount')}{t.get('currency') or ''} ({t.get('type')}) 相手: {other} 状態:{t.get('status')}")
+
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="\n".join(lines)))
         return
     elif text == "?明日の時間割":
         messages = []
