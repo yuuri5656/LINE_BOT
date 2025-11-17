@@ -213,8 +213,17 @@ def get_active_account_by_user(user_id: str):
     """ユーザーIDからアクティブな口座を取得するヘルパー。見つからなければ None を返す。"""
     db = SessionLocal()
     try:
-        acc = db.execute(select(Account).filter_by(user_id=user_id, status='active')).scalars().first()
-        return acc
+        # Avoid passing the literal enum value into the SQLAlchemy filter because
+        # the PG ENUM reflection may not provide Python-side enum choices in all
+        # runtime environments. Instead select by user_id and check the status
+        # value in Python.
+        acc = db.execute(select(Account).filter_by(user_id=user_id)).scalars().first()
+        if not acc:
+            return None
+        try:
+            return acc if getattr(acc, 'status', None) == 'active' else None
+        except Exception:
+            return None
     finally:
         db.close()
 
@@ -225,11 +234,14 @@ def withdraw_from_user(user_id: str, amount, currency: str = 'JPY'):
     amt = Decimal(amount)
     try:
         with db.begin():
-            acc = db.execute(select(Account).filter_by(user_id=user_id, status='active').with_for_update()).scalars().first()
+            # Select by user_id and lock the row for update; check status in Python
+            acc = db.execute(select(Account).filter_by(user_id=user_id).with_for_update()).scalars().first()
             if not acc:
                 raise ValueError("Account not found")
             if acc.currency != currency:
                 raise ValueError("Currency mismatch")
+            if getattr(acc, 'status', None) != 'active':
+                raise ValueError("Account not active")
             if acc.balance < amt:
                 raise ValueError("Insufficient funds")
             acc.balance = acc.balance - amt
@@ -247,11 +259,14 @@ def deposit_to_user(user_id: str, amount, currency: str = 'JPY'):
     amt = Decimal(amount)
     try:
         with db.begin():
-            acc = db.execute(select(Account).filter_by(user_id=user_id, status='active').with_for_update()).scalars().first()
+            # Select by user_id and lock the row for update; check status in Python
+            acc = db.execute(select(Account).filter_by(user_id=user_id).with_for_update()).scalars().first()
             if not acc:
                 raise ValueError("Account not found")
             if acc.currency != currency:
                 raise ValueError("Currency mismatch")
+            if getattr(acc, 'status', None) != 'active':
+                raise ValueError("Account not active")
             acc.balance = acc.balance + amt
         return True
     except Exception:
