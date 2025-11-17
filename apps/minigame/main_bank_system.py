@@ -24,7 +24,7 @@ engine = create_engine(config.DATABASE_URL)
 Base = declarative_base()
 
 # Postgres 側に既に定義されている enum 型を参照するために create_type=False を使用
-account_status_enum = PG_ENUM(name="account_status", create_type=False)
+account_status_enum = PG_ENUM('active', 'frozen', 'closed', name="account_status", create_type=False)
 account_type_enum = PG_ENUM(name="account_type", create_type=False)
 transaction_type_enum = PG_ENUM(name="transaction_type", create_type=False)
 transaction_status_enum = PG_ENUM(name="transaction_status", create_type=False)
