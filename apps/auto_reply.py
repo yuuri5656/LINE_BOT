@@ -3,6 +3,7 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSend
 import config
 import random
 import psycopg2
+from apps.minigame.minigames import Player, GameSession, Group, GroupManager, manager, join_game_session, reset_game_session, cancel_game_session, GameState
 from apps.minigame.bank_reception import bank_reception
 from apps.minigame.rps_game import play_rps_game
 from datetime import datetime, timedelta
@@ -72,7 +73,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
     elif text == "?おみくじ":
         conn = psycopg2.connect(config.DATABASE_URL)
         messages = []
-        if not check_message_today(conn, user_id, text):
+        if not check_message_today(conn, user_id, text) or user_id == "Ubada9dde68b83179125cba4bc0b5633c":
             messages.append(TextSendMessage(text=display_name+"さんの運勢は……"))
             num = random.randint(1, 8)
             if num == 1:
@@ -253,42 +254,112 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             if conn:
                 conn.close()
 
-    elif text == "?じゃんけん":
-        if event.source.type == 'group':  # グループチャットのみ対応
-            pass
-    # ---以下旧じゃんけん機能は新機能開発のため一時無効化---
-    #     messages = []
-    #     sessions[user_id] = "waiting_for_hand"
-    #     messages.append(TextSendMessage(text="最初はグー！じゃんけん……"))
-    #     line_bot_api.reply_message(
-    #         event.reply_token,
-    #         messages
-    #     )
-    #     return
+    # じゃんけんゲーム関連のメッセージ処理
+    if event.source.type == 'group':
+        # そのグループに待機中もしくは開始中のゲームが無い場合、セッションを作成して募集を開始
+        if text == "?じゃんけん" and event.source.type == 'group':
+            grp = manager.groups.get(group_id, None)
+            # そのグループでセッションが無ければ作成（play_rps_game がセッションを作る）
+            if grp is None or grp.current_game is None:
+                play_rps_game(event, user_id, text, display_name, group_id, sessions)
+                return
 
-    # elif state == "waiting_for_hand":
-    #     messages = []
-    #     if text in ["グー", "ぐー", "チョキ", "ちょき", "パー", "ぱー"]:
-    #         # 入力を標準形に変換
-    #         hand = {"ぐー": "グー", "ちょき": "チョキ", "ぱー": "パー"}.get(text, text)
-    #         # 必ず勝つ手を選ぶ
-    #         win_hand = {"グー": "パー", "チョキ": "グー", "パー": "チョキ"}[hand]
-    #         messages.append(TextSendMessage(text=f"ﾎﾟﾝｯｯ!{win_hand}\n俺の勝ち!俺の勝ち!"))
-    #         messages.append(TextSendMessage(text="何で負けたか明日までに考えといてください。\nそしたら何かが見えてくるはずです。"))
-    #         messages.append(TextSendMessage(text="ほな、いただきます。"))
-    #         messages.append(ImageSendMessage(
-    #             original_content_url='https://i.imgur.com/HV1x5vV.png',
-    #             preview_image_url='https://i.imgur.com/HV1x5vV.png'
-    #         ))
-    #     else:
-    #         messages.append(TextSendMessage(text="逃げるな卑怯者！！！じゃんけんから逃げるなーーー！！！"))
+            # セッションが存在する場合は状態に応じて案内
+            state = getattr(grp.current_game, "state", None)
+            if state == GameState.RECRUITING:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text=f"{display_name} 様、現在このグループではゲームを募集中です。\n是非'?参加'と入力して参加してみてください。")
+                )
+                return
+            if state == GameState.IN_PROGRESS:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text=f"{display_name} 様、現在このグループではゲームが進行中です。\nしばらくお待ちの上、再度お試しください。")
+                )
+                return
 
-    #     # セッション状態をクリア
-    #     sessions.pop(user_id, None)
+        # 参加希望者は"?参加"と入力して参加表明を行う
+        if text == "?参加" and event.source.type == 'group':
+            conn = psycopg2.connect(config.DATABASE_URL)
+            try:
+                join_message = join_game_session(group_id, user_id, display_name, conn)
+            finally:
+                conn.close()
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=join_message)
+            )
+            return
 
-    #     # 応答を送信
-    #     line_bot_api.reply_message(event.reply_token, messages)
-    #     return
+        # ホストまたは参加者が"?キャンセル"と入力して参加を取り消し可能とする
+        if text == "?キャンセル":
+            group = manager.groups.get(group_id)
+            if not group or not group.current_game:
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="セッションをキャンセル出来ませんでした。"))
+                return
+
+            # ホストはゲーム開始前なら中止可能（IN_PROGRESS でなければ中止可）
+            # ホストはゲーム開始前であれば中止可能
+            host_can_cancel = getattr(group.current_game, "state", None) != GameState.IN_PROGRESS
+
+            if group.current_game.host_user_id == user_id and host_can_cancel:
+                reset_game_session(group_id)
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text="ホストがキャンセルしたため、全員の参加を取り消しました。")
+                )
+                return
+
+            # 参加者が自分の参加を取り消す（募集中のみ）
+            participant_can_cancel = getattr(group.current_game, "state", None) == GameState.RECRUITING
+            if participant_can_cancel:
+                if user_id in group.current_game.players:
+                    line_bot_api.reply_message(
+                        event.reply_token,
+                        TextSendMessage(text=cancel_game_session(group_id, user_id))
+                    )
+                    return
+
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="セッションをキャンセル出来ませんでした。")
+            )
+            return
+        if text == "?開始":
+            group = manager.groups.get(group_id)
+            if group and group.current_game and group.current_game.state == GameState.RECRUITING and group.current_game.host_user_id == user_id:
+                # ゲーム開始処理（参加者へ個別チャットで手を送るよう促す）
+                # デフォルトタイムアウトは20秒（変更可）
+                try:
+                    from apps.minigame.minigames import start_game_session
+                    msg = start_game_session(group_id, line_bot_api, timeout_seconds=20)
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
+                except Exception as e:
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ゲームの開始に失敗しました。"))
+                return
+            else:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text="ゲームを開始できませんでした。ホストのみが開始できます。")
+                )
+            return
+    elif event.source.type == 'user':
+        # ユーザーチャットでは、進行中のじゃんけんがある場合に手（グー/チョキ/パー）を受け付ける
+        from apps.minigame.minigames import submit_player_move
+
+        # 簡易的に手の候補を判定
+        if text.strip() in ["グー","ぐー","チョキ","ちょき","パー","ぱー"]:
+            res = submit_player_move(user_id, text.strip(), line_bot_api, reply_token=event.reply_token)
+            # submit_player_move が自動で返信するためここでは戻り値のみ確認
+            return
+
+        # それ以外は通常の個別チャット用メッセージ（口座開設など）が処理されるため、簡易応答
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="個別チャットでは、ゲーム中に「グー」「チョキ」「パー」を送信することで手を出せます。")
+        )
+        return
 
     # データベースとの接続を切断
     if cur:

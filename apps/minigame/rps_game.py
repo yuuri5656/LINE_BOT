@@ -2,10 +2,10 @@
 1.グループチャット内で"?じゃんけん"と入力する。 ←達成
 2.送信者に有効な銀行口座が存在し、最低参加費用（例:110JPY）を満たしているか確認。 ←達成
 3.存在しない場合、口座開設を促すメッセージを送信。 ←達成
-4.存在する場合、参加者の募集を開始し、参加希望者を募る。
-5.参加希望者は"?参加"と入力して参加表明を行う。
-6.送信者に有効な銀行口座が存在し、最低参加費用（例:110JPY）を満たしているか確認し、満たしていない場合は参加を拒否する。
-7.開始までなら"?キャンセル"で参加を取り消し可能とする。ホストがキャンセルした場合、全員の参加を取り消す。
+4.存在する場合、参加者の募集を開始し、参加希望者を募る。 ←達成
+5.参加希望者は"?参加"と入力して参加表明を行う。 ←達成
+6.送信者に有効な銀行口座が存在し、最低参加費用（例:110JPY）を満たしているか確認し、満たしていない場合は参加を拒否する。 ←達成
+7.開始までなら"?キャンセル"で参加を取り消し可能とする。ホストがキャンセルした場合、全員の参加を取り消す。 ←達成
 8.一定時間（例:1分）後、または"?開始"または参加人数5人で募集を締め切る。
 9.参加者全員からベッド各110JPY(手数料約10%)を徴収(引き落とし)する。
 10.参加者に対して、グループラインで「個別チャットでじゃんけんの手（グー、チョキ、パー）を選択して送信するよう」促す。
@@ -25,27 +25,36 @@
 """
 import psycopg2
 import config
+from apps.minigame.minigames import Player, GameSession, Group, GroupManager, manager, check_account_existence_and_balance, create_game_session
 from core.api import handler, line_bot_api
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
 
 # 口座が存在し、かつアクティブ状態であり、残金がmin_balanceを満たしているかどうかを確認。
-def check_account_existence_and_balance(conn, user_id, min_balance):
-    cur = conn.cursor()
-    with conn.cursor() as cur:
-        cur.execute("""
-            SELECT balance
-            FROM accounts
-            WHERE user_id = %s AND status = 'active'
-        """, (user_id,))
-        result = cur.fetchone()
-        if result is None:
-            return False  # 口座が存在しない
-        balance = result[0]
-        return balance >= min_balance  # 最低残高を満たしているか確認
+"""
+?じゃんけん
+既に同じグループラインで進行中のじゃんけんゲームがある場合、そのゲームに参加を促す。
+最初に?じゃんけんを送信したユーザーがホストとなり、そのユーザーがキャンセルまたは開始するまで募集を続ける。
+"""
 
-def play_rps_game(event, user_id, text, display_name, sessions):
+def play_rps_game(event, user_id, text, display_name, group_id, sessions):
     conn = psycopg2.connect(config.DATABASE_URL)
     min_balance = 110  # 最低参加費用
+    max_players = 5    # 募集上限（参加人数）
+    # 既に同グループで進行中（募集中）のじゃんけんがあるかチェック
+    try:
+        existing_session = manager.get_session(group_id)
+    except Exception:
+        existing_session = None
+
+    from apps.minigame.minigames import GameState
+    if existing_session and getattr(existing_session, "game_type", None) == "rps_game" and getattr(existing_session, "state", None) == GameState.RECRUITING:
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=f"このグループでは既に{existing_session.host_user_id}がじゃんけんの参加者を募集しています。参加する場合は'?参加'と入力してください（募集は最大{getattr(existing_session,'max_players','不明')}名まで）。")
+        )
+        conn.close()
+        return
+
     if not check_account_existence_and_balance(conn, user_id, min_balance):
         line_bot_api.reply_message(
             event.reply_token,
@@ -54,8 +63,27 @@ def play_rps_game(event, user_id, text, display_name, sessions):
         )
         conn.close()
         return
-    # ここにじゃんけんゲームのロジックを実装する
+
+    # セッション作成
+    create_game_session(
+        group_id=group_id,
+        game_type="rps_game",
+        host_user_id=user_id,
+        min_balance=min_balance,
+        max_players=max_players
+    )
+
+    # manager に登録されたセッションが取得できれば max_players を明示的に設定
+    try:
+        session = manager.get_session(group_id)
+        if session:
+            setattr(session, "max_players", max_players)
+    except Exception:
+        # manager.get_session が使えない場合は無視（minigame 側で対応が必要）
+        session = None
+
     line_bot_api.reply_message(
         event.reply_token,
-        TextSendMessage(text=f"{display_name}が参加者を募集しています。参加希望の方は'?参加'と入力してください。")
+        TextSendMessage(text=f"{display_name}が参加者を募集しています。参加希望の方は'?参加'と入力してください。募集は最大{max_players}名で締め切ります。")
     )
+    conn.close()

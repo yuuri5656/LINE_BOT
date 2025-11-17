@@ -76,7 +76,8 @@ class Account(Base):
     __tablename__ = "accounts"
 
     account_id = Column(BigInteger, primary_key=True)
-    user_id = Column(BigInteger, nullable=False)
+    # DB のスキーマ上では user_id は text 型のため、モデルも文字列で扱う
+    user_id = Column(String, nullable=False)
     account_number = Column(String(20), unique=True, nullable=False)
     balance = Column(Numeric(18, 2), nullable=False, server_default=text('0'))
     currency = Column(CHAR(4), nullable=False)

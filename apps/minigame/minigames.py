@@ -9,3 +9,431 @@
 # 1-1.通貨を管理するデータベーステーブルを作成する。 ←銀行機能の実装によって達成
 # 1-2.通貨の獲得・消費の関数を実装する。
 
+from dataclasses import dataclass, field
+from typing import Dict
+from datetime import datetime
+from enum import Enum
+from linebot.models import TextSendMessage
+
+
+class GameState(Enum):
+    RECRUITING = "recruiting"
+    RECRUITMENT_CLOSED = "recruitment_closed"
+    IN_PROGRESS = "in_progress"
+    FINISHED = "finished"
+
+# ミニゲームのセッション管理用データ構造
+@dataclass
+class Player:
+    user_id: str
+    display_name: str
+    data: str = ""  # じゃんけんの手など
+
+@dataclass
+class GameSession:
+    game_type: str       # 例: "rps_game"
+    # 明確な状態管理のため Enum を利用
+    state: GameState = GameState.RECRUITING
+    created_at: datetime = field(default_factory=datetime.now)
+    min_balance: int = 0  # 参加に必要な最低残高
+    host_user_id: str = ""  # ゲーム開始者
+    max_players: int = 0    # 募集上限
+    players: Dict[str, Player] = field(default_factory=dict)
+    # 実行中のゲーム用フィールド
+    start_time: datetime = None
+    deadline: datetime = None
+    timer: object = None
+
+@dataclass
+class Group:
+    group_id: str
+    current_game: GameSession = None  # このグループで開催中のゲーム
+
+@dataclass
+class GroupManager:
+    groups: Dict[str, Group] = field(default_factory=dict) # グループIDをキーにGroupオブジェクトを管理
+
+    # 追加: グループに紐づくセッション取得ヘルパー
+    def get_session(self, group_id: str):
+        grp = self.groups.get(group_id)
+        if not grp:
+            return None
+        return grp.current_game
+
+manager = GroupManager()
+
+# 口座が存在し、かつアクティブ状態であり、残金がmin_balanceを満たしているかどうかを確認。
+def check_account_existence_and_balance(conn, user_id, min_balance):
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT balance
+            FROM accounts
+            WHERE user_id = %s AND status = 'active'
+        """, (user_id,))
+        result = cur.fetchone()
+        if result is None:
+            return False  # 口座が存在しない
+        balance = result[0]
+        return balance >= min_balance  # 最低残高を満たしているか確認
+
+
+def fixed_prize_distribution(bets, fee_rate=0.1):
+    """
+    小規模（2～5人）向けの固定分配方式。
+    1位圧倒的、下位にも少額分配。
+    """
+    N = len(bets)
+    if N < 2 or N > 5:
+        raise ValueError("この関数は2〜5人向けです。")
+
+    total_bet = sum(bets)
+    fee = int(round(total_bet * fee_rate))
+    prize_pool = total_bet - fee
+
+    if N == 2:
+        ratios = [0.85, 0.15]
+    elif N == 3:
+        ratios = [0.75, 0.15, 0.10]
+    elif N == 4:
+        ratios = [0.65, 0.20, 0.10, 0.05]
+    elif N == 5:
+        ratios = [0.60, 0.20, 0.10, 0.05, 0.05]
+
+    prizes_float = [prize_pool * r for r in ratios]
+    prizes_int = [int(p) for p in prizes_float]
+    remainder = prize_pool - sum(prizes_int)
+    prizes_int[0] += remainder
+
+    return prizes_int, fee
+
+# セッション作成処理
+def create_game_session(group_id: str, game_type: str, host_user_id: str, min_balance: int, max_players: int = 0):
+    manager.groups[group_id] = Group(
+        group_id=group_id,
+        current_game=GameSession(
+            game_type=game_type,
+            state=GameState.RECRUITING,
+            min_balance=min_balance,
+            host_user_id=host_user_id,
+            max_players=max_players
+        )
+    )
+
+# 参加処理
+def join_game_session(group_id: str, user_id: str, display_name: str, conn):
+    group = manager.groups.get(group_id)
+    if not group:
+        return "このグループではゲームが開催されていません。"
+
+    # グループに現在進行中のゲームがあるか確認
+    if not group.current_game:
+        return "このグループではゲームが開催されていません。"
+
+    # ゲームの状態がプレイヤー待ち（募集中）か確認
+    if group.current_game.state != GameState.RECRUITING:
+        return "ゲームは現在プレイヤー待ち（募集中）ではありません。\nしばらくお待ちの上、再度お試しください。"
+
+    # 募集上限をチェック（既に締め切られている/満員）
+    if group.current_game.max_players and len(group.current_game.players) >= group.current_game.max_players:
+        # 既に満員なので締め切り状態に更新
+        group.current_game.state = GameState.RECRUITMENT_CLOSED
+        return f"募集は既に締め切られています（最大 {group.current_game.max_players} 名）。"
+
+    # プレイヤーがすでに参加していないか確認
+    if user_id in group.current_game.players:
+        return "あなたはは既にゲームに参加しています。"
+
+    # 口座存在と最低残高の確認
+    if not check_account_existence_and_balance(conn, user_id, group.current_game.min_balance):
+        return f"有効な口座が存在しないか、最低残高({group.current_game.min_balance})を満たしていません。"
+
+    # すべての条件を満たしていれば参加
+    group.current_game.players[user_id] = Player(user_id=user_id, display_name=display_name)
+
+    # 参加後に上限到達を判定して自動で募集を締め切る
+    if group.current_game.max_players and len(group.current_game.players) >= group.current_game.max_players:
+        group.current_game.state = GameState.RECRUITMENT_CLOSED
+        return f"{display_name}の参加を受け付けました。募集は最大人数に達したため締め切りました。"
+
+    return f"{display_name}の参加を受け付けました。ゲーム開始までお待ちください。"
+
+# 参加キャンセル処理
+def cancel_game_session(group_id: str, user_id: str):
+    group = manager.groups.get(group_id)
+    if not group or not group.current_game:
+        return "このグループではゲームが開催されていません。"
+
+
+    # ゲームが既に開始されている場合はキャンセル不可
+    if group.current_game.state == GameState.IN_PROGRESS:
+        return "ゲームは既に開始されています。キャンセルできません。"
+
+    # ホストがキャンセルした場合は全員取り消し（ゲーム開始前なら可能）
+    if user_id == group.current_game.host_user_id:
+        group.current_game = None
+        return "ホストが募集をキャンセルしました。参加者全員の参加が取り消されました。"
+
+    # プレイヤーが参加しているか確認
+    if user_id not in group.current_game.players:
+        return "あなたは現在ゲームに参加していません。"
+
+    # 参加受付中であれば参加をキャンセル可能
+    if group.current_game.state != GameState.RECRUITING:
+        return "現在は参加受付を行っていないため、参加キャンセルできません。"
+
+    # 参加をキャンセル
+    del group.current_game.players[user_id]
+    return "あなたの参加をキャンセルしました。"
+
+# セッションリセット処理
+def reset_game_session(group_id: str):
+    group = manager.groups.get(group_id)
+    if group:
+        group.current_game = None
+
+
+# --- 以下、ゲーム進行用ユーティリティ ---
+def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 20):
+    from threading import Timer
+    from datetime import timedelta
+    import psycopg2, config
+
+    group = manager.groups.get(group_id)
+    if not group or not group.current_game:
+        return "このグループではゲームが開催されていません。"
+
+    session = group.current_game
+    if session.state != GameState.RECRUITING:
+        return "ゲームは現在開始できる状態ではありません。"
+
+    session.state = GameState.IN_PROGRESS
+    session.start_time = datetime.now()
+    session.deadline = session.start_time + timedelta(seconds=timeout_seconds)
+
+    # 参加費を徴収（簡易実装: accounts テーブルから残高を差し引く）
+    paid = []
+    refunded = []
+    try:
+        conn = psycopg2.connect(config.DATABASE_URL)
+        with conn.cursor() as cur:
+            for uid in list(session.players.keys()):
+                try:
+                    cur.execute("""
+                        UPDATE accounts
+                        SET balance = balance - %s
+                        WHERE user_id = %s AND status = 'active' AND balance >= %s
+                        RETURNING balance
+                    """, (session.min_balance, uid, session.min_balance))
+                    res = cur.fetchone()
+                    if res is None:
+                        # 支払いできないユーザーは参加取り消し
+                        del session.players[uid]
+                        refunded.append(uid)
+                    else:
+                        paid.append(uid)
+                except Exception:
+                    # 個別失敗は参加取り消し
+                    if uid in session.players:
+                        del session.players[uid]
+                        refunded.append(uid)
+        conn.commit()
+        conn.close()
+    except Exception:
+        # DBエラーが発生した場合は中止
+        try:
+            conn.close()
+        except Exception:
+            pass
+        return "参加費の徴収中にエラーが発生しました。"
+
+    # 支払いできなかったユーザーを通知
+    if refunded:
+        try:
+            names = [p.display_name for uid, p in list(session.players.items()) if uid not in refunded]
+        except Exception:
+            names = []
+    player_names = [p.display_name for p in session.players.values()]
+    try:
+        line_bot_api.push_message(group_id, TextSendMessage(text=f"ゲームを開始します。参加者: {', '.join(player_names)}\n個別チャットで「グー」「チョキ」「パー」のいずれかを送ってください。締め切り: {timeout_seconds}秒"))
+    except Exception:
+        pass
+
+    # 各参加者へ個別に案内
+    for uid, player in session.players.items():
+        try:
+            line_bot_api.push_message(uid, TextSendMessage(text=f"{player.display_name}さん、じゃんけんを始めます。個別チャットで「グー」「チョキ」「パー」のいずれかを送信してください。"))
+        except Exception:
+            # push が失敗しても続行
+            pass
+
+    # タイムアウトで自動終了するタイマーを設定
+    def _finish():
+        try:
+            finish_game_session(group_id, line_bot_api)
+        except Exception:
+            pass
+
+    timer = Timer(timeout_seconds, _finish)
+    session.timer = timer
+    timer.daemon = True
+    timer.start()
+
+    return "ゲームを開始しました。"
+
+
+def find_session_by_user(user_id: str):
+    # 参加中で進行中のセッションを検索
+    for gid, grp in manager.groups.items():
+        if not grp or not grp.current_game:
+            continue
+        sess = grp.current_game
+        if sess.state == GameState.IN_PROGRESS and user_id in sess.players:
+            return gid, sess
+    return None, None
+
+
+def submit_player_move(user_id: str, move: str, line_bot_api, reply_token=None):
+    # move は "グー","チョキ","パー" のいずれかを受け付ける
+    normalized = None
+    key = move.strip()
+    if key in ["グー","ぐー","ｸﾞｰ"]:
+        normalized = "グー"
+    elif key in ["チョキ","ちょき"]:
+        normalized = "チョキ"
+    elif key in ["パー","ぱー"]:
+        normalized = "パー"
+    else:
+        if reply_token:
+            line_bot_api.reply_message(reply_token, TextSendMessage(text="無効な手です。個別チャットで「グー」「チョキ」「パー」のいずれかを送信してください。"))
+        return "invalid"
+
+    gid, session = find_session_by_user(user_id)
+    if not session:
+        if reply_token:
+            line_bot_api.reply_message(reply_token, TextSendMessage(text="現在参加中の進行中ゲームが見つかりません。グループ内で募集が行われているか確認してください。"))
+        return "no_session"
+
+    player = session.players.get(user_id)
+    if not player:
+        if reply_token:
+            line_bot_api.reply_message(reply_token, TextSendMessage(text="あなたは現在このゲームに参加していません。"))
+        return "not_participant"
+
+    if player.data:
+        if reply_token:
+            line_bot_api.reply_message(reply_token, TextSendMessage(text="既に手が記録されています。変更はできません。"))
+        return "already_submitted"
+
+    player.data = normalized
+    if reply_token:
+        line_bot_api.reply_message(reply_token, TextSendMessage(text=f"{player.display_name} さんの手「{normalized}」を受け付けました。"))
+
+    # 全員の手が揃ったら終了処理
+    all_in = all(p.data for p in session.players.values()) and len(session.players) >= 2
+    if all_in:
+        try:
+            if session.timer:
+                session.timer.cancel()
+        except Exception:
+            pass
+        finish_game_session(gid, line_bot_api)
+
+    return "ok"
+
+
+def finish_game_session(group_id: str, line_bot_api):
+    group = manager.groups.get(group_id)
+    if not group or not group.current_game:
+        return
+
+    session = group.current_game
+    session.state = GameState.FINISHED
+
+    players = list(session.players.values())
+
+    def beats(a, b):
+        if a == b:
+            return 0
+        rules = {"グー":"チョキ", "チョキ":"パー", "パー":"グー"}
+        return 1 if rules.get(a) == b else -1
+
+    scores = {p.user_id: 0 for p in players}
+    for i in range(len(players)):
+        for j in range(i+1, len(players)):
+            pi = players[i]
+            pj = players[j]
+            if not pi.data and not pj.data:
+                continue
+            if not pi.data:
+                scores[pj.user_id] += 1
+                scores[pi.user_id] -= 1
+                continue
+            if not pj.data:
+                scores[pi.user_id] += 1
+                scores[pj.user_id] -= 1
+                continue
+            res = beats(pi.data, pj.data)
+            if res == 1:
+                scores[pi.user_id] += 1
+                scores[pj.user_id] -= 1
+            elif res == -1:
+                scores[pj.user_id] += 1
+                scores[pi.user_id] -= 1
+
+    ranked = sorted(players, key=lambda p: scores.get(p.user_id, 0), reverse=True)
+
+    n = len(players)
+    # 賞金計算は固定分配方式を使用
+    try:
+        bets = [session.min_balance for _ in ranked]
+        prizes, fee = fixed_prize_distribution(bets, fee_rate=0.1)
+        payouts = {ranked[i].user_id: prizes[i] for i in range(len(ranked))}
+    except Exception:
+        # フォールバック: 以前の簡易分配（等比）
+        n = len(players)
+        pot = n * session.min_balance
+        distributable = int(pot * 0.9)
+        weight_map = {}
+        total_weight = 0
+        for p in players:
+            w = max(scores.get(p.user_id, 0), 0) + 1
+            weight_map[p.user_id] = w
+            total_weight += w
+        payouts = {}
+        for p in players:
+            share = int(distributable * weight_map[p.user_id] / total_weight) if total_weight > 0 else 0
+            payouts[p.user_id] = share
+        fee = 0
+
+    messages = []
+    header = f"じゃんけんの結果（参加者 {n} 名）\n"
+    messages.append(TextSendMessage(text=header))
+    for idx, p in enumerate(ranked, start=1):
+        hand = p.data if p.data else "(未提出)"
+        sc = scores.get(p.user_id, 0)
+        pay = payouts.get(p.user_id, 0)
+        messages.append(TextSendMessage(text=f"{idx} 位: {p.display_name} - 手: {hand} - スコア: {sc} - 収支: +{pay} JPY"))
+
+    try:
+        import psycopg2, config
+        conn = psycopg2.connect(config.DATABASE_URL)
+        with conn.cursor() as cur:
+            for uid, amount in payouts.items():
+                if amount <= 0:
+                    continue
+                cur.execute("""
+                    UPDATE accounts
+                    SET balance = balance + %s
+                    WHERE user_id = %s AND status = 'active'
+                """, (amount, uid))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+    try:
+        line_bot_api.push_message(group_id, messages)
+    except Exception:
+        pass
+
+    group.current_game = None
