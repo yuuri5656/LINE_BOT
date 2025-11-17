@@ -240,6 +240,39 @@ def get_active_account_by_user(user_id: str):
         db.close()
 
 
+def reply_account_creation(event, account_info: dict, account_data: dict):
+    """
+    `create_account_optimized` の呼び出し元に対して、
+    口座開設完了の文面を統一して返信するヘルパー。
+    - `event` : LINE のイベントオブジェクト（reply_token を含む）
+    - `account_info` : 送信者や表示名などの元情報
+    - `account_data` : `create_account_optimized` が返す dict
+    """
+    try:
+        display_name = account_info.get('display_name') if account_info else None
+        acct_num = None
+        try:
+            acct_num = account_data.get('account_number') if isinstance(account_data, dict) else getattr(account_data, 'account_number', None)
+        except Exception:
+            acct_num = None
+
+        currency = account_data.get('currency') if isinstance(account_data, dict) else getattr(account_data, 'currency', 'JPY')
+        acct_type = account_info.get('account_type') if account_info else None
+
+        text = (
+            f"口座開設が完了しました。\n"
+            f"ユーザー: {display_name if display_name else '（不明）'}\n"
+            f"口座番号: {acct_num if acct_num else '（不明）'}\n"
+            f"通貨: {currency}\n"
+            f"種類: {acct_type if acct_type else '（不明）'}"
+        )
+
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=text))
+    except Exception as e:
+        print(f"[BankService] reply_account_creation failed: {e}")
+        # Don't raise — caller can handle fallback reply
+
+
 def withdraw_from_user(user_id: str, amount, currency: str = 'JPY'):
     """ユーザー口座から引き落とす。残高不足や口座未存在時は例外を投げる。"""
     db = SessionLocal()
