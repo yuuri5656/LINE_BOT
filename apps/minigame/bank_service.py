@@ -171,10 +171,27 @@ def transfer_funds(from_account_number: str, to_account_number: str, amount, cur
                 raise ValueError("From account not found")
             if not to_acc:
                 raise ValueError("To account not found")
-            if from_acc.currency != currency or to_acc.currency != currency:
-                raise ValueError("Currency mismatch")
-            if from_acc.status != 'active' or to_acc.status != 'active':
-                raise ValueError("One of accounts is not active")
+            # Normalize currency/status checks
+            try:
+                from_currency = str(getattr(from_acc, 'currency', '')).strip().upper()
+            except Exception:
+                from_currency = None
+            try:
+                to_currency = str(getattr(to_acc, 'currency', '')).strip().upper()
+            except Exception:
+                to_currency = None
+            if from_currency != str(currency).strip().upper() or to_currency != str(currency).strip().upper():
+                raise ValueError(f"Currency mismatch (from={repr(getattr(from_acc, 'currency', None))} to={repr(getattr(to_acc, 'currency', None))} expected={repr(currency)})")
+            try:
+                from_status = str(getattr(from_acc, 'status', '')).strip().lower()
+            except Exception:
+                from_status = None
+            try:
+                to_status = str(getattr(to_acc, 'status', '')).strip().lower()
+            except Exception:
+                to_status = None
+            if from_status != 'active' or to_status != 'active':
+                raise ValueError(f"One of accounts is not active (from_status={repr(getattr(from_acc, 'status', None))} to_status={repr(getattr(to_acc, 'status', None))})")
             if from_acc.balance < amount:
                 raise ValueError("Insufficient funds")
 
@@ -376,10 +393,19 @@ def withdraw_from_user(user_id: str, amount, currency: str = 'JPY'):
             acc = db.execute(select(Account).filter_by(user_id=user_id).with_for_update()).scalars().first()
             if not acc:
                 raise ValueError("Account not found")
-            if acc.currency != currency:
-                raise ValueError("Currency mismatch")
-            if getattr(acc, 'status', None) != 'active':
-                raise ValueError("Account not active")
+            # 正規化して比較（余分な空白や大文字小文字差を吸収）
+            try:
+                acc_currency = str(getattr(acc, 'currency', '')).strip().upper()
+            except Exception:
+                acc_currency = None
+            if acc_currency != str(currency).strip().upper():
+                raise ValueError(f"Currency mismatch (account={repr(getattr(acc, 'currency', None))} expected={repr(currency)})")
+            try:
+                acc_status = str(getattr(acc, 'status', '')).strip().lower()
+            except Exception:
+                acc_status = None
+            if acc_status != 'active':
+                raise ValueError(f"Account not active (status={repr(getattr(acc, 'status', None))})")
             if acc.balance < amt:
                 raise ValueError("Insufficient funds")
             acc.balance = acc.balance - amt
@@ -418,10 +444,19 @@ def deposit_to_user(user_id: str, amount, currency: str = 'JPY'):
             acc = db.execute(select(Account).filter_by(user_id=user_id).with_for_update()).scalars().first()
             if not acc:
                 raise ValueError("Account not found")
-            if acc.currency != currency:
-                raise ValueError("Currency mismatch")
-            if getattr(acc, 'status', None) != 'active':
-                raise ValueError("Account not active")
+            # Normalize for robustness
+            try:
+                acc_currency = str(getattr(acc, 'currency', '')).strip().upper()
+            except Exception:
+                acc_currency = None
+            if acc_currency != str(currency).strip().upper():
+                raise ValueError(f"Currency mismatch (account={repr(getattr(acc, 'currency', None))} expected={repr(currency)})")
+            try:
+                acc_status = str(getattr(acc, 'status', '')).strip().lower()
+            except Exception:
+                acc_status = None
+            if acc_status != 'active':
+                raise ValueError(f"Account not active (status={repr(getattr(acc, 'status', None))})")
             acc.balance = acc.balance + amt
         return True
     except Exception:
