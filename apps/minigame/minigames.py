@@ -194,7 +194,6 @@ def join_game_session(group_id: str, user_id: str, display_name: str, conn):
 
     # すべての条件を満たしていれば参加
     group.current_game.players[user_id] = Player(user_id=user_id, display_name=display_name)
-    print(f"User {user_id} ({display_name}) joined game in group {group_id}.")
 
     # 参加後に上限到達を判定して自動で募集を締め切る
     if group.current_game.max_players and len(group.current_game.players) >= group.current_game.max_players:
@@ -239,7 +238,7 @@ def reset_game_session(group_id: str):
 
 
 # --- 以下、ゲーム進行用ユーティリティ ---
-def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 20):
+def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
     from threading import Timer
     from datetime import timedelta
     group = manager.groups.get(group_id)

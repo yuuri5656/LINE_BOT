@@ -384,10 +384,11 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             group = manager.groups.get(group_id)
             if group and group.current_game and group.current_game.state == GameState.RECRUITING and group.current_game.host_user_id == user_id:
                 # ゲーム開始処理（参加者へ個別チャットで手を送るよう促す）
-                # デフォルトタイムアウトは20秒（変更可）
+                # デフォルトタイムアウトは30秒（変更可）
+                print(f"Players listed for game start: {group.current_game.players}")
                 try:
                     from apps.minigame.minigames import start_game_session
-                    msg = start_game_session(group_id, line_bot_api, timeout_seconds=20)
+                    msg = start_game_session(group_id, line_bot_api, timeout_seconds=30)
                     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
                 except Exception as e:
                     line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ゲームの開始に失敗しました。"))
@@ -411,7 +412,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         # それ以外は通常の個別チャット用メッセージ（口座開設など）が処理されるため、簡易応答
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text="個別チャットでは、ゲーム中に「グー」「チョキ」「パー」を送信することで手を出せます。")
+            TextSendMessage(text="塩爺です。?ヘルプ と入力すると利用可能なコマンド一覧が表示されます。")
         )
         return
 
