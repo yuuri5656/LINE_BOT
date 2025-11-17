@@ -126,13 +126,25 @@ def create_account_optimized(event, account_info: dict, sessions: dict, operator
         except Exception as e:
             print(f"[BankService] notification error: {e}")
 
-        # Detach instance from session so callers can safely access attributes
+        # Prepare a plain dict to return so callers do not need an active
+        # SQLAlchemy Session to access attributes (avoids detached-instance errors).
+        account_data = {
+            'account_id': getattr(new_account, 'account_id', None),
+            'user_id': getattr(new_account, 'user_id', None),
+            'account_number': getattr(new_account, 'account_number', None),
+            'balance': str(getattr(new_account, 'balance', None)),
+            'currency': getattr(new_account, 'currency', None),
+            'type': getattr(new_account, 'type', None),
+            'branch_id': getattr(new_account, 'branch_id', None),
+            'status': getattr(new_account, 'status', None),
+        }
+
+        # Detach instance from session to be safe (callers will use the dict)
         try:
             db.expunge(new_account)
         except Exception:
-            # expunge may fail for some session implementations; ignore safely
             pass
-        return new_account
+        return account_data
 
     except Exception as e:
         db.rollback()

@@ -14,11 +14,18 @@ def create_account(event, account_info, sessions, user_id):
         operator_id = account_info.get('operator_id') or sessions.get('operator_id') if sessions else None
         new_account = create_account_optimized(event, account_info, sessions, operator_id=operator_id)
 
+        acct_num = None
+        try:
+            # bank_service now returns a plain dict for safety
+            acct_num = new_account.get('account_number') if isinstance(new_account, dict) else getattr(new_account, 'account_number', None)
+        except Exception:
+            acct_num = None
+
         messages = [
             TextSendMessage(
                 text=(
                     f"{account_info.get('display_name')} 様、ご登録ありがとうございます。\n\n"
-                    f"口座を開設いたしました。\n口座番号: {new_account.account_number}"
+                    f"口座を開設いたしました。\n口座番号: {acct_num if acct_num else '（不明）'}"
                 )
             ),
         ]
