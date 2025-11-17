@@ -65,7 +65,8 @@ def play_rps_game(event, user_id, text, display_name, group_id, sessions):
         game_type="rps_game",
         host_user_id=user_id,
         min_balance=min_balance,
-        max_players=max_players
+        max_players=max_players,
+        host_display_name=display_name
     )
 
     # manager に登録されたセッションが取得できれば max_players を明示的に設定

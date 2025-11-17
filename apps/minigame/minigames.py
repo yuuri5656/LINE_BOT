@@ -128,7 +128,12 @@ def fixed_prize_distribution(bets, fee_rate=0.1):
     return prizes_int, fee
 
 # セッション作成処理
-def create_game_session(group_id: str, game_type: str, host_user_id: str, min_balance: int, max_players: int = 0):
+def create_game_session(group_id: str, game_type: str, host_user_id: str, min_balance: int, max_players: int = 0, host_display_name: str = None):
+    # ホストはセッション作成時点で参加者として追加する
+    players = {}
+    if host_user_id:
+        players[host_user_id] = Player(user_id=host_user_id, display_name=host_display_name or host_user_id)
+
     manager.groups[group_id] = Group(
         group_id=group_id,
         current_game=GameSession(
@@ -136,7 +141,8 @@ def create_game_session(group_id: str, game_type: str, host_user_id: str, min_ba
             state=GameState.RECRUITING,
             min_balance=min_balance,
             host_user_id=host_user_id,
-            max_players=max_players
+            max_players=max_players,
+            players=players
         )
     )
 
@@ -145,6 +151,24 @@ def join_game_session(group_id: str, user_id: str, display_name: str, conn):
     group = manager.groups.get(group_id)
     if not group:
         return "このグループではゲームが開催されていません。"
+
+    # --- 追加: 別グループで既に参加中のユーザーは参加不可 ---
+    def find_user_participation(uid: str):
+        """
+        uid が別のグループで既に参加（募集中または進行中）しているかを探す。
+        見つかった場合は (group_id, session) を返す。見つからなければ (None, None)。
+        """
+        for gid, grp in manager.groups.items():
+            if not grp or not grp.current_game:
+                continue
+            sess = grp.current_game
+            if sess.state in (GameState.RECRUITING, GameState.IN_PROGRESS) and uid in sess.players:
+                return gid, sess
+        return None, None
+
+    found_gid, found_sess = find_user_participation(user_id)
+    if found_gid and found_gid != group_id:
+        return "あなたは既に他のグループでゲームに参加しています。先にそちらの参加をキャンセルしてください。"
 
     # グループに現在進行中のゲームがあるか確認
     if not group.current_game:
@@ -170,6 +194,7 @@ def join_game_session(group_id: str, user_id: str, display_name: str, conn):
 
     # すべての条件を満たしていれば参加
     group.current_game.players[user_id] = Player(user_id=user_id, display_name=display_name)
+    print(f"User {user_id} ({display_name}) joined game in group {group_id}.")
 
     # 参加後に上限到達を判定して自動で募集を締め切る
     if group.current_game.max_players and len(group.current_game.players) >= group.current_game.max_players:
