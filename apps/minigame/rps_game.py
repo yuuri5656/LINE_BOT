@@ -23,8 +23,6 @@
 - 送金処理は銀行システムのAPIを使用して行う。
 - 参加者が最低2人以上必要。
 """
-import psycopg2
-import config
 from apps.minigame.minigames import Player, GameSession, Group, GroupManager, manager, check_account_existence_and_balance, create_game_session
 from core.api import handler, line_bot_api
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
@@ -37,7 +35,6 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSend
 """
 
 def play_rps_game(event, user_id, text, display_name, group_id, sessions):
-    conn = psycopg2.connect(config.DATABASE_URL)
     min_balance = 110  # 最低参加費用
     max_players = 5    # 募集上限（参加人数）
     # 既に同グループで進行中（募集中）のじゃんけんがあるかチェック
@@ -52,16 +49,14 @@ def play_rps_game(event, user_id, text, display_name, group_id, sessions):
             event.reply_token,
             TextSendMessage(text=f"このグループでは既に{existing_session.host_user_id}がじゃんけんの参加者を募集しています。参加する場合は'?参加'と入力してください（募集は最大{getattr(existing_session,'max_players','不明')}名まで）。")
         )
-        conn.close()
         return
 
-    if not check_account_existence_and_balance(conn, user_id, min_balance):
+    if not check_account_existence_and_balance(None, user_id, min_balance):
         line_bot_api.reply_message(
             event.reply_token,
             [TextSendMessage(text=f"{display_name} 様、申し訳ございませんが、じゃんけんゲームを開始するためには有効な銀行口座と最低残高 {min_balance} JPY が必要です。"),
             TextSendMessage(text="口座をお持ちでない場合は、塩爺との個別チャットにて'?口座開設' と入力して口座を開設してください。")]
         )
-        conn.close()
         return
 
     # セッション作成
@@ -86,4 +81,4 @@ def play_rps_game(event, user_id, text, display_name, group_id, sessions):
         event.reply_token,
         TextSendMessage(text=f"{display_name}が参加者を募集しています。参加希望の方は'?参加'と入力してください。募集は最大{max_players}名で締め切ります。")
     )
-    conn.close()
+    

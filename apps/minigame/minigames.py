@@ -14,6 +14,7 @@ from typing import Dict
 from datetime import datetime
 from enum import Enum
 from linebot.models import TextSendMessage
+from apps.minigame import bank_service
 
 
 class GameState(Enum):
@@ -64,17 +65,33 @@ manager = GroupManager()
 
 # 口座が存在し、かつアクティブ状態であり、残金がmin_balanceを満たしているかどうかを確認。
 def check_account_existence_and_balance(conn, user_id, min_balance):
-    with conn.cursor() as cur:
-        cur.execute("""
-            SELECT balance
-            FROM accounts
-            WHERE user_id = %s AND status = 'active'
-        """, (user_id,))
-        result = cur.fetchone()
-        if result is None:
-            return False  # 口座が存在しない
-        balance = result[0]
-        return balance >= min_balance  # 最低残高を満たしているか確認
+    """
+    conn が提供されている場合は既存の SQL を使用する。提供されていない場合は
+    `bank_service.get_active_account_by_user` を利用して残高を確認する。
+    """
+    try:
+        if conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT balance
+                    FROM accounts
+                    WHERE user_id = %s AND status = 'active'
+                """, (user_id,))
+                result = cur.fetchone()
+                if result is None:
+                    return False  # 口座が存在しない
+                balance = result[0]
+                return balance >= min_balance  # 最低残高を満たしているか確認
+        else:
+            acc = bank_service.get_active_account_by_user(user_id)
+            if not acc:
+                return False
+            try:
+                return acc.balance >= min_balance
+            except Exception:
+                return False
+    except Exception:
+        return False
 
 
 def fixed_prize_distribution(bets, fee_rate=0.1):
@@ -196,8 +213,6 @@ def reset_game_session(group_id: str):
 def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 20):
     from threading import Timer
     from datetime import timedelta
-    import psycopg2, config
-
     group = manager.groups.get(group_id)
     if not group or not group.current_game:
         return "このグループではゲームが開催されていません。"
@@ -210,40 +225,20 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 20):
     session.start_time = datetime.now()
     session.deadline = session.start_time + timedelta(seconds=timeout_seconds)
 
-    # 参加費を徴収（簡易実装: accounts テーブルから残高を差し引く）
+    # 参加費を徴収（銀行APIを利用）
     paid = []
     refunded = []
     try:
-        conn = psycopg2.connect(config.DATABASE_URL)
-        with conn.cursor() as cur:
-            for uid in list(session.players.keys()):
-                try:
-                    cur.execute("""
-                        UPDATE accounts
-                        SET balance = balance - %s
-                        WHERE user_id = %s AND status = 'active' AND balance >= %s
-                        RETURNING balance
-                    """, (session.min_balance, uid, session.min_balance))
-                    res = cur.fetchone()
-                    if res is None:
-                        # 支払いできないユーザーは参加取り消し
-                        del session.players[uid]
-                        refunded.append(uid)
-                    else:
-                        paid.append(uid)
-                except Exception:
-                    # 個別失敗は参加取り消し
-                    if uid in session.players:
-                        del session.players[uid]
-                        refunded.append(uid)
-        conn.commit()
-        conn.close()
+        for uid in list(session.players.keys()):
+            try:
+                bank_service.withdraw_from_user(uid, session.min_balance)
+                paid.append(uid)
+            except Exception:
+                # 支払いできないユーザーは参加取り消し
+                if uid in session.players:
+                    del session.players[uid]
+                    refunded.append(uid)
     except Exception:
-        # DBエラーが発生した場合は中止
-        try:
-            conn.close()
-        except Exception:
-            pass
         return "参加費の徴収中にエラーが発生しました。"
 
     # 支払いできなかったユーザーを通知
@@ -415,19 +410,14 @@ def finish_game_session(group_id: str, line_bot_api):
         messages.append(TextSendMessage(text=f"{idx} 位: {p.display_name} - 手: {hand} - スコア: {sc} - 収支: +{pay} JPY"))
 
     try:
-        import psycopg2, config
-        conn = psycopg2.connect(config.DATABASE_URL)
-        with conn.cursor() as cur:
-            for uid, amount in payouts.items():
-                if amount <= 0:
-                    continue
-                cur.execute("""
-                    UPDATE accounts
-                    SET balance = balance + %s
-                    WHERE user_id = %s AND status = 'active'
-                """, (amount, uid))
-        conn.commit()
-        conn.close()
+        for uid, amount in payouts.items():
+            if amount <= 0:
+                continue
+            try:
+                bank_service.deposit_to_user(uid, amount)
+            except Exception:
+                # 個別の入金失敗はログに留め、処理は続行
+                pass
     except Exception:
         pass
 

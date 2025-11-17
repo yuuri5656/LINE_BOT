@@ -105,6 +105,9 @@ def create_account_optimized(event, account_info: dict, sessions: dict, operator
             )
 
             db.add(new_account)
+            # Ensure PK and attributes are populated before returning a detached instance
+            db.flush()
+            db.refresh(new_account)
 
         # 返信はイベントに対して行うのはそのまま行う（呼び出し元でreplyされる想定）
         # 口座開設者（account_info['user_id']）へ個別チャットで通知を送信
@@ -124,6 +127,12 @@ def create_account_optimized(event, account_info: dict, sessions: dict, operator
         except Exception as e:
             print(f"[BankService] notification error: {e}")
 
+        # Detach instance from session so callers can safely access attributes
+        try:
+            db.expunge(new_account)
+        except Exception:
+            # expunge may fail for some session implementations; ignore safely
+            pass
         return new_account
 
     except Exception as e:
@@ -196,6 +205,58 @@ def transfer_funds(from_account_number: str, to_account_number: str, amount, cur
     except Exception as e:
         db.rollback()
         print(f"[BankService] transfer_funds failed: {e}")
+        raise
+    finally:
+        db.close()
+
+
+def get_active_account_by_user(user_id: str):
+    """ユーザーIDからアクティブな口座を取得するヘルパー。見つからなければ None を返す。"""
+    db = SessionLocal()
+    try:
+        acc = db.execute(select(Account).filter_by(user_id=user_id, status='active')).scalars().first()
+        return acc
+    finally:
+        db.close()
+
+
+def withdraw_from_user(user_id: str, amount, currency: str = 'JPY'):
+    """ユーザー口座から引き落とす。残高不足や口座未存在時は例外を投げる。"""
+    db = SessionLocal()
+    amt = Decimal(amount)
+    try:
+        with db.begin():
+            acc = db.execute(select(Account).filter_by(user_id=user_id, status='active').with_for_update()).scalars().first()
+            if not acc:
+                raise ValueError("Account not found")
+            if acc.currency != currency:
+                raise ValueError("Currency mismatch")
+            if acc.balance < amt:
+                raise ValueError("Insufficient funds")
+            acc.balance = acc.balance - amt
+        return True
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+def deposit_to_user(user_id: str, amount, currency: str = 'JPY'):
+    """ユーザー口座へ入金する。口座が存在しない場合は例外を投げる。"""
+    db = SessionLocal()
+    amt = Decimal(amount)
+    try:
+        with db.begin():
+            acc = db.execute(select(Account).filter_by(user_id=user_id, status='active').with_for_update()).scalars().first()
+            if not acc:
+                raise ValueError("Account not found")
+            if acc.currency != currency:
+                raise ValueError("Currency mismatch")
+            acc.balance = acc.balance + amt
+        return True
+    except Exception:
+        db.rollback()
         raise
     finally:
         db.close()
