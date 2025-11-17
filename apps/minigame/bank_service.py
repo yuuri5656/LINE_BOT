@@ -384,7 +384,24 @@ def withdraw_from_user(user_id: str, amount, currency: str = 'JPY'):
                 raise ValueError("Insufficient funds")
             acc.balance = acc.balance - amt
         return True
-    except Exception:
+    except Exception as e:
+        # 詳細ログを出して原因を把握しやすくする
+        try:
+            acc = locals().get('acc', None)
+            acc_info = None
+            if acc is not None:
+                try:
+                    acc_info = f"account_id={getattr(acc, 'account_id', None)} balance={getattr(acc, 'balance', None)} status={getattr(acc, 'status', None)} currency={getattr(acc, 'currency', None)}"
+                except Exception:
+                    acc_info = "(failed to read account info)"
+            else:
+                acc_info = "(no account found)"
+        except Exception:
+            acc_info = "(error while preparing account info)"
+        try:
+            print(f"[BankService] withdraw_from_user failed user={user_id} amount={amt} currency={currency} error={e} acc_info={acc_info}")
+        except Exception:
+            pass
         db.rollback()
         raise
     finally:

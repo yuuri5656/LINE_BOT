@@ -261,8 +261,12 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
             try:
                 bank_service.withdraw_from_user(uid, session.min_balance)
                 paid.append(uid)
-            except Exception:
-                # 支払いできないユーザーは参加取り消し
+            except Exception as e:
+                # 支払いできないユーザーは参加取り消し（ログを追加: 例外内容も出力）
+                try:
+                    print(f"start_game_session: withdraw failed for user={uid} amount={session.min_balance} error={e}")
+                except Exception:
+                    pass
                 if uid in session.players:
                     del session.players[uid]
                     refunded.append(uid)
@@ -272,6 +276,31 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
     # デバッグ出力: 支払い状況と残存プレイヤー
     try:
         print(f"start_game_session: group={group_id} paid={paid} refunded={refunded} remaining_players={list(session.players.keys())}")
+    except Exception:
+        pass
+
+    # 支払い後に参加者が2名未満になったらゲームを中止して支払済みを返金
+    try:
+        remaining = list(session.players.keys())
+        if len(remaining) < 2:
+            # 返金処理（支払い済みのユーザーに戻す）
+            for uid in paid:
+                try:
+                    bank_service.deposit_to_user(uid, session.min_balance)
+                except Exception:
+                    try:
+                        print(f"start_game_session: refund failed for user={uid} amount={session.min_balance}")
+                    except Exception:
+                        pass
+
+            # セッションを中止してグループに通知
+            try:
+                line_bot_api.push_message(group_id, TextSendMessage(text="参加者の支払いに失敗したため、ゲームを中止しました。もう一度募集を開始してください。"))
+            except Exception:
+                pass
+            # セッションをクリア
+            group.current_game = None
+            return "参加者の支払いに失敗したため、ゲームを中止しました。"
     except Exception:
         pass
 
