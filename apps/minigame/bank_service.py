@@ -101,7 +101,6 @@ def create_account_optimized(event, account_info: dict, sessions: dict, operator
                 currency=currency,
                 type=account_type_en,
                 branch_id=branch.branch_id,
-                status='active',
             )
 
             db.add(new_account)

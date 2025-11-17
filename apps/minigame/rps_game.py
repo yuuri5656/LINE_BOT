@@ -81,4 +81,4 @@ def play_rps_game(event, user_id, text, display_name, group_id, sessions):
         event.reply_token,
         TextSendMessage(text=f"{display_name}が参加者を募集しています。参加希望の方は'?参加'と入力してください。募集は最大{max_players}名で締め切ります。")
     )
-    
+
