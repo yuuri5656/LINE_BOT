@@ -269,6 +269,12 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
     except Exception:
         return "参加費の徴収中にエラーが発生しました。"
 
+    # デバッグ出力: 支払い状況と残存プレイヤー
+    try:
+        print(f"start_game_session: group={group_id} paid={paid} refunded={refunded} remaining_players={list(session.players.keys())}")
+    except Exception:
+        pass
+
     # 支払いできなかったユーザーを通知
     if refunded:
         try:
@@ -306,12 +312,24 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
 
 def find_session_by_user(user_id: str):
     # 参加中で進行中のセッションを検索
-    for gid, grp in manager.groups.items():
-        if not grp or not grp.current_game:
-            continue
-        sess = grp.current_game
-        if sess.state == GameState.IN_PROGRESS and user_id in sess.players:
-            return gid, sess
+    # デバッグ用ログを追加して現状を確認しやすくする
+    try:
+        for gid, grp in manager.groups.items():
+            if not grp or not grp.current_game:
+                #print(f"find_session_by_user: group {gid} has no current_game")
+                continue
+            sess = grp.current_game
+            # サマリ出力（デバッグ）
+            try:
+                player_keys = list(sess.players.keys()) if sess.players else []
+            except Exception:
+                player_keys = []
+            print(f"find_session_by_user: checking group={gid} state={sess.state} players={player_keys}")
+            if sess.state == GameState.IN_PROGRESS and user_id in sess.players:
+                print(f"find_session_by_user: match found in group={gid} for user={user_id}")
+                return gid, sess
+    except Exception as e:
+        print(f"find_session_by_user: error while searching sessions: {e}")
     return None, None
 
 
@@ -370,6 +388,11 @@ def finish_game_session(group_id: str, line_bot_api):
         return
 
     session = group.current_game
+    # デバッグ出力: 終了時のセッション情報
+    try:
+        print(f"finish_game_session: group={group_id} state={session.state} players={list(session.players.keys())}")
+    except Exception:
+        pass
     session.state = GameState.FINISHED
 
     players = list(session.players.values())
