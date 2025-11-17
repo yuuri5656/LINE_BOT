@@ -72,15 +72,19 @@ def check_account_existence_and_balance(conn, user_id, min_balance):
     try:
         if conn:
             with conn.cursor() as cur:
+                # Avoid filtering by enum literal in SQL; select the row and
+                # validate the status in Python to prevent enum-mapping issues.
                 cur.execute("""
-                    SELECT balance
+                    SELECT balance, status
                     FROM accounts
-                    WHERE user_id = %s AND status = 'active'
+                    WHERE user_id = %s
                 """, (user_id,))
                 result = cur.fetchone()
                 if result is None:
                     return False  # 口座が存在しない
-                balance = result[0]
+                balance, status = result[0], result[1]
+                if status != 'active':
+                    return False
                 return balance >= min_balance  # 最低残高を満たしているか確認
         else:
             acc = bank_service.get_active_account_by_user(user_id)
