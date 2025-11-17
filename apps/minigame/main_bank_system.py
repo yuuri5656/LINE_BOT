@@ -25,7 +25,7 @@ Base = declarative_base()
 
 # Postgres 側に既に定義されている enum 型を参照するために create_type=False を使用
 account_status_enum = PG_ENUM('active', 'frozen', 'closed', name="account_status", create_type=False)
-account_type_enum = PG_ENUM('ordinary', 'time', name="account_type", create_type=False)
+account_type_enum = PG_ENUM('ordinary', 'time', 'current', name="account_type", create_type=False)
 transaction_type_enum = PG_ENUM('transfer', 'deposit', 'withdrawal', 'fee', 'interest', name="transaction_type", create_type=False)
 transaction_status_enum = PG_ENUM('pending', 'completed', 'failed', 'reversed', name="transaction_status", create_type=False)
 entry_type_enum = PG_ENUM('debit', 'credit', name="entry_type", create_type=False)
@@ -57,12 +57,68 @@ class Branch(Base):
         return f"<Branch(branch_id={self.branch_id}, code={self.code}, name={self.name})>"
 
 
+class Customer(Base):
+    """customers テーブルの ORM 定義
+
+    対応する DB カラム:
+        customer_id bigint PK
+        full_name text NOT NULL
+        date_of_birth date NOT NULL
+        user_id text NOT NULL UNIQUE
+        created_at timestamptz DEFAULT now()
+        updated_at timestamptz DEFAULT now()
+    """
+
+    __tablename__ = "customers"
+
+    customer_id = Column(BigInteger, primary_key=True)
+    full_name = Column(String, nullable=False)
+    date_of_birth = Column(DateTime, nullable=False)
+    user_id = Column(String, unique=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=text('now()'))
+    updated_at = Column(DateTime(timezone=True), server_default=text('now()'), onupdate=func.now())
+
+    # リレーション
+    accounts = relationship("Account", back_populates="customer")
+    credentials = relationship("CustomerCredential", back_populates="customer", uselist=False, cascade="all, delete")
+
+    def __repr__(self):
+        return f"<Customer(customer_id={self.customer_id}, full_name={self.full_name}, user_id={self.user_id})>"
+
+
+class CustomerCredential(Base):
+    """customer_credentials テーブルの ORM 定義
+
+    対応する DB カラム:
+        customer_id bigint PK, FK -> customers.customer_id ON DELETE CASCADE
+        pin_hash text NOT NULL
+        pin_salt text NOT NULL
+        created_at timestamptz DEFAULT now()
+        updated_at timestamptz DEFAULT now()
+    """
+
+    __tablename__ = "customer_credentials"
+
+    customer_id = Column(BigInteger, ForeignKey('customers.customer_id', ondelete='CASCADE'), primary_key=True)
+    pin_hash = Column(String, nullable=False)
+    pin_salt = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=text('now()'))
+    updated_at = Column(DateTime(timezone=True), server_default=text('now()'), onupdate=func.now())
+
+    # リレーション
+    customer = relationship("Customer", back_populates="credentials")
+
+    def __repr__(self):
+        return f"<CustomerCredential(customer_id={self.customer_id})>"
+
+
 class Account(Base):
     """accounts テーブルの ORM 定義
 
     対応する DB カラム:
         account_id bigint PK
-        user_id bigint NOT NULL
+        customer_id bigint FK -> customers.customer_id
+        user_id text NOT NULL
         account_number varchar(20) NOT NULL UNIQUE
         balance numeric(18,2) NOT NULL DEFAULT 0
         currency char(4) NOT NULL
@@ -76,6 +132,7 @@ class Account(Base):
     __tablename__ = "accounts"
 
     account_id = Column(BigInteger, primary_key=True)
+    customer_id = Column(BigInteger, ForeignKey('customers.customer_id'), nullable=False)
     # DB のスキーマ上では user_id は text 型のため、モデルも文字列で扱う
     user_id = Column(String, nullable=False)
     account_number = Column(String(20), unique=True, nullable=False)
@@ -89,6 +146,7 @@ class Account(Base):
 
     # リレーション
     branch = relationship("Branch", back_populates="accounts")
+    customer = relationship("Customer", back_populates="accounts")
     transactions_from = relationship(
         "Transaction",
         back_populates="from_account",

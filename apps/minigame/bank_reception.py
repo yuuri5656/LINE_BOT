@@ -17,7 +17,7 @@ def bank_reception(event, text, user_id, display_name, sessions):
         1: TextSendMessage(text="ご自身のフルネームを教えてください。\n苗字と名前の間には半角スペースを挿入してください。(例:本田 春輝)"),
         2: TextSendMessage(text="ご自身の生年月日を「YYYY-MM-DD」の形式で教えてください。(例:2011-03-25)"),
         3: TextSendMessage(text="ご自身の希望する支店を以下から支店名でお選び下さい。\n※どの支店を選んで頂いてもご利用に影響はございません。\n\n支店名　　　　支店番号\n塩路支店　　　001\nメガネ支店　　002\nバナナ支店　　003\nボラ部支店　　004\nゴリラ支店　　005\nマッコリ支店　006\nビースト支店　810"),
-        4: TextSendMessage(text="ご自身の希望する口座種別を、普通預金・定期預金からお選び下さい。"),
+        4: TextSendMessage(text="ご自身の希望する口座種別を、普通預金・当座預金・定期預金からお選び下さい。"),
         5: TextSendMessage(text="最後に、4桁の暗証番号を設定してください。(例:1234)\nまた、セキュリティの観点から、ご自身の誕生日や連続した数字、同じ数字の繰り返しは避けてください。")
     }
 
@@ -107,13 +107,13 @@ def bank_reception(event, text, user_id, display_name, sessions):
             sessions[user_id]["branch_num"] = branch_num
             sessions[user_id]["step"] = 4
             messages.append(TextSendMessage(text=f"ご入力ありがとうございます。\n支店名:{branch_name}、支店番号{branch_num}で承りました。"))
-            messages.append(TextSendMessage(text="次に、ご自身の希望する口座種別を、普通預金・定期預金からお選び下さい。"))
+            messages.append(TextSendMessage(text="次に、ご自身の希望する口座種別を、普通預金・当座預金・定期預金からお選び下さい。"))
         else:
             messages.append(TextSendMessage(text="申し訳ありません。\n選択された支店名が正しくありません。\n再度確認の上、必ず支店名をご入力下さい。"))
         line_bot_api.reply_message(event.reply_token, messages)
     elif current_step == 4:
         account_type = text.strip()
-        valid_account_types = ["普通預金", "定期預金"]
+        valid_account_types = ["普通預金", "定期預金", "当座預金"]
         if account_type in valid_account_types:
             # セッションに口座種別を保存
             sessions[user_id]["account_type"] = account_type

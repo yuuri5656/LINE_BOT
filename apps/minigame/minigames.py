@@ -253,29 +253,29 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
     session.start_time = datetime.now()
     session.deadline = session.start_time + timedelta(seconds=timeout_seconds)
 
-    # 参加費を徴収（銀行APIを利用）
+    # 参加費を徴収(銀行APIを利用)
     paid = []
-    refunded = []
+    failed = []
     try:
         for uid in list(session.players.keys()):
             try:
                 bank_service.withdraw_from_user(uid, session.min_balance)
                 paid.append(uid)
             except Exception as e:
-                # 支払いできないユーザーは参加取り消し（ログを追加: 例外内容も出力）
+                # 支払いできないユーザーは参加取り消し(ログを追加: 例外内容も出力)
                 try:
                     print(f"start_game_session: withdraw failed for user={uid} amount={session.min_balance} error={e}")
                 except Exception:
                     pass
                 if uid in session.players:
                     del session.players[uid]
-                    refunded.append(uid)
+                    failed.append(uid)
     except Exception:
         return "参加費の徴収中にエラーが発生しました。"
 
     # デバッグ出力: 支払い状況と残存プレイヤー
     try:
-        print(f"start_game_session: group={group_id} paid={paid} refunded={refunded} remaining_players={list(session.players.keys())}")
+        print(f"start_game_session: group={group_id} paid={paid} failed={failed} remaining_players={list(session.players.keys())}")
     except Exception:
         pass
 
@@ -283,7 +283,7 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
     try:
         remaining = list(session.players.keys())
         if len(remaining) < 2:
-            # 返金処理（支払い済みのユーザーに戻す）
+            # 返金処理(支払い済みのユーザーに戻す)
             for uid in paid:
                 try:
                     bank_service.deposit_to_user(uid, session.min_balance)
@@ -300,16 +300,16 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
                 pass
             # セッションをクリア
             group.current_game = None
-            return "参加者の支払いに失敗したため、ゲームを中止しました。"
+            return
     except Exception:
         pass
 
     # 支払いできなかったユーザーを通知
-    if refunded:
+    if failed:
         try:
-            names = [p.display_name for uid, p in list(session.players.items()) if uid not in refunded]
+            failed_names = [p.display_name for uid, p in list(session.players.items()) if uid in failed]
         except Exception:
-            names = []
+            failed_names = []
     player_names = [p.display_name for p in session.players.values()]
     try:
         line_bot_api.push_message(group_id, TextSendMessage(text=f"ゲームを開始します。参加者: {', '.join(player_names)}\n個別チャットで「グー」「チョキ」「パー」のいずれかを送ってください。締め切り: {timeout_seconds}秒"))
