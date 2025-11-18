@@ -97,6 +97,23 @@ def bank_reception(event, text, user_id, display_name, sessions):
                 )
             return
 
+    # 口座開設の初期化処理
+    if text.strip() == "?口座開設":
+        if event.source.type != 'user':
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="口座開設は個別チャット(1対1トーク)でのみ利用可能です。"))
+            return
+        
+        # セッションを初期化してステップ1を開始
+        sessions[user_id] = {"step": 1}
+        line_bot_api.reply_message(
+            event.reply_token,
+            [
+                TextSendMessage(text=f"{display_name} 様、ようこそ！\n口座開設のお手続きを開始いたします。"),
+                TextSendMessage(text="ご自身のフルネームを半角カタカナで教えてください。\n苗字と名前の間には半角スペースを挿入してください。(例:ﾎﾝﾀﾞ ﾊﾙｷ)")
+            ]
+        )
+        return
+
     # ミニゲーム口座登録処理（個別チャットのみ）
     if text == "?ミニゲーム口座登録" or (isinstance(state, dict) and state.get("minigame_registration")):
         if event.source.type != 'user':
