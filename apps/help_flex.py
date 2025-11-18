@@ -24,38 +24,123 @@ def get_account_flex_bubble(account_info):
     type_map = {'ordinary': '普通', 'current': '当座', 'time': '定期'}
     type_jp = type_map.get(str(account_info.get('type')), str(account_info.get('type')))
 
-    # シンプルなテキスト表示（Flexバブル内にテキストブロックのみ）
-    # フォーマルかつおしゃれなカード風レイアウト
+    # モダンで機能的なカードレイアウト（絵文字なし）
+    # 左側にラベル、右側に値を揃える二列レイアウト。
+    # 色味は控えめにし、余白とタイポグラフィで見やすさを確保。
+    balance_val = account_info.get('balance') or ''
+    currency = account_info.get('currency') or ''
+
+    # 値が数値文字列ならカンマ区切りに整形（簡易）
+    try:
+        # balance が既にフォーマット済みの文字列の可能性もある
+        if isinstance(balance_val, (int, float)):
+            balance_display = f"{balance_val:,.2f}"
+        else:
+            # 数字文字列なら浮動小数点として整形
+            b = float(str(balance_val))
+            balance_display = f"{b:,.2f}"
+    except Exception:
+        balance_display = str(balance_val)
+
     bubble = {
         "type": "bubble",
         "size": "mega",
         "body": {
             "type": "box",
             "layout": "vertical",
-            "paddingAll": "20px",
-            "backgroundColor": "#f7f7fa",
-            "borderColor": "#d3d3d3",
-            "borderWidth": "2px",
-            "cornerRadius": "xl",
+            "paddingAll": "18px",
+            "backgroundColor": "#FAFBFD",
+            "cornerRadius": "12px",
             "contents": [
-                {"type": "text", "text": "口座情報", "weight": "bold", "size": "lg", "margin": "md"},
+                {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "contents": [
+                        {"type": "text", "text": "口座情報", "weight": "bold", "size": "lg", "color": "#111317"},
+                        {"type": "text", "text": account_info.get('branch_name') or '', "size": "sm", "color": "#6B7280", "align": "end"}
+                    ],
+                    "spacing": "md"
+                },
                 {"type": "separator", "margin": "md"},
                 {
                     "type": "box",
                     "layout": "vertical",
                     "margin": "md",
-                    "backgroundColor": "#ffffff",
+                    "backgroundColor": "#FFFFFF",
+                    "cornerRadius": "8px",
+                    "paddingAll": "12px",
                     "contents": [
-                        {"type": "text", "text": f"氏名: {account_info.get('full_name') or ''}", "size": "md", "margin": "sm"},
-                        {"type": "text", "text": f"支店名: {account_info.get('branch_name') or ''}", "size": "sm", "margin": "sm"},
-                        {"type": "text", "text": f"支店コード: {account_info.get('branch_code') or ''}", "size": "sm", "margin": "sm"},
-                        {"type": "text", "text": f"口座番号: {account_info.get('account_number') or ''}", "size": "md", "margin": "sm"},
-                        {"type": "text", "text": f"種別: {type_jp}", "size": "sm", "margin": "sm"},
-                        {"type": "text", "text": f"状態: {status_jp}", "size": "sm", "margin": "sm"},
-                        {"type": "text", "text": f"作成日: {created_at_str}", "size": "sm", "margin": "sm"},
-                        {"type": "text", "text": f"残高: {account_info.get('balance') or ''} {account_info.get('currency') or ''}", "size": "md", "margin": "md"},
+                        {
+                            "type": "box",
+                            "layout": "baseline",
+                            "contents": [
+                                {"type": "text", "text": "氏名", "size": "sm", "color": "#6B7280", "flex": 2},
+                                {"type": "text", "text": account_info.get('full_name') or '（未登録）', "size": "sm", "color": "#111317", "align": "end", "flex": 5}
+                            ],
+                            "spacing": "sm",
+                            "margin": "xs"
+                        },
+                        {
+                            "type": "box",
+                            "layout": "baseline",
+                            "contents": [
+                                {"type": "text", "text": "支店", "size": "xs", "color": "#6B7280", "flex": 2},
+                                {"type": "text", "text": f"{account_info.get('branch_name') or ''} ({account_info.get('branch_code') or ''})", "size": "xs", "color": "#111317", "align": "end", "flex": 5}
+                            ],
+                            "spacing": "sm",
+                            "margin": "xs"
+                        },
+                        {
+                            "type": "box",
+                            "layout": "baseline",
+                            "contents": [
+                                {"type": "text", "text": "口座番号", "size": "sm", "color": "#6B7280", "flex": 2},
+                                {"type": "text", "text": account_info.get('account_number') or '—', "size": "sm", "color": "#111317", "align": "end", "flex": 5}
+                            ],
+                            "spacing": "sm",
+                            "margin": "xs"
+                        },
+                        {
+                            "type": "box",
+                            "layout": "baseline",
+                            "contents": [
+                                {"type": "text", "text": "種別", "size": "xs", "color": "#6B7280", "flex": 2},
+                                {"type": "text", "text": type_jp, "size": "xs", "color": "#111317", "align": "end", "flex": 5}
+                            ],
+                            "spacing": "sm",
+                            "margin": "xs"
+                        },
+                        {
+                            "type": "box",
+                            "layout": "baseline",
+                            "contents": [
+                                {"type": "text", "text": "状態", "size": "xs", "color": "#6B7280", "flex": 2},
+                                {"type": "text", "text": status_jp, "size": "xs", "color": "#111317", "align": "end", "flex": 5}
+                            ],
+                            "spacing": "sm",
+                            "margin": "xs"
+                        },
+                        {
+                            "type": "box",
+                            "layout": "baseline",
+                            "contents": [
+                                {"type": "text", "text": "作成日", "size": "xs", "color": "#6B7280", "flex": 2},
+                                {"type": "text", "text": created_at_str or '—', "size": "xs", "color": "#111317", "align": "end", "flex": 5}
+                            ],
+                            "spacing": "sm",
+                            "margin": "xs"
+                        }
                     ]
                 },
+                {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "margin": "md",
+                    "contents": [
+                        {"type": "text", "text": "残高", "size": "sm", "color": "#6B7280"},
+                        {"type": "text", "text": f"{balance_display} {currency}", "size": "md", "color": "#0F172A", "align": "end", "weight": "bold"}
+                    ]
+                }
             ]
         }
     }

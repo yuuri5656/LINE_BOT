@@ -351,52 +351,52 @@ def get_account_info_by_user(user_id: str):
         db.close()
 
 
-    def get_accounts_by_user(user_id: str):
-        """ユーザーIDに紐づく全口座情報をリストで返す。"""
-        db = SessionLocal()
-        try:
-            # user_idとstatus='active'で複数口座を取得
-            accounts = db.execute(
-                select(Account).filter_by(user_id=user_id, status='active')
-            ).scalars().all()
-            result = []
-            for acc in accounts:
+def get_accounts_by_user(user_id: str):
+    """ユーザーIDに紐づく全口座情報をリストで返す。"""
+    db = SessionLocal()
+    try:
+        # user_idとstatus='active'で複数口座を取得
+        accounts = db.execute(
+            select(Account).filter_by(user_id=user_id, status='active')
+        ).scalars().all()
+        result = []
+        for acc in accounts:
+            branch_code = None
+            branch_name = None
+            try:
+                if getattr(acc, 'branch', None):
+                    branch_code = getattr(acc.branch, 'code', None)
+                    branch_name = getattr(acc.branch, 'name', None)
+            except Exception:
                 branch_code = None
                 branch_name = None
-                try:
-                    if getattr(acc, 'branch', None):
-                        branch_code = getattr(acc.branch, 'code', None)
-                        branch_name = getattr(acc.branch, 'name', None)
-                except Exception:
-                    branch_code = None
-                    branch_name = None
 
-                balance = getattr(acc, 'balance', None)
-                balance_str = format(balance, '.2f') if balance is not None else None
+            balance = getattr(acc, 'balance', None)
+            balance_str = format(balance, '.2f') if balance is not None else None
 
-                # 顧客情報から氏名を取得
+            # 顧客情報から氏名を取得
+            full_name = None
+            try:
+                if hasattr(acc, 'customer') and acc.customer:
+                    full_name = getattr(acc.customer, 'full_name', None)
+            except Exception:
                 full_name = None
-                try:
-                    if hasattr(acc, 'customer') and acc.customer:
-                        full_name = getattr(acc.customer, 'full_name', None)
-                except Exception:
-                    full_name = None
-                info = {
-                    'account_id': getattr(acc, 'account_id', None),
-                    'account_number': getattr(acc, 'account_number', None),
-                    'balance': balance_str,
-                    'currency': getattr(acc, 'currency', None),
-                    'type': getattr(acc, 'type', None),
-                    'branch_code': branch_code,
-                    'branch_name': branch_name,
-                    'status': getattr(acc, 'status', None),
-                    'created_at': getattr(acc, 'created_at', None),
-                    'full_name': full_name,
-                }
-                result.append(info)
-            return result
-        finally:
-            db.close()
+            info = {
+                'account_id': getattr(acc, 'account_id', None),
+                'account_number': getattr(acc, 'account_number', None),
+                'balance': balance_str,
+                'currency': getattr(acc, 'currency', None),
+                'type': getattr(acc, 'type', None),
+                'branch_code': branch_code,
+                'branch_name': branch_name,
+                'status': getattr(acc, 'status', None),
+                'created_at': getattr(acc, 'created_at', None),
+                'full_name': full_name,
+            }
+            result.append(info)
+        return result
+    finally:
+        db.close()
 
 
 def get_account_transactions_by_user(user_id: str, limit: int = 20):
