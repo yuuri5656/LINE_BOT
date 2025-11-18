@@ -351,6 +351,43 @@ def get_account_info_by_user(user_id: str):
         db.close()
 
 
+    def get_accounts_by_user(user_id: str):
+        """ユーザーIDに紐づく全口座情報をリストで返す。"""
+        db = SessionLocal()
+        try:
+            accounts = db.execute(select(Account).filter_by(user_id=user_id)).scalars().all()
+            result = []
+            for acc in accounts:
+                branch_code = None
+                branch_name = None
+                try:
+                    if getattr(acc, 'branch', None):
+                        branch_code = getattr(acc.branch, 'code', None)
+                        branch_name = getattr(acc.branch, 'name', None)
+                except Exception:
+                    branch_code = None
+                    branch_name = None
+
+                balance = getattr(acc, 'balance', None)
+                balance_str = format(balance, '.2f') if balance is not None else None
+
+                info = {
+                    'account_id': getattr(acc, 'account_id', None),
+                    'account_number': getattr(acc, 'account_number', None),
+                    'balance': balance_str,
+                    'currency': getattr(acc, 'currency', None),
+                    'type': getattr(acc, 'type', None),
+                    'branch_code': branch_code,
+                    'branch_name': branch_name,
+                    'status': getattr(acc, 'status', None),
+                    'created_at': getattr(acc, 'created_at', None),
+                }
+                result.append(info)
+            return result
+        finally:
+            db.close()
+
+
 def get_account_transactions_by_user(user_id: str, limit: int = 20):
     """指定ユーザーの口座について、取引履歴（最近のものから）をリストで返す。
     各要素は dict を返す。口座が無ければ空リストを返す。

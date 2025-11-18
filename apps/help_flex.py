@@ -1,3 +1,23 @@
+def get_account_flex_bubble(account_info):
+    # 口座情報をFlexMessageバブル形式で返す
+    bubble = {
+        "type": "bubble",
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": "口座情報", "weight": "bold", "size": "lg"},
+                {"type": "separator", "margin": "md"},
+                {"type": "text", "text": f"口座番号: {account_info.get('account_number')}", "margin": "md"},
+                {"type": "text", "text": f"残高: {account_info.get('balance') or '0.00'} {account_info.get('currency') or ''}", "margin": "md"},
+                {"type": "text", "text": f"種類: {account_info.get('type') or '（不明）'}", "margin": "md"},
+                {"type": "text", "text": f"支店: {account_info.get('branch_code') or ''} {account_info.get('branch_name') or ''}", "margin": "md"},
+                {"type": "text", "text": f"状態: {account_info.get('status')}", "margin": "md"},
+                {"type": "text", "text": f"作成日: {account_info.get('created_at')}", "margin": "md"},
+            ]
+        }
+    }
+    return bubble
 from linebot.models import FlexSendMessage
 
 def get_help_flex():

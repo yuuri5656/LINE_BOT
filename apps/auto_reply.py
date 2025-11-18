@@ -1,5 +1,5 @@
 from core.api import handler, line_bot_api
-from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
+from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage, FlexSendMessage
 from apps.help_flex import get_help_flex, get_detail_account_flex, get_detail_minigame_flex, get_detail_janken_flex
 import config
 import random
@@ -70,36 +70,19 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="個別チャットでのみ利用可能です。塩爺に直接メッセージを送ってください。"))
             return
 
-        info = bank_service.get_account_info_by_user(user_id)
-        if not info:
+        from apps.help_flex import get_account_flex_bubble
+        accounts = bank_service.get_accounts_by_user(user_id)
+        if not accounts:
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="有効な口座が見つかりません。'?口座開設' を入力して口座を作成してください。"))
             return
 
-        lines = []
-        lines.append("口座情報:")
-        lines.append(f"口座番号: {info.get('account_number')}")
-        lines.append(f"残高: {info.get('balance') or '0.00'} {info.get('currency') or ''}")
-        lines.append(f"種類: {info.get('type') or '（不明）'}")
-        bc = info.get('branch_code') or ''
-        bn = info.get('branch_name') or ''
-        if bc or bn:
-            lines.append(f"支店: {bc} {bn}")
-        lines.append(f"状態: {info.get('status')}")
-        if info.get('created_at'):
-            try:
-                lines.append(f"作成日: {info.get('created_at')}")
-            except Exception:
-                pass
-
-        # ミニゲーム口座登録状況も表示
-        minigame_info = bank_service.get_minigame_account_info(user_id)
-        lines.append("\n【ミニゲーム口座】")
-        if minigame_info:
-            lines.append(f"登録済み: {minigame_info.get('account_number')}")
-        else:
-            lines.append("未登録 ('?ミニゲーム口座登録' で登録)")
-
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="\n".join(lines)))
+        bubbles = [get_account_flex_bubble(acc) for acc in accounts]
+        carousel = {
+            "type": "carousel",
+            "contents": bubbles
+        }
+        flex_message = FlexSendMessage(alt_text="口座情報一覧", contents=carousel)
+        line_bot_api.reply_message(event.reply_token, flex_message)
         return
     elif text == "?通帳":
         # 個別チャットでのみ通帳（最近の履歴）を表示

@@ -53,7 +53,6 @@ def bank_reception(event, text, user_id, display_name, sessions):
         # セッション管理: ミニゲーム口座登録フロー
         if text == "?ミニゲーム口座登録":
             # 現在の口座情報を取得
-            account_info = bank_service.get_account_info_by_user(user_id)
             minigame_info = bank_service.get_minigame_account_info(user_id)
 
             messages = []
@@ -103,7 +102,7 @@ def bank_reception(event, text, user_id, display_name, sessions):
 
                 line_bot_api.reply_message(
                     event.reply_token,
-                    TextSendMessage(text=f"支店番号: {branch_code}\n\n次に、登録したい口座の口座番号（7桁）を入力してください。\n\n※'?口座情報'コマンドで確認できます。")
+                    TextSendMessage(text=f"支店番号: {branch_code}\n\n次に、登録したい口座の口座番号（7桁）を入力してください。\n\n※「?口座情報」コマンドで確認できます。")
                 )
                 return
 
@@ -208,7 +207,7 @@ def bank_reception(event, text, user_id, display_name, sessions):
                 return
 
     # 口座開設中のやり取り
-    elif current_step == 1:
+    elif current_step == 1 and not text.startswith("?") and text.strip() != "?キャンセル":
         full_name = text.strip()
         import re
         # 全角カタカナ→半角カタカナ変換関数
