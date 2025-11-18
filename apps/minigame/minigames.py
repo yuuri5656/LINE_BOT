@@ -293,14 +293,9 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
                     except Exception:
                         pass
 
-            # セッションを中止してグループに通知
-            try:
-                line_bot_api.push_message(group_id, TextSendMessage(text="参加者の支払いに失敗したため、ゲームを中止しました。もう一度募集を開始してください。"))
-            except Exception:
-                pass
             # セッションをクリア
             group.current_game = None
-            return
+            return "参加者の支払いに失敗したため、ゲームを中止しました。もう一度募集を開始してください。"
     except Exception:
         pass
 
@@ -311,18 +306,7 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
         except Exception:
             failed_names = []
     player_names = [p.display_name for p in session.players.values()]
-    try:
-        line_bot_api.push_message(group_id, TextSendMessage(text=f"ゲームを開始します。参加者: {', '.join(player_names)}\n個別チャットで「グー」「チョキ」「パー」のいずれかを送ってください。締め切り: {timeout_seconds}秒"))
-    except Exception:
-        pass
-
-    # 各参加者へ個別に案内
-    for uid, player in session.players.items():
-        try:
-            line_bot_api.push_message(uid, TextSendMessage(text=f"{player.display_name}さん、じゃんけんを始めます。個別チャットで「グー」「チョキ」「パー」のいずれかを送信してください。"))
-        except Exception:
-            # push が失敗しても続行
-            pass
+    start_message = f"ゲームを開始します。参加者: {', '.join(player_names)}\n個別チャットで「グー」「チョキ」「パー」のいずれかを送ってください。締め切り: {timeout_seconds}秒"
 
     # タイムアウトで自動終了するタイマーを設定
     def _finish():
@@ -336,7 +320,7 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
     timer.daemon = True
     timer.start()
 
-    return "ゲームを開始しました。"
+    return start_message
 
 
 def find_session_by_user(user_id: str):
@@ -480,14 +464,15 @@ def finish_game_session(group_id: str, line_bot_api):
             payouts[p.user_id] = share
         fee = 0
 
-    messages = []
-    header = f"じゃんけんの結果（参加者 {n} 名）\n"
-    messages.append(TextSendMessage(text=header))
+    # 結果を1つのメッセージに統合
+    result_lines = [f"じゃんけんの結果（参加者 {n} 名）"]
     for idx, p in enumerate(ranked, start=1):
         hand = p.data if p.data else "(未提出)"
         sc = scores.get(p.user_id, 0)
         pay = payouts.get(p.user_id, 0)
-        messages.append(TextSendMessage(text=f"{idx} 位: {p.display_name} - 手: {hand} - スコア: {sc} - 収支: +{pay} JPY"))
+        result_lines.append(f"{idx}位: {p.display_name} - 手: {hand} - スコア: {sc} - 収支: +{pay} JPY")
+    
+    result_message = "\n".join(result_lines)
 
     try:
         for uid, amount in payouts.items():
@@ -502,7 +487,7 @@ def finish_game_session(group_id: str, line_bot_api):
         pass
 
     try:
-        line_bot_api.push_message(group_id, messages)
+        line_bot_api.push_message(group_id, TextSendMessage(text=result_message))
     except Exception:
         pass
 
