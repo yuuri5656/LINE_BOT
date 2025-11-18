@@ -57,13 +57,14 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
                 messages.append("ミニゲーム口座が未登録です。\n")
                 messages.append("本人確認のため、以下の情報を順番に入力してください。\n\n")
             
-            messages.append("まず、登録したい口座のフルネーム（半角カタカナ）を入力してください。\n")
-            messages.append("例: ﾎﾝﾀﾞ ﾊﾙｷ\n\n")
+            messages.append("まず、登録したい口座の支店番号（3桁）を入力してください。\n")
+            messages.append("例: 001\n\n")
+            messages.append("※'?口座情報'コマンドで確認できます。\n")
             messages.append("※キャンセルする場合は「キャンセル」と入力してください。")
             
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="".join(messages)))
             
-            # セッションに状態を保存（ステップ1: 氏名入力）
+            # セッションに状態を保存（ステップ1: 支店番号入力）
             sessions[user_id] = {"minigame_registration": True, "step": 1}
             return
         
@@ -76,8 +77,48 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             
             current_step = state.get("step", 1)
             
-            # ステップ1: 氏名入力
+            # ステップ1: 支店番号入力
             if current_step == 1:
+                branch_code = text.strip()
+                
+                if not branch_code.isdigit() or len(branch_code) != 3:
+                    line_bot_api.reply_message(
+                        event.reply_token,
+                        TextSendMessage(text="支店番号は3桁の数字で入力してください。\n例: 001")
+                    )
+                    return
+                
+                sessions[user_id]["branch_code"] = branch_code
+                sessions[user_id]["step"] = 2
+                
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text=f"支店番号: {branch_code}\n\n次に、登録したい口座の口座番号（7桁）を入力してください。\n\n※'?口座情報'コマンドで確認できます。")
+                )
+                return
+            
+            # ステップ2: 口座番号入力
+            elif current_step == 2:
+                account_number = text.strip()
+                
+                if not account_number.isdigit() or len(account_number) != 7:
+                    line_bot_api.reply_message(
+                        event.reply_token,
+                        TextSendMessage(text="口座番号は7桁の数字で入力してください。")
+                    )
+                    return
+                
+                sessions[user_id]["account_number"] = account_number
+                sessions[user_id]["step"] = 3
+                
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text=f"口座番号: {account_number}\n\n次に、口座開設時に登録したフルネーム（半角カタカナ）を入力してください。\n例: ﾎﾝﾀﾞ ﾊﾙｷ")
+                )
+                return
+            
+            # ステップ3: 氏名入力
+            elif current_step == 3:
                 full_name = text.strip()
                 
                 # カタカナチェック（簡易）
@@ -92,80 +133,16 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
                     return
                 
                 sessions[user_id]["full_name"] = full_name
-                sessions[user_id]["step"] = 2
-                
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text=f"氏名: {full_name}\n\n次に、登録したい口座の支店番号（3桁）を入力してください。\n例: 001\n\n※'?口座情報'コマンドで確認できます。")
-                )
-                return
-            
-            # ステップ2: 支店番号入力
-            elif current_step == 2:
-                branch_code = text.strip()
-                
-                if not branch_code.isdigit() or len(branch_code) != 3:
-                    line_bot_api.reply_message(
-                        event.reply_token,
-                        TextSendMessage(text="支店番号は3桁の数字で入力してください。\n例: 001")
-                    )
-                    return
-                
-                sessions[user_id]["branch_code"] = branch_code
-                sessions[user_id]["step"] = 3
-                
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text=f"支店番号: {branch_code}\n\n次に、登録したい口座の口座番号（7桁）を入力してください。\n\n※'?口座情報'コマンドで確認できます。")
-                )
-                return
-            
-            # ステップ3: 口座番号入力
-            elif current_step == 3:
-                account_number = text.strip()
-                
-                if not account_number.isdigit() or len(account_number) != 7:
-                    line_bot_api.reply_message(
-                        event.reply_token,
-                        TextSendMessage(text="口座番号は7桁の数字で入力してください。")
-                    )
-                    return
-                
-                sessions[user_id]["account_number"] = account_number
                 sessions[user_id]["step"] = 4
                 
                 line_bot_api.reply_message(
                     event.reply_token,
-                    TextSendMessage(text=f"口座番号: {account_number}\n\n次に、口座開設時に登録した生年月日をYYYY-MM-DD形式で入力してください。\n例: 2000-01-01")
+                    TextSendMessage(text=f"氏名: {full_name}\n\n最後に、口座開設時に設定した4桁の暗証番号を入力してください。")
                 )
                 return
             
-            # ステップ4: 生年月日入力
+            # ステップ4: 暗証番号入力と登録処理
             elif current_step == 4:
-                date_of_birth = text.strip()
-                
-                # 日付形式チェック
-                try:
-                    from datetime import datetime
-                    datetime.strptime(date_of_birth, "%Y-%m-%d")
-                except ValueError:
-                    line_bot_api.reply_message(
-                        event.reply_token,
-                        TextSendMessage(text="生年月日はYYYY-MM-DD形式で入力してください。\n例: 2000-01-01")
-                    )
-                    return
-                
-                sessions[user_id]["date_of_birth"] = date_of_birth
-                sessions[user_id]["step"] = 5
-                
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text=f"生年月日: {date_of_birth}\n\n最後に、口座開設時に設定した4桁の暗証番号を入力してください。")
-                )
-                return
-            
-            # ステップ5: 暗証番号入力と登録処理
-            elif current_step == 5:
                 pin_code = text.strip()
                 
                 if not pin_code.isdigit() or len(pin_code) != 4:
@@ -175,11 +152,31 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
                     )
                     return
                 
-                # 登録処理を実行
+                # 登録処理を実行（生年月日なしバージョン）
                 full_name = sessions[user_id].get("full_name")
                 branch_code = sessions[user_id].get("branch_code")
                 account_number = sessions[user_id].get("account_number")
-                date_of_birth = sessions[user_id].get("date_of_birth")
+                
+                # 生年月日を取得するため、まず顧客情報を確認
+                # authenticate_customerを使用するために、既存の顧客から生年月日を取得
+                from apps.minigame.main_bank_system import SessionLocal, Customer
+                from sqlalchemy import select
+                
+                db = SessionLocal()
+                try:
+                    customer = db.execute(select(Customer).filter_by(user_id=user_id)).scalars().first()
+                    if customer:
+                        date_of_birth = customer.date_of_birth.strftime("%Y-%m-%d")
+                    else:
+                        # 顧客が見つからない場合
+                        sessions.pop(user_id, None)
+                        line_bot_api.reply_message(
+                            event.reply_token,
+                            TextSendMessage(text="❌ 口座情報が見つかりません。先に '?口座開設' で口座を作成してください。")
+                        )
+                        return
+                finally:
+                    db.close()
                 
                 result = bank_service.register_minigame_account(
                     user_id=user_id,
@@ -198,7 +195,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
                     message = f"✅ ミニゲーム用口座を{update_text}しました！\n\n支店番号: {branch_code}\n口座番号: {account_number}\n\nこの口座でミニゲームに参加できます。\n※この口座は通常の入出金も引き続き利用できます。"
                 else:
                     error_msg = result.get('error', '不明なエラーが発生しました。')
-                    message = f"❌ 登録に失敗しました。\n\n{error_msg}\n\n入力した情報が正しいか確認してください。\n・口座開設時に登録した氏名、生年月日、暗証番号\n・登録したい口座の支店番号と口座番号\n\n'?口座情報'で口座番号を確認できます。"
+                    message = f"❌ 登録に失敗しました。\n\n{error_msg}\n\n入力した情報が正しいか確認してください。\n・口座開設時に登録した氏名と暗証番号\n・登録したい口座の支店番号と口座番号\n\n'?口座情報'で口座番号を確認できます。"
                 
                 line_bot_api.reply_message(event.reply_token, TextSendMessage(text=message))
                 return
