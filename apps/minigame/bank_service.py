@@ -88,7 +88,6 @@ def create_account_optimized(event, account_info: dict, sessions: dict, operator
     - トランザクション管理
     - 支店を考慮した口座番号生成
     - 顧客情報(customers)と認証情報(customer_credentials)の登録
-    - 作成者(operator_id)が指定されていれば個別チャットへ口座情報を送信
     """
 
     display_name = account_info.get("display_name")
@@ -765,80 +764,75 @@ def deposit_by_account_number(account_number: str, branch_code: str, amount, cur
         db.close()
 
 
-def authenticate_customer(user_id: str, full_name: str, date_of_birth: str, pin_code: str, branch_code: str = None, account_number: str = None) -> bool:
+def authenticate_customer(full_name: str, pin_code: str, branch_code: str = None, account_number: str = None) -> bool:
     """
     ミニゲーム参加時の顧客認証API。
-    user_id、フルネーム、生年月日、暗証番号を照合する。
+    フルネーム、暗証番号を照合する。
     オプションで支店番号と口座番号も照合可能。
 
     Args:
-        user_id: LINE user ID
-        full_name: 登録時のフルネーム
-        date_of_birth: 生年月日(YYYY-MM-DD形式の文字列)
+        branch_code: 支店番号
+        account_number: 口座番号
+        full_name: 登録時のフルネーム(半角カタカナ)
         pin_code: 4桁の暗証番号
-        branch_code: 支店番号(オプション)
-        account_number: 口座番号(オプション)
 
     Returns:
         True if authenticated, False otherwise
     """
     db = SessionLocal()
     try:
-        # 顧客情報を取得
-        customer = db.execute(select(Customer).filter_by(user_id=user_id)).scalars().first()
+        # 支店番号と口座番号を照合
+        # 支店情報を取得
+        branch = db.execute(select(Branch).filter_by(code=str(branch_code))).scalars().first()
+        if not branch:
+            return False
+
+        # branch_codeをbranchesテーブルを参照し、branch_idに変換
+        branch_id = branch.branch_id if branch else None
+
+        # 口座情報を取得
+        account = db.execute(
+            select(Account).filter_by(
+                account_number=account_number,
+                branch_id=branch_id
+            )
+        ).scalars().first()
+        if not account:
+            return False
+
+        # 口座がアクティブか確認
+        try:
+            acc_status = str(getattr(account, 'status', '')).strip().lower()
+        except Exception:
+            acc_status = None
+        if acc_status != 'active':
+            return False
+
+        # accountsテーブルから、account_numberとbranch_idが合致するレコードのcustomer_idを取得
+        customer_id = account.customer_id if account else None
+
+        # customersテーブルから、customer_idが合致するレコードを取得
+        customer = db.execute(
+            select(Customer).filter_by(customer_id=customer_id)
+        ).scalars().first()
         if not customer:
             return False
-        
+
         # フルネームの照合
         if customer.full_name != full_name:
             return False
-        
-        # 生年月日の照合
-        try:
-            birth_date = datetime.datetime.strptime(date_of_birth, "%Y-%m-%d").date()
-            if customer.date_of_birth != birth_date:
-                return False
-        except ValueError:
-            return False
-        
+
         # 認証情報を取得
         credential = db.execute(
-            select(CustomerCredential).filter_by(customer_id=customer.customer_id)
+            select(CustomerCredential).filter_by(customer_id=customer_id)
         ).scalars().first()
         if not credential:
             return False
-        
+
         # 暗証番号の照合(Argon2)
         if not verify_pin(pin_code, credential.pin_hash):
             return False
-        
-        # 支店番号と口座番号が指定されている場合は照合
-        if branch_code and account_number:
-            # 支店情報を取得
-            branch = db.execute(select(Branch).filter_by(code=str(branch_code))).scalars().first()
-            if not branch:
-                return False
-            
-            # 口座情報を取得
-            account = db.execute(
-                select(Account).filter_by(
-                    customer_id=customer.customer_id,
-                    account_number=account_number,
-                    branch_id=branch.branch_id
-                )
-            ).scalars().first()
-            
-            if not account:
-                return False
-            
-            # 口座がアクティブか確認
-            try:
-                acc_status = str(getattr(account, 'status', '')).strip().lower()
-            except Exception:
-                acc_status = None
-            if acc_status != 'active':
-                return False
-        
+
         return True
     except Exception as e:
         print(f"[BankService] authenticate_customer error: {e}")
@@ -847,19 +841,18 @@ def authenticate_customer(user_id: str, full_name: str, date_of_birth: str, pin_
         db.close()
 
 
-def register_minigame_account(user_id: str, full_name: str, branch_code: str, account_number: str, pin_code: str, date_of_birth: str) -> dict:
+def register_minigame_account(user_id: str, full_name: str, branch_code: str, account_number: str, pin_code: str) -> dict:
     """
     ユーザーの既存口座をミニゲーム用口座として登録する。
-    新しい口座を作成するのではなく、既存の口座から一つを選んでミニゲーム専用として登録する。
-    氏名、支店番号、口座番号、暗証番号、生年月日で本人確認を行う。
+    既存の口座をミニゲーム専用として登録する。
+    支店番号、口座番号、氏名、暗証番号で本人確認を行う。
 
     Args:
         user_id: LINE user ID
-        full_name: フルネーム（口座開設時に登録したもの）
+        full_name: フルネーム（口座開設時に登録したもの、半角カタカナ）
         branch_code: 支店番号（登録したい既存口座の支店番号）
         account_number: 口座番号（登録したい既存口座の口座番号）
         pin_code: 暗証番号（口座開設時に設定したもの）
-        date_of_birth: 生年月日(YYYY-MM-DD形式、口座開設時に登録したもの)
 
     Returns:
         成功時: {'success': True, 'minigame_account_id': int, 'message': str, 'updated': bool}
@@ -868,7 +861,7 @@ def register_minigame_account(user_id: str, full_name: str, branch_code: str, ac
     db = SessionLocal()
     try:
         # まず認証を行う
-        if not authenticate_customer(user_id, full_name, date_of_birth, pin_code, branch_code, account_number):
+        if not authenticate_customer(full_name, pin_code, branch_code, account_number):
             return {'success': False, 'error': '認証に失敗しました。入力情報を確認してください。'}
 
         with db.begin():
