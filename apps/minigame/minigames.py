@@ -247,34 +247,29 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
     # 参加費を徴収(銀行APIを利用 - 口座番号ベース)
     paid = []
     failed = []
-    try:
-        for uid in list(session.players.keys()):
-            try:
-                # ミニゲーム口座情報を取得
-                minigame_acc_info = bank_service.get_minigame_account_info(uid)
-                if not minigame_acc_info:
-                    raise ValueError("Minigame account not registered")
-                
-                account_number = minigame_acc_info.get('account_number')
-                branch_code = minigame_acc_info.get('branch_code')
-                
-                if not account_number or not branch_code:
-                    raise ValueError("Account number or branch code not found")
-                
-                # 口座番号ベースで引き落とし
-                bank_service.withdraw_by_account_number(account_number, branch_code, session.min_balance)
-                paid.append(uid)
-            except Exception as e:
-                # 支払いできないユーザーは参加取り消し(ログを追加: 例外内容も出力)
-                try:
-                    print(f"start_game_session: withdraw failed for user={uid} amount={session.min_balance} error={e}")
-                except Exception:
-                    pass
-                if uid in session.players:
-                    del session.players[uid]
-                    failed.append(uid)
-    except Exception:
-        return "参加費の徴収中にエラーが発生しました。"
+    for uid in list(session.players.keys()):
+        try:
+            # ミニゲーム口座情報を取得
+            minigame_acc_info = bank_service.get_minigame_account_info(uid)
+            if not minigame_acc_info:
+                raise ValueError("Minigame account not registered")
+            account_number = minigame_acc_info.get('account_number')
+            branch_code = minigame_acc_info.get('branch_code')
+            if not account_number or not branch_code:
+                raise ValueError("Account number or branch code not found")
+            # 口座番号ベースで引き落とし
+            result = bank_service.withdraw_by_account_number(account_number, branch_code, session.min_balance)
+            paid.append(uid)
+            print(f"start_game_session: withdraw success for user={uid} amount={session.min_balance}")
+        except Exception as e:
+            print(f"start_game_session: withdraw failed for user={uid} amount={session.min_balance} error={e}")
+            failed.append(uid)
+    # 支払い失敗したユーザーは参加者リストから除外
+    for uid in failed:
+        if uid in session.players:
+            del session.players[uid]
+    if not paid:
+        return "参加費の徴収に全員失敗しました。"
 
     # デバッグ出力: 支払い状況と残存プレイヤー
     try:
