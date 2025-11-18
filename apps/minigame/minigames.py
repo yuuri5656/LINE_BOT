@@ -277,10 +277,10 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
     except Exception:
         pass
 
-    # 支払い後に参加者が2名未満になったらゲームを中止して支払済みを返金
+    # テスト用: 1人でもゲーム開始できるよう条件変更（元に戻す場合は <2 → <2 に戻す）
     try:
         remaining = list(session.players.keys())
-        if len(remaining) < 2:
+        if len(remaining) < 1:  # ←元は <2
             # 返金処理(支払い済みのユーザーに戻す - 口座番号ベース)
             for uid in paid:
                 try:
@@ -298,15 +298,21 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
 
             # セッションを中止してグループに通知（1通にまとめる）
             try:
-                msg = "参加者の支払いに失敗したため、ゲームを中止しました。もう一度募集を開始してください。\nゲームの開始に失敗しました。"
+                msg = "参加者がいないため、ゲームを開始できません。\nゲームの開始に失敗しました。"
                 line_bot_api.reply_message(session.reply_token, TextSendMessage(text=msg))
-            except Exception:
-                pass
+            except Exception as e:
+                # 失敗時はエラー内容も通知
+                err_msg = f"ゲーム開始エラー: {str(e)}"
+                line_bot_api.reply_message(session.reply_token, TextSendMessage(text=err_msg))
             # セッションをクリア
             group.current_game = None
             return
-    except Exception:
-        pass
+    except Exception as e:
+        # 失敗時はエラー内容も通知
+        try:
+            line_bot_api.reply_message(session.reply_token, TextSendMessage(text=f"ゲーム開始処理中にエラーが発生しました: {str(e)}"))
+        except Exception:
+            pass
 
     # 支払いできなかったユーザーを通知
     if failed:

@@ -24,19 +24,25 @@ def get_account_flex_bubble(account_info):
     type_map = {'ordinary': '普通', 'current': '当座', 'time': '定期'}
     type_jp = type_map.get(str(account_info.get('type')), str(account_info.get('type')))
 
+    # シンプルなテキスト表示（Flexバブル内にテキストブロックのみ）
+    info_lines = [
+        f"氏名: {account_info.get('full_name') or ''}",
+        f"支店名: {account_info.get('branch_name') or ''}",
+        f"支店コード: {account_info.get('branch_code') or ''}",
+        f"口座番号: {account_info.get('account_number') or ''}",
+        f"種別: {type_jp}",
+        f"状態: {status_jp}",
+        f"作成日: {created_at_str}",
+        f"残高: {account_info.get('balance') or ''} {account_info.get('currency') or ''}",
+        "------------------------------"
+    ]
     bubble = {
         "type": "bubble",
         "body": {
             "type": "box",
             "layout": "vertical",
             "contents": [
-                {"type": "text", "text": f"氏名: {account_info.get('full_name') or ''}", "margin": "md"},
-                {"type": "text", "text": f"支店名: {account_info.get('branch_name') or ''}", "margin": "md"},
-                {"type": "text", "text": f"支店コード: {account_info.get('branch_code') or ''}", "margin": "md"},
-                {"type": "text", "text": f"口座番号: {account_info.get('account_number') or ''}", "margin": "md"},
-                {"type": "text", "text": f"種別: {type_jp}", "margin": "md"},
-                {"type": "text", "text": f"状態: {status_jp}", "margin": "md"},
-                {"type": "text", "text": f"作成日: {created_at_str}", "margin": "md"},
+                {"type": "text", "text": "\n".join(info_lines), "wrap": True, "size": "sm"}
             ]
         }
     }

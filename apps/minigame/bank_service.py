@@ -374,6 +374,13 @@ def get_account_info_by_user(user_id: str):
                 balance = getattr(acc, 'balance', None)
                 balance_str = format(balance, '.2f') if balance is not None else None
 
+                # 顧客情報から氏名を取得
+                full_name = None
+                try:
+                    if hasattr(acc, 'customer') and acc.customer:
+                        full_name = getattr(acc.customer, 'full_name', None)
+                except Exception:
+                    full_name = None
                 info = {
                     'account_id': getattr(acc, 'account_id', None),
                     'account_number': getattr(acc, 'account_number', None),
@@ -384,6 +391,7 @@ def get_account_info_by_user(user_id: str):
                     'branch_name': branch_name,
                     'status': getattr(acc, 'status', None),
                     'created_at': getattr(acc, 'created_at', None),
+                    'full_name': full_name,
                 }
                 result.append(info)
             return result
