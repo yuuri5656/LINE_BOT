@@ -159,39 +159,7 @@ def create_account_optimized(event, account_info: dict, sessions: dict, operator
             db.refresh(new_account)
 
         # 返信はイベントに対して行うのはそのまま行う(呼び出し元でreplyされる想定)
-        # 口座開設者(account_info['user_id'])へ個別チャットで通知を送信
-        try:
-            opener_user_id = account_info.get('user_id')
-            if opener_user_id:
-                # 口座種別のマッピング
-                account_type_display = {
-                    "普通預金": "普通",
-                    "定期預金": "定期",
-                    "当座預金": "当座"
-                }
-                type_display = account_type_display.get(account_info.get('account_type'), '普通')
-                
-                # 発行年月の取得
-                now = datetime.datetime.now()
-                issue_date = f"{now.year % 100:02d}年/{now.month:02d}月"
-                
-                msg = TextSendMessage(
-                    text=(
-                        f"口座の開設が完了しました。\n"
-                        f"氏名: {account_info.get('full_name')}\n"
-                        f"表示名: {display_name}\n"
-                        f"支店番号: {account_info.get('branch_num')}\n"
-                        f"口座番号: {account_number}\n"
-                        f"種別: {type_display}\n"
-                        f"発行年月: {issue_date}"
-                    )
-                )
-                try:
-                    line_bot_api.push_message(opener_user_id, msg)
-                except Exception as e:
-                    print(f"[BankService] Failed to push message to opener {opener_user_id}: {e}")
-        except Exception as e:
-            print(f"[BankService] notification error: {e}")
+        # push_messageは削除し、reply_account_creationで一元的に返信
 
         # Prepare a plain dict to return so callers do not need an active
         # SQLAlchemy Session to access attributes (avoids detached-instance errors).

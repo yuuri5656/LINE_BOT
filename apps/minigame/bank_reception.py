@@ -50,30 +50,42 @@ def bank_reception(event, text, user_id, display_name, sessions):
         line_bot_api.reply_message(
             event.reply_token,
             [TextSendMessage(text=f"{display_name} 様、口座開設のご依頼を承りました。\nただいまから手続きを進めてまいりますので、以下の質問にお答えください。\nまた、手続き中は'?戻る'と入力することで、前の質問に戻ることができます。"),
-            TextSendMessage(text="まず、ご自身のフルネームを半角カタカナで教えてください。\n苗字と名前の間には半角スペースを挿入してください。(例:ﾎﾝﾀﾞ ﾊﾙｷ)")]
+            TextSendMessage(text="まず、ご自身のフルネームをカタカナで教えてください。\n苗字と名前の間には半角スペースを挿入してください。(例:ﾎﾝﾀﾞ ﾊﾙｷ)")]
         )
         return
     # 口座開設中のやり取り
     elif current_step == 1:
         full_name = text.strip()
-        # バリデーション: 半角カタカナとスペースのみ、かつスペースで区切られた2つ以上の単語があるか
         import re
-        if len(full_name.split(" ")) >= 2 and re.match(r'^[ｦ-ﾟ ]+$', full_name):
-            messages = []
-            # セッションに顧客情報を保存する辞書を初期化（既に存在する場合は追加）
-            if not isinstance(sessions.get(user_id), dict):
-                sessions[user_id] = {"step": 2, "full_name": full_name}
+        # 全角カタカナ→半角カタカナ変換関数
+        def zen_to_han_kana(s):
+            import unicodedata
+            # Unicode正規化で半角カナに変換
+            s = unicodedata.normalize('NFKC', s)
+            # 半角カナ以外はそのまま
+            return s
+        # 半角カタカナか全角カタカナか判定
+        is_hankaku = re.match(r'^[ｦ-ﾟ ]+$', full_name)
+        is_zenkaku = re.match(r'^[ァ-ヶー　]+$', full_name)
+        if len(full_name.split(" ")) >= 2 and (is_hankaku or is_zenkaku):
+            # 全角カタカナの場合は半角カタカナに変換
+            if is_zenkaku:
+                full_name_hankaku = zen_to_han_kana(full_name.replace('　', ' '))
             else:
-                sessions[user_id]["full_name"] = full_name
+                full_name_hankaku = full_name
+            messages = []
+            if not isinstance(sessions.get(user_id), dict):
+                sessions[user_id] = {"step": 2, "full_name": full_name_hankaku}
+            else:
+                sessions[user_id]["full_name"] = full_name_hankaku
                 sessions[user_id]["step"] = 2
-
-            messages.append(TextSendMessage(text=f"{display_name} 様、ありがとうございます。\n「{full_name} 様」で登録させて頂きます。"))
+            messages.append(TextSendMessage(text=f"{display_name} 様、ありがとうございます。\n「{full_name_hankaku} 様」で登録させて頂きます。"))
             messages.append(TextSendMessage(text="次に、ご自身の生年月日を「YYYY-MM-DD」の形式で教えてください。(例:2011-03-25)"))
             line_bot_api.reply_message(event.reply_token, messages)
         else:
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="申し訳ございません。フルネームは半角カタカナで入力してください。\n苗字と名前の間に半角スペースを挿入してください。(例:ﾎﾝﾀﾞ ﾊﾙｷ)")
+                TextSendMessage(text="申し訳ございません。フルネームはカタカナで入力してください。\n苗字と名前の間にスペースを挿入してください。(例:ﾔﾏﾀﾞ ﾀﾛｳ または ヤマダ タロウ)")
             )
         return
     elif current_step == 2:
