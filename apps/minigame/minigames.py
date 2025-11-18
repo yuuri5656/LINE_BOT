@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Dict
 from datetime import datetime
 from enum import Enum
-from linebot.models import TextSendMessage
+from linebot.models import TextSendMessage, FlexSendMessage
 from apps.minigame import bank_service
 
 
@@ -493,14 +493,30 @@ def finish_game_session(group_id: str, line_bot_api):
             payouts[p.user_id] = share
         fee = 0
 
-    messages = []
-    header = f"じゃんけんの結果（参加者 {n} 名）\n"
-    messages.append(TextSendMessage(text=header))
+    # モダンなFlexMessageで結果を表示する
+    # 各プレイヤーの収支は『受け取った賞金 - 参加費 - (手数料の均等分配)』で計算する
+    flex_players = []
+    fee_share_per_player = (fee // n) if n > 0 else 0
     for idx, p in enumerate(ranked, start=1):
         hand = p.data if p.data else "(未提出)"
         sc = scores.get(p.user_id, 0)
         pay = payouts.get(p.user_id, 0)
-        messages.append(TextSendMessage(text=f"{idx} 位: {p.display_name} - 手: {hand} - スコア: {sc} - 収支: +{pay} JPY"))
+        profit = pay - session.min_balance - fee_share_per_player
+        # 表示用の符号と色
+        sign = f"+{profit}" if profit >= 0 else f"{profit}"
+        color = "#0b8043" if profit > 0 else ("#000000" if profit == 0 else "#d32f2f")
+
+        player_row = {
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+                {"type": "text", "text": f"{idx}位", "size": "sm", "weight": "bold", "color": "#666666", "flex": 1},
+                {"type": "text", "text": p.display_name, "size": "sm", "weight": "bold", "flex": 4},
+                {"type": "text", "text": hand, "size": "sm", "align": "end", "flex": 2, "color": "#666666"},
+                {"type": "text", "text": f"{sign} JPY", "size": "sm", "align": "end", "flex": 3, "weight": "bold", "color": color}
+            ]
+        }
+        flex_players.append(player_row)
 
     # 賞金の支払い(口座番号ベース)
     try:
@@ -522,7 +538,39 @@ def finish_game_session(group_id: str, line_bot_api):
         pass
 
     try:
-        line_bot_api.push_message(group_id, messages)
+        bubble = {
+            "type": "bubble",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": "じゃんけん 結果", "weight": "bold", "size": "lg"},
+                    {"type": "text", "text": f"参加者: {n}名  合計参加費: {n * session.min_balance} JPY", "size": "xs", "color": "#888888"}
+                ]
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "spacing": "sm",
+                "contents": [
+                    {"type": "box", "layout": "vertical", "contents": flex_players}
+                ]
+            },
+            "footer": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "separator", "margin": "md"},
+                    {"type": "box", "layout": "baseline", "contents": [
+                        {"type": "text", "text": f"手数料合計: {fee} JPY", "size": "sm", "color": "#888888", "flex": 6},
+                        {"type": "text", "text": "(収支は賞金-参加費-手数料分)", "size": "xs", "color": "#aaaaaa", "flex": 6}
+                    ]}
+                ]
+            }
+        }
+
+        flex_message = FlexSendMessage(alt_text="じゃんけんの結果", contents=bubble)
+        line_bot_api.push_message(group_id, flex_message)
     except Exception:
         pass
 
