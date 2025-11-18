@@ -754,7 +754,7 @@ def deposit_by_account_number(account_number: str, branch_code: str, amount, cur
                 amount=amt,
             )
             db.add(credit_entry)
-            
+
         return True
     except Exception as e:
         db.rollback()
