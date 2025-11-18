@@ -244,13 +244,25 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
     session.start_time = datetime.now()
     session.deadline = session.start_time + timedelta(seconds=timeout_seconds)
 
-    # 参加費を徴収(銀行APIを利用)
+    # 参加費を徴収(銀行APIを利用 - 口座番号ベース)
     paid = []
     failed = []
     try:
         for uid in list(session.players.keys()):
             try:
-                bank_service.withdraw_from_user(uid, session.min_balance)
+                # ミニゲーム口座情報を取得
+                minigame_acc_info = bank_service.get_minigame_account_info(uid)
+                if not minigame_acc_info:
+                    raise ValueError("Minigame account not registered")
+                
+                account_number = minigame_acc_info.get('account_number')
+                branch_code = minigame_acc_info.get('branch_code')
+                
+                if not account_number or not branch_code:
+                    raise ValueError("Account number or branch code not found")
+                
+                # 口座番号ベースで引き落とし
+                bank_service.withdraw_by_account_number(account_number, branch_code, session.min_balance)
                 paid.append(uid)
             except Exception as e:
                 # 支払いできないユーザーは参加取り消し(ログを追加: 例外内容も出力)
@@ -274,10 +286,15 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
     try:
         remaining = list(session.players.keys())
         if len(remaining) < 2:
-            # 返金処理(支払い済みのユーザーに戻す)
+            # 返金処理(支払い済みのユーザーに戻す - 口座番号ベース)
             for uid in paid:
                 try:
-                    bank_service.deposit_to_user(uid, session.min_balance)
+                    minigame_acc_info = bank_service.get_minigame_account_info(uid)
+                    if minigame_acc_info:
+                        account_number = minigame_acc_info.get('account_number')
+                        branch_code = minigame_acc_info.get('branch_code')
+                        if account_number and branch_code:
+                            bank_service.deposit_by_account_number(account_number, branch_code, session.min_balance)
                 except Exception:
                     try:
                         print(f"start_game_session: refund failed for user={uid} amount={session.min_balance}")
@@ -480,12 +497,19 @@ def finish_game_session(group_id: str, line_bot_api):
         pay = payouts.get(p.user_id, 0)
         messages.append(TextSendMessage(text=f"{idx} 位: {p.display_name} - 手: {hand} - スコア: {sc} - 収支: +{pay} JPY"))
 
+    # 賞金の支払い(口座番号ベース)
     try:
         for uid, amount in payouts.items():
             if amount <= 0:
                 continue
             try:
-                bank_service.deposit_to_user(uid, amount)
+                # ミニゲーム口座情報を取得
+                minigame_acc_info = bank_service.get_minigame_account_info(uid)
+                if minigame_acc_info:
+                    account_number = minigame_acc_info.get('account_number')
+                    branch_code = minigame_acc_info.get('branch_code')
+                    if account_number and branch_code:
+                        bank_service.deposit_by_account_number(account_number, branch_code, amount)
             except Exception:
                 # 個別の入金失敗はログに留め、処理は続行
                 pass
