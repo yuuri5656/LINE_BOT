@@ -80,6 +80,7 @@ def create_account_optimized(event, account_info: dict, sessions: dict, operator
     - 顧客情報(customers)と認証情報(customer_credentials)の登録
     - 作成者(operator_id)が指定されていれば個別チャットへ口座情報を送信
     """
+
     display_name = account_info.get("display_name")
     db = SessionLocal()
     try:
@@ -90,6 +91,12 @@ def create_account_optimized(event, account_info: dict, sessions: dict, operator
             "当座預金": "current",
         }
         account_type_en = account_type_mapping.get(account_info.get('account_type'), 'ordinary')
+
+        # 必須項目バリデーション
+        required_fields = ['user_id', 'full_name', 'birth_date', 'pin_code']
+        missing = [f for f in required_fields if not account_info.get(f)]
+        if missing:
+            raise ValueError(f"口座作成に必要な情報が不足しています: {', '.join(missing)}")
 
         # 単一トランザクションで顧客・認証情報・支店・口座を作成
         with db.begin():
