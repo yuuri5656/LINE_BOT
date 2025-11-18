@@ -40,16 +40,22 @@ def get_account_flex_bubble(account_info):
             "contents": [
                 {"type": "text", "text": "口座情報", "weight": "bold", "size": "lg", "margin": "md"},
                 {"type": "separator", "margin": "md"},
-                {"type": "box", "layout": "vertical", "margin": "md", "contents": [
-                    {"type": "text", "text": f"氏名: {account_info.get('full_name') or ''}", "size": "md", "color": "#333", "margin": "sm"},
-                    {"type": "text", "text": f"支店名: {account_info.get('branch_name') or ''}", "size": "sm", "color": "#555", "margin": "sm"},
-                    {"type": "text", "text": f"支店コード: {account_info.get('branch_code') or ''}", "size": "sm", "color": "#555", "margin": "sm"},
-                    {"type": "text", "text": f"口座番号: {account_info.get('account_number') or ''}", "size": "md", "color": "#222", "margin": "sm"},
-                    {"type": "text", "text": f"種別: {type_jp}", "size": "sm", "color": "#555", "margin": "sm"},
-                    {"type": "text", "text": f"状態: {status_jp}", "size": "sm", "color": "#555", "margin": "sm"},
-                    {"type": "text", "text": f"作成日: {created_at_str}", "size": "sm", "color": "#555", "margin": "sm"},
-                    {"type": "text", "text": f"残高: {account_info.get('balance') or ''} {account_info.get('currency') or ''}", "size": "md", "color": "#222", "margin": "md"},
-                ]},
+                {
+                    "type": "box",
+                    "layout": "vertical",
+                    "margin": "md",
+                    "backgroundColor": "#ffffff",
+                    "contents": [
+                        {"type": "text", "text": f"氏名: {account_info.get('full_name') or ''}", "size": "md", "margin": "sm"},
+                        {"type": "text", "text": f"支店名: {account_info.get('branch_name') or ''}", "size": "sm", "margin": "sm"},
+                        {"type": "text", "text": f"支店コード: {account_info.get('branch_code') or ''}", "size": "sm", "margin": "sm"},
+                        {"type": "text", "text": f"口座番号: {account_info.get('account_number') or ''}", "size": "md", "margin": "sm"},
+                        {"type": "text", "text": f"種別: {type_jp}", "size": "sm", "margin": "sm"},
+                        {"type": "text", "text": f"状態: {status_jp}", "size": "sm", "margin": "sm"},
+                        {"type": "text", "text": f"作成日: {created_at_str}", "size": "sm", "margin": "sm"},
+                        {"type": "text", "text": f"残高: {account_info.get('balance') or ''} {account_info.get('currency') or ''}", "size": "md", "margin": "md"},
+                    ]
+                },
             ]
         }
     }
