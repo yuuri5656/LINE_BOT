@@ -40,32 +40,35 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
     cur = None
     state = sessions.get(user_id)
 
-    # ユーザーチャットでの"?口座開設"メッセージを処理
-    if text == "?口座開設" or (isinstance(state, dict) and state.get("step")):
-        if event.source.type == 'user':  # ユーザーチャットのみ対応
-            # キャンセルコマンドの場合はセッションからstepを削除してキャンセルメッセージを返す
+    # 口座開設・ミニゲーム口座登録フロー中は新規開始コマンドを拒否
+    if event.source.type == 'user':
+        if isinstance(state, dict) and (state.get("step") or state.get("minigame_registration")):
+            # セッション中に新たな開始コマンドが来た場合は拒否
+            if text.strip() == "?口座開設" or text.strip() == "?ミニゲーム口座登録":
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="現在登録フロー中です。キャンセルまたは完了後に再度お試しください。"))
+                return
+            # セッション中のキャンセルコマンド
             if text.strip() == "?キャンセル":
-                if isinstance(state, dict):
+                if state.get("step"):
                     state.pop("step", None)
-                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="口座開設をキャンセルしました。"))
-                return
-            bank_reception(event, text, user_id, display_name, sessions)
-            return
-
-    # ミニゲーム口座登録処理（個別チャットのみ）
-    if text == "?ミニゲーム口座登録" or (isinstance(state, dict) and state.get("minigame_registration")):
-        if event.source.type == 'user':  # ユーザーチャットのみ対応
-            # キャンセルコマンドの場合はセッションからminigame_registrationを削除してキャンセルメッセージを返す
-            if text.strip() == "?キャンセル":
-                if isinstance(state, dict):
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text="口座開設をキャンセルしました。"))
+                    return
+                if state.get("minigame_registration"):
                     state.pop("minigame_registration", None)
-                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ミニゲーム口座登録をキャンセルしました。"))
-                return
-            # 戻るコマンドの場合はbank_receptionに処理を委譲
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ミニゲーム口座登録をキャンセルしました。"))
+                    return
+            # セッション中の戻るコマンド
             if text.strip() == "?戻る":
                 bank_reception(event, text, user_id, display_name, sessions)
                 return
-            # それ以外は通常のbank_reception処理
+            # セッション中はbank_receptionに処理を委譲
+            bank_reception(event, text, user_id, display_name, sessions)
+            return
+        # セッション外の新規開始コマンド
+        if text.strip() == "?口座開設":
+            bank_reception(event, text, user_id, display_name, sessions)
+            return
+        if text.strip() == "?ミニゲーム口座登録":
             bank_reception(event, text, user_id, display_name, sessions)
             return
 
@@ -89,12 +92,16 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
 
         from apps.help_flex import get_account_flex_bubble
         accounts = bank_service.get_accounts_by_user(user_id)
-        if not accounts:
+        # DBエラーやNoneの場合は空リスト扱い
+        if not accounts or not isinstance(accounts, list) or len(accounts) == 0:
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="有効な口座が見つかりません。'?口座開設' を入力して口座を作成してください。"))
             return
 
-        bubbles = [get_account_flex_bubble(acc) for acc in accounts]
-        # FlexSendMessageのcontentsはdictまたはJSON文字列
+        bubbles = [get_account_flex_bubble(acc) for acc in accounts if acc]
+        # 口座情報が1件もFlexバブル生成できなければエラー
+        if not bubbles:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="口座情報の取得に失敗しました。管理者にご連絡ください。"))
+            return
         flex_message = FlexSendMessage(
             alt_text="口座情報一覧",
             contents={
