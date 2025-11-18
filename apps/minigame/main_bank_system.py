@@ -74,7 +74,7 @@ class Customer(Base):
     customer_id = Column(BigInteger, primary_key=True)
     full_name = Column(String, nullable=False)
     date_of_birth = Column(DateTime, nullable=False)
-    user_id = Column(String, unique=True, nullable=False)
+    user_id = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=text('now()'))
     updated_at = Column(DateTime(timezone=True), server_default=text('now()'), onupdate=func.now())
 
