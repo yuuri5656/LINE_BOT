@@ -38,7 +38,7 @@ def get_account_flex_bubble(account_info):
             "borderWidth": "2px",
             "cornerRadius": "xl",
             "contents": [
-                {"type": "text", "text": "口座情報", "weight": "bold", "size": "lg", "color": "#222", "margin": "md"},
+                {"type": "text", "text": "口座情報", "weight": "bold", "size": "lg", "margin": "md"},
                 {"type": "separator", "margin": "md"},
                 {"type": "box", "layout": "vertical", "margin": "md", "contents": [
                     {"type": "text", "text": f"氏名: {account_info.get('full_name') or ''}", "size": "md", "color": "#333", "margin": "sm"},
