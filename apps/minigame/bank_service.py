@@ -1,4 +1,14 @@
 from decimal import Decimal
+
+# ミニゲーム手数料受取口座（運営口座）
+MINIGAME_FEE_ACCOUNT = {
+    "full_name": "ﾐﾆｹﾞｰﾑ ｳﾝｴｲ",
+    "display_name": "🅺🅸🅼🆄🆁🅰",
+    "branch_num": "006",
+    "account_number": "6291119",
+    "account_type": "当座",
+    "issue_date": "25年/11月"
+}
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from core.api import line_bot_api
