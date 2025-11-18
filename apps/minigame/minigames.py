@@ -102,13 +102,15 @@ def fixed_prize_distribution(bets, fee_rate=0.1):
     """
     小規模（2～5人）向けの固定分配方式。
     1位圧倒的、下位にも少額分配。
+    手数料は10の倍数に丸められます。
     """
     N = len(bets)
     if N < 2 or N > 5:
         raise ValueError("この関数は2〜5人向けです。")
 
     total_bet = sum(bets)
-    fee = int(round(total_bet * fee_rate))
+    # 手数料を10の倍数に丸める（四捨五入）
+    fee = round(total_bet * fee_rate / 10) * 10
     prize_pool = total_bet - fee
 
     if N == 2:
