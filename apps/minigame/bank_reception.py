@@ -14,7 +14,7 @@ def bank_reception(event, text, user_id, display_name, sessions):
 
     # ステップ別のメッセージテンプレート
     step_messages = {
-        1: TextSendMessage(text="ご自身のフルネームを教えてください。\n苗字と名前の間には半角スペースを挿入してください。(例:本田 春輝)"),
+        1: TextSendMessage(text="ご自身のフルネームを半角カタカナで教えてください。\n苗字と名前の間には半角スペースを挿入してください。(例:ﾎﾝﾀﾞ ﾊﾙｷ)"),
         2: TextSendMessage(text="ご自身の生年月日を「YYYY-MM-DD」の形式で教えてください。(例:2011-03-25)"),
         3: TextSendMessage(text="ご自身の希望する支店を以下から支店名でお選び下さい。\n※どの支店を選んで頂いてもご利用に影響はございません。\n\n支店名　　　　支店番号\n塩路支店　　　001\nメガネ支店　　002\nバナナ支店　　003\nボラ部支店　　004\nゴリラ支店　　005\nマッコリ支店　006\nビースト支店　810"),
         4: TextSendMessage(text="ご自身の希望する口座種別を、普通預金・当座預金・定期預金からお選び下さい。"),
@@ -50,14 +50,15 @@ def bank_reception(event, text, user_id, display_name, sessions):
         line_bot_api.reply_message(
             event.reply_token,
             [TextSendMessage(text=f"{display_name} 様、口座開設のご依頼を承りました。\nただいまから手続きを進めてまいりますので、以下の質問にお答えください。\nまた、手続き中は'?戻る'と入力することで、前の質問に戻ることができます。"),
-            TextSendMessage(text="まず、ご自身のフルネームを教えてください。\nまた、苗字と名前の間には半角スペースを挿入してください。(例:本田 春輝)")]
+            TextSendMessage(text="まず、ご自身のフルネームを半角カタカナで教えてください。\n苗字と名前の間には半角スペースを挿入してください。(例:ﾎﾝﾀﾞ ﾊﾙｷ)")]
         )
         return
     # 口座開設中のやり取り
     elif current_step == 1:
         full_name = text.strip()
-        # 簡易的なバリデーション: スペースで区切られた2つ以上の単語があるか
-        if len(full_name.split(" ")) >= 2:
+        # バリデーション: 半角カタカナとスペースのみ、かつスペースで区切られた2つ以上の単語があるか
+        import re
+        if len(full_name.split(" ")) >= 2 and re.match(r'^[ｦ-ﾟ ]+$', full_name):
             messages = []
             # セッションに顧客情報を保存する辞書を初期化（既に存在する場合は追加）
             if not isinstance(sessions.get(user_id), dict):
@@ -72,7 +73,7 @@ def bank_reception(event, text, user_id, display_name, sessions):
         else:
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="申し訳ございません。フルネームの形式が正しくありません。\n苗字と名前の間に半角スペースを挿入して、もう一度ご入力ください。(例:本田 春輝)")
+                TextSendMessage(text="申し訳ございません。フルネームは半角カタカナで入力してください。\n苗字と名前の間に半角スペースを挿入してください。(例:ﾎﾝﾀﾞ ﾊﾙｷ)")
             )
         return
     elif current_step == 2:

@@ -52,29 +52,15 @@ def verify_pin(pin: str, pin_hash: str) -> bool:
 
 def generate_account_number(db: Session, branch: Branch, max_retries: int = 5) -> str:
     """
-    支店番号を織り込んだ整数列の口座番号を生成する。
-    形式: [branch_id:3桁][YYYYMMDDHHMMSS][rand:3]
+    7桁の口座番号を生成する。
+    形式: [7桁のランダム数字]
 
     衝突が発生した場合はリトライする。
-    Returns a numeric string.
+    Returns a numeric string of exactly 7 digits.
     """
     for attempt in range(max_retries):
-        ts = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
-        rand = f"{random.randint(0,999):03d}"
-        # 支店コードが設定されていればそれを優先して使用（数値文字列で左ゼロ埋め）、
-        # そうでなければ branch_id を 3 桁で使用する
-        branch_part = None
-        try:
-            code = getattr(branch, 'code', None)
-            if code and isinstance(code, str) and code.isdigit():
-                branch_part = code.zfill(3)
-        except Exception:
-            branch_part = None
-
-        if not branch_part:
-            branch_part = f"{getattr(branch, 'branch_id', 0):03d}"
-
-        acct = f"{branch_part}{ts}{rand}"
+        # 7桁のランダムな数字を生成
+        acct = f"{random.randint(0, 9999999):07d}"
 
         # 衝突チェック
         existing = db.execute(select(Account).filter_by(account_number=acct)).scalars().first()
@@ -177,10 +163,27 @@ def create_account_optimized(event, account_info: dict, sessions: dict, operator
         try:
             opener_user_id = account_info.get('user_id')
             if opener_user_id:
+                # 口座種別のマッピング
+                account_type_display = {
+                    "普通預金": "普通",
+                    "定期預金": "定期",
+                    "当座預金": "当座"
+                }
+                type_display = account_type_display.get(account_info.get('account_type'), '普通')
+                
+                # 発行年月の取得
+                now = datetime.datetime.now()
+                issue_date = f"{now.year % 100:02d}年/{now.month:02d}月"
+                
                 msg = TextSendMessage(
                     text=(
-                        f"口座開設が完了しました。\nユーザー: {display_name}\n"
-                        f"口座番号: {account_number}\n通貨: {currency}\n種類: {account_info.get('account_type')}"
+                        f"口座の開設が完了しました。\n"
+                        f"氏名: {account_info.get('full_name')}\n"
+                        f"表示名: {display_name}\n"
+                        f"支店番号: {account_info.get('branch_num')}\n"
+                        f"口座番号: {account_number}\n"
+                        f"種別: {type_display}\n"
+                        f"発行年月: {issue_date}"
                     )
                 )
                 try:
@@ -431,15 +434,27 @@ def reply_account_creation(event, account_info: dict, account_data: dict):
         except Exception:
             acct_num = None
 
-        currency = account_data.get('currency') if isinstance(account_data, dict) else getattr(account_data, 'currency', 'JPY')
+        # 口座種別のマッピング
+        account_type_display = {
+            "普通預金": "普通",
+            "定期預金": "定期",
+            "当座預金": "当座"
+        }
         acct_type = account_info.get('account_type') if account_info else None
+        type_display = account_type_display.get(acct_type, '普通')
+        
+        # 発行年月の取得
+        now = datetime.datetime.now()
+        issue_date = f"{now.year % 100:02d}年/{now.month:02d}月"
 
         text = (
-            f"口座開設が完了しました。\n"
-            f"ユーザー: {display_name if display_name else '（不明）'}\n"
+            f"口座の開設が完了しました。\n"
+            f"氏名: {account_info.get('full_name') if account_info else '（不明）'}\n"
+            f"表示名: {display_name if display_name else '（不明）'}\n"
+            f"支店番号: {account_info.get('branch_num') if account_info else '（不明）'}\n"
             f"口座番号: {acct_num if acct_num else '（不明）'}\n"
-            f"通貨: {currency}\n"
-            f"種類: {acct_type if acct_type else '（不明）'}"
+            f"種別: {type_display}\n"
+            f"発行年月: {issue_date}"
         )
 
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=text))
