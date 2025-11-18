@@ -355,7 +355,10 @@ def get_account_info_by_user(user_id: str):
         """ユーザーIDに紐づく全口座情報をリストで返す。"""
         db = SessionLocal()
         try:
-            accounts = db.execute(select(Account).filter_by(user_id=user_id)).scalars().all()
+            # user_idとstatus='active'で複数口座を取得
+            accounts = db.execute(
+                select(Account).filter_by(user_id=user_id, status='active')
+            ).scalars().all()
             result = []
             for acc in accounts:
                 branch_code = None

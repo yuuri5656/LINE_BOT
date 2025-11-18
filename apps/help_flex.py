@@ -1,5 +1,19 @@
 def get_account_flex_bubble(account_info):
     # 口座情報をFlexMessageバブル形式で返す
+    # 作成日を年月日だけに整形
+    created_at = account_info.get('created_at')
+    if created_at:
+        try:
+            # datetime型ならstrftime、str型なら分割
+            if hasattr(created_at, 'strftime'):
+                created_at_str = created_at.strftime('%Y-%m-%d')
+            else:
+                created_at_str = str(created_at)[:10]
+        except Exception:
+            created_at_str = str(created_at)
+    else:
+        created_at_str = ''
+
     bubble = {
         "type": "bubble",
         "body": {
@@ -13,7 +27,7 @@ def get_account_flex_bubble(account_info):
                 {"type": "text", "text": f"種類: {account_info.get('type') or '（不明）'}", "margin": "md"},
                 {"type": "text", "text": f"支店: {account_info.get('branch_code') or ''} {account_info.get('branch_name') or ''}", "margin": "md"},
                 {"type": "text", "text": f"状態: {account_info.get('status')}", "margin": "md"},
-                {"type": "text", "text": f"作成日: {account_info.get('created_at')}", "margin": "md"},
+                {"type": "text", "text": f"作成日: {created_at_str}", "margin": "md"},
             ]
         }
     }
