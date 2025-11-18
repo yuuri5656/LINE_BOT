@@ -105,11 +105,14 @@ def create_account_optimized(event, account_info: dict, sessions: dict, operator
             birth_date_str = account_info.get('birth_date')
             pin_code = account_info.get('pin_code')
 
-            # 既存顧客チェック
-            customer = db.execute(select(Customer).filter_by(user_id=user_id)).scalars().first()
+
+            # 既存顧客チェック（user_id, full_name, date_of_birthの組み合わせで判定）
+            birth_date = datetime.datetime.strptime(birth_date_str, "%Y-%m-%d").date()
+            customer = db.execute(
+                select(Customer).filter_by(user_id=user_id, full_name=full_name, date_of_birth=birth_date)
+            ).scalars().first()
             if not customer:
                 # 新規顧客を作成
-                birth_date = datetime.datetime.strptime(birth_date_str, "%Y-%m-%d").date()
                 customer = Customer(
                     user_id=user_id,
                     full_name=full_name,
