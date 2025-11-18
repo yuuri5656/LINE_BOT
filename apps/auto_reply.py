@@ -1,6 +1,6 @@
 from core.api import handler, line_bot_api
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
-from apps.help_flex import get_help_flex
+from apps.help_flex import get_help_flex, get_detail_account_flex, get_detail_minigame_flex, get_detail_janken_flex
 import config
 import random
 import psycopg2
@@ -24,6 +24,18 @@ def check_message_today(conn, user_id, message):
         return count > 1
 
 def auto_reply(event, text, user_id, group_id, display_name, sessions):
+    # postbackイベントで詳細ヘルプを返す
+    if hasattr(event, 'postback') and event.postback and hasattr(event.postback, 'data'):
+        data = event.postback.data
+        if data == "help_detail_account":
+            line_bot_api.reply_message(event.reply_token, get_detail_account_flex())
+            return
+        elif data == "help_detail_minigame":
+            line_bot_api.reply_message(event.reply_token, get_detail_minigame_flex())
+            return
+        elif data == "help_detail_janken":
+            line_bot_api.reply_message(event.reply_token, get_detail_janken_flex())
+            return
     conn = None
     cur = None
     state = sessions.get(user_id)
