@@ -1,18 +1,28 @@
 def get_account_flex_bubble(account_info):
     # 口座情報をFlexMessageバブル形式で返す
-    # 作成日を年月日だけに整形
+    # 作成日を「YYYY年MM月DD日」に整形
     created_at = account_info.get('created_at')
     if created_at:
         try:
-            # datetime型ならstrftime、str型なら分割
             if hasattr(created_at, 'strftime'):
-                created_at_str = created_at.strftime('%Y-%m-%d')
+                created_at_str = created_at.strftime('%Y年%m月%d日')
             else:
-                created_at_str = str(created_at)[:10]
+                # 例: '2025-11-18...' → '2025年11月18日'
+                s = str(created_at)[:10]
+                y, m, d = s.split('-')
+                created_at_str = f'{y}年{m}月{d}日'
         except Exception:
             created_at_str = str(created_at)
     else:
         created_at_str = ''
+
+    # 状態を日本語化
+    status_map = {'active': '利用可能', 'inactive': '利用不可', 'closed': '解約済み'}
+    status_jp = status_map.get(str(account_info.get('status')), str(account_info.get('status')))
+
+    # 種別を日本語化
+    type_map = {'ordinary': '普通', 'current': '当座', 'time': '定期'}
+    type_jp = type_map.get(str(account_info.get('type')), str(account_info.get('type')))
 
     bubble = {
         "type": "bubble",
@@ -20,13 +30,12 @@ def get_account_flex_bubble(account_info):
             "type": "box",
             "layout": "vertical",
             "contents": [
-                {"type": "text", "text": "口座情報", "weight": "bold", "size": "lg"},
-                {"type": "separator", "margin": "md"},
-                {"type": "text", "text": f"口座番号: {account_info.get('account_number')}", "margin": "md"},
-                {"type": "text", "text": f"残高: {account_info.get('balance') or '0.00'} {account_info.get('currency') or ''}", "margin": "md"},
-                {"type": "text", "text": f"種類: {account_info.get('type') or '（不明）'}", "margin": "md"},
-                {"type": "text", "text": f"支店: {account_info.get('branch_code') or ''} {account_info.get('branch_name') or ''}", "margin": "md"},
-                {"type": "text", "text": f"状態: {account_info.get('status')}", "margin": "md"},
+                {"type": "text", "text": f"氏名: {account_info.get('full_name') or ''}", "margin": "md"},
+                {"type": "text", "text": f"支店名: {account_info.get('branch_name') or ''}", "margin": "md"},
+                {"type": "text", "text": f"支店コード: {account_info.get('branch_code') or ''}", "margin": "md"},
+                {"type": "text", "text": f"口座番号: {account_info.get('account_number') or ''}", "margin": "md"},
+                {"type": "text", "text": f"種別: {type_jp}", "margin": "md"},
+                {"type": "text", "text": f"状態: {status_jp}", "margin": "md"},
                 {"type": "text", "text": f"作成日: {created_at_str}", "margin": "md"},
             ]
         }

@@ -301,9 +301,10 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
                     except Exception:
                         pass
 
-            # セッションを中止してグループに通知
+            # セッションを中止してグループに通知（1通にまとめる）
             try:
-                line_bot_api.push_message(group_id, TextSendMessage(text="参加者の支払いに失敗したため、ゲームを中止しました。もう一度募集を開始してください。"))
+                msg = "参加者の支払いに失敗したため、ゲームを中止しました。もう一度募集を開始してください。\nゲームの開始に失敗しました。"
+                line_bot_api.reply_message(session.reply_token, TextSendMessage(text=msg))
             except Exception:
                 pass
             # セッションをクリア
