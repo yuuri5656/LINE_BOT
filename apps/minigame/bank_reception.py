@@ -98,9 +98,15 @@ def bank_reception(event, text, user_id, display_name, sessions):
             return
 
     # ミニゲーム口座登録処理（個別チャットのみ）
-    if text == "?ミニゲーム口座登録" or ((isinstance(state, dict) and state.get("minigame_registration")) and not text.startswith("?") and text.strip() != "?キャンセル"):
+    if text == "?ミニゲーム口座登録" or (isinstance(state, dict) and state.get("minigame_registration")):
         if event.source.type != 'user':
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ミニゲーム口座登録は個別チャット(1対1トーク)でのみ利用可能です。"))
+            return
+
+        # キャンセル処理（どのステップでも優先して判定）
+        if text.strip().lower() in ["?キャンセル", "?cancel"]:
+            sessions.pop(user_id, None)
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ミニゲーム用口座の登録をキャンセルしました。"))
             return
 
         # セッション管理: ミニゲーム口座登録フロー
@@ -131,12 +137,6 @@ def bank_reception(event, text, user_id, display_name, sessions):
             return
 
         elif isinstance(state, dict) and state.get("minigame_registration"):
-            # キャンセル処理
-            if text.strip().lower() in ["?キャンセル", "?cancel"]:
-                sessions.pop(user_id, None)
-                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ミニゲーム用口座の登録をキャンセルしました。"))
-                return
-
             current_step = state.get("step", 1)
 
             # ステップ1: 支店番号入力

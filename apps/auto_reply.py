@@ -43,12 +43,29 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
     # ユーザーチャットでの"?口座開設"メッセージを処理
     if text == "?口座開設" or (isinstance(state, dict) and state.get("step")):
         if event.source.type == 'user':  # ユーザーチャットのみ対応
+            # キャンセルコマンドの場合はセッションからstepを削除してキャンセルメッセージを返す
+            if text.strip() == "?キャンセル":
+                if isinstance(state, dict):
+                    state.pop("step", None)
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="口座開設をキャンセルしました。"))
+                return
             bank_reception(event, text, user_id, display_name, sessions)
             return
 
     # ミニゲーム口座登録処理（個別チャットのみ）
-    if text == "?ミニゲーム口座登録" or ((isinstance(state, dict) and state.get("minigame_registration")) and not text.startswith("?") and text.strip() != "?キャンセル"):
+    if text == "?ミニゲーム口座登録" or (isinstance(state, dict) and state.get("minigame_registration")):
         if event.source.type == 'user':  # ユーザーチャットのみ対応
+            # キャンセルコマンドの場合はセッションからminigame_registrationを削除してキャンセルメッセージを返す
+            if text.strip() == "?キャンセル":
+                if isinstance(state, dict):
+                    state.pop("minigame_registration", None)
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ミニゲーム口座登録をキャンセルしました。"))
+                return
+            # 戻るコマンドの場合はbank_receptionに処理を委譲
+            if text.strip() == "?戻る":
+                bank_reception(event, text, user_id, display_name, sessions)
+                return
+            # それ以外は通常のbank_reception処理
             bank_reception(event, text, user_id, display_name, sessions)
             return
 
@@ -77,11 +94,14 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             return
 
         bubbles = [get_account_flex_bubble(acc) for acc in accounts]
-        carousel = {
-            "type": "carousel",
-            "contents": bubbles
-        }
-        flex_message = FlexSendMessage(alt_text="口座情報一覧", contents=carousel)
+        # FlexSendMessageのcontentsはdictまたはJSON文字列
+        flex_message = FlexSendMessage(
+            alt_text="口座情報一覧",
+            contents={
+                "type": "carousel",
+                "contents": bubbles
+            }
+        )
         line_bot_api.reply_message(event.reply_token, flex_message)
         return
     elif text == "?通帳":
