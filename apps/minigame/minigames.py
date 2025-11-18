@@ -326,13 +326,7 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
     except Exception:
         pass
 
-    # 各参加者へ個別に案内
-    for uid, player in session.players.items():
-        try:
-            line_bot_api.push_message(uid, TextSendMessage(text=f"{player.display_name}さん、じゃんけんを始めます。個別チャットで「グー」「チョキ」「パー」のいずれかを送信してください。"))
-        except Exception:
-            # push が失敗しても続行
-            pass
+    # 個別チャットへの案内メッセージ送信を削除
 
     # タイムアウトで自動終了するタイマーを設定
     def _finish():
