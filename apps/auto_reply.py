@@ -1,5 +1,6 @@
 from core.api import handler, line_bot_api
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
+from apps.help_flex import get_help_flex
 import config
 import random
 import psycopg2
@@ -200,6 +201,12 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text=f"あなたのユーザーIDは\n{user_id}\nです。")
+        )
+        return
+    elif text == "?ヘルプ" or text == "?help":
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_help_flex()
         )
         return
     elif text == "?口座情報":

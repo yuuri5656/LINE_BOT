@@ -987,10 +987,10 @@ def get_minigame_account(user_id: str):
 def get_minigame_account_info(user_id: str):
     """
     ユーザーのミニゲーム用口座の詳細情報を辞書で取得する。
-    
+
     Args:
         user_id: LINE user ID
-    
+
     Returns:
         登録済みの場合: dict (account_number, balance, currency, status, etc.)
         未登録の場合: None
@@ -1001,18 +1001,18 @@ def get_minigame_account_info(user_id: str):
         minigame_acc = db.execute(
             select(MinigameAccount).filter_by(user_id=user_id, is_active=True)
         ).scalars().first()
-        
+
         if not minigame_acc:
             return None
-        
+
         # 関連する口座情報を取得
         account = db.execute(
             select(Account).filter_by(account_id=minigame_acc.account_id)
         ).scalars().first()
-        
+
         if not account:
             return None
-        
+
         # 支店情報を取得
         branch_code = None
         branch_name = None
@@ -1022,10 +1022,10 @@ def get_minigame_account_info(user_id: str):
                 branch_name = getattr(account.branch, 'name', None)
         except Exception:
             pass
-        
+
         balance = getattr(account, 'balance', None)
         balance_str = format(balance, '.2f') if balance is not None else None
-        
+
         return {
             'account_id': getattr(account, 'account_id', None),
             'account_number': getattr(account, 'account_number', None),
@@ -1038,7 +1038,7 @@ def get_minigame_account_info(user_id: str):
             'registered_at': getattr(minigame_acc, 'registered_at', None),
             'last_used_at': getattr(minigame_acc, 'last_used_at', None),
         }
-        
+
     except Exception as e:
         print(f"[BankService] get_minigame_account_info error: {e}")
         return None
@@ -1049,10 +1049,10 @@ def get_minigame_account_info(user_id: str):
 def unregister_minigame_account(user_id: str) -> dict:
     """
     ユーザーのミニゲーム用口座登録を解除する（is_active を False にする）。
-    
+
     Args:
         user_id: LINE user ID
-    
+
     Returns:
         {'success': True/False, 'message': str}
     """
@@ -1062,15 +1062,15 @@ def unregister_minigame_account(user_id: str) -> dict:
             minigame_acc = db.execute(
                 select(MinigameAccount).filter_by(user_id=user_id, is_active=True)
             ).scalars().first()
-            
+
             if not minigame_acc:
                 return {'success': False, 'message': 'ミニゲーム用口座が登録されていません。'}
-            
+
             minigame_acc.is_active = False
             db.flush()
-            
+
             return {'success': True, 'message': 'ミニゲーム用口座の登録を解除しました。'}
-            
+
     except Exception as e:
         db.rollback()
         print(f"[BankService] unregister_minigame_account error: {e}")
