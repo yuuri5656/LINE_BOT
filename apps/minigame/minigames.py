@@ -279,10 +279,11 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
     except Exception:
         pass
 
-    # 支払い後に参加者が2名未満になったらゲームを中止して支払済みを返金
+    # 支払い失敗により参加者が2名未満になった場合のみゲームを中止
     try:
         remaining = list(session.players.keys())
-        if len(remaining) < 2:
+        # failed が空でない（支払い失敗者がいる）かつ 残存参加者が2名未満の場合
+        if failed and len(remaining) < 2:
             # 返金処理(支払い済みのユーザーに戻す)
             for uid in paid:
                 try:
