@@ -91,10 +91,17 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             return
 
         from apps.help_flex import get_account_flex_bubble
-        accounts = bank_service.get_account_info_by_user(user_id)
-        # DBエラーやNoneの場合は空リスト扱い
+        # 複数口座対応: get_accounts_by_user を利用
+        if hasattr(bank_service, 'get_accounts_by_user'):
+            accounts = bank_service.get_accounts_by_user(user_id)
+        else:
+            # 旧関数が存在する場合はラップ
+            acc = bank_service.get_account_info_by_user(user_id)
+            accounts = [acc] if acc else []
+
+        # DBエラーやNone/空リストの場合はエラー
         if not accounts or not isinstance(accounts, list) or len(accounts) == 0:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="有効な口座が見つかりません。'?口座開設' を入力して口座を作成してください。"))
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="有効な口座が見つかりません。「?口座開設」 を入力して口座を作成してください。"))
             return
 
         bubbles = [get_account_flex_bubble(acc) for acc in accounts if acc]
