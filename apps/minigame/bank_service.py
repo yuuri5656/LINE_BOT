@@ -849,19 +849,20 @@ def authenticate_customer(user_id: str, full_name: str, date_of_birth: str, pin_
 
 def register_minigame_account(user_id: str, full_name: str, branch_code: str, account_number: str, pin_code: str, date_of_birth: str) -> dict:
     """
-    ユーザーのミニゲーム用口座を登録する。
-    氏名、支店番号、口座番号、暗証番号、生年月日で認証を行う。
+    ユーザーの既存口座をミニゲーム用口座として登録する。
+    新しい口座を作成するのではなく、既存の口座から一つを選んでミニゲーム専用として登録する。
+    氏名、支店番号、口座番号、暗証番号、生年月日で本人確認を行う。
 
     Args:
         user_id: LINE user ID
-        full_name: フルネーム
-        branch_code: 支店番号
-        account_number: 登録する口座番号
-        pin_code: 暗証番号
-        date_of_birth: 生年月日(YYYY-MM-DD形式)
+        full_name: フルネーム（口座開設時に登録したもの）
+        branch_code: 支店番号（登録したい既存口座の支店番号）
+        account_number: 口座番号（登録したい既存口座の口座番号）
+        pin_code: 暗証番号（口座開設時に設定したもの）
+        date_of_birth: 生年月日(YYYY-MM-DD形式、口座開設時に登録したもの)
 
     Returns:
-        成功時: {'success': True, 'minigame_account_id': int, 'message': str}
+        成功時: {'success': True, 'minigame_account_id': int, 'message': str, 'updated': bool}
         失敗時: {'success': False, 'error': str}
     """
     db = SessionLocal()

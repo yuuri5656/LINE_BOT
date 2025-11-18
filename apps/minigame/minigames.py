@@ -181,7 +181,7 @@ def join_game_session(group_id: str, user_id: str, display_name: str, conn):
 
     # 口座存在と最低残高の確認
     if not check_account_existence_and_balance(conn, user_id, group.current_game.min_balance):
-        return f"ミニゲーム用口座が登録されていないか、最低残高({group.current_game.min_balance} JPY)を満たしていません。\n\n塩爺との個別チャット(1対1トーク)にて '?ミニゲーム口座登録' と入力して、ミニゲームで使用する口座を登録してください。"
+        return f"ミニゲーム用口座が登録されていないか、最低残高({group.current_game.min_balance} JPY)を満たしていません。\n\n塩爺との個別チャット(1対1トーク)にて '?ミニゲーム口座登録' と入力して、お持ちの口座をミニゲーム用として登録してください。"
 
     # すべての条件を満たしていれば参加
     group.current_game.players[user_id] = Player(user_id=user_id, display_name=display_name)

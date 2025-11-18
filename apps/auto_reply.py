@@ -46,15 +46,18 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             minigame_info = bank_service.get_minigame_account_info(user_id)
             
             messages = []
-            messages.append("【ミニゲーム口座登録】\n")
-            messages.append("セキュリティのため、以下の情報を順番に入力してください。\n")
+            messages.append("【ミニゲーム口座登録】\n\n")
+            messages.append("お持ちの口座から一つを選び、ミニゲーム専用口座として登録します。\n")
+            messages.append("※新しい口座を作成するわけではありません。\n\n")
             
             if minigame_info:
-                messages.append(f"現在登録中のミニゲーム口座:\n口座番号: {minigame_info.get('account_number')}\n残高: {minigame_info.get('balance')} {minigame_info.get('currency')}\n\n")
+                messages.append(f"現在登録中のミニゲーム口座:\n支店番号: {minigame_info.get('branch_code')}\n口座番号: {minigame_info.get('account_number')}\n残高: {minigame_info.get('balance')} {minigame_info.get('currency')}\n\n")
+                messages.append("別の口座を登録する場合は、本人確認のため以下の情報を順番に入力してください。\n\n")
             else:
-                messages.append("ミニゲーム口座が未登録です。\n\n")
+                messages.append("ミニゲーム口座が未登録です。\n")
+                messages.append("本人確認のため、以下の情報を順番に入力してください。\n\n")
             
-            messages.append("まず、ご自身のフルネーム（半角カタカナ）を入力してください。\n")
+            messages.append("まず、登録したい口座のフルネーム（半角カタカナ）を入力してください。\n")
             messages.append("例: ﾎﾝﾀﾞ ﾊﾙｷ\n\n")
             messages.append("※キャンセルする場合は「キャンセル」と入力してください。")
             
@@ -93,7 +96,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
                 
                 line_bot_api.reply_message(
                     event.reply_token,
-                    TextSendMessage(text=f"氏名: {full_name}\n\n次に、支店番号（3桁）を入力してください。\n例: 001")
+                    TextSendMessage(text=f"氏名: {full_name}\n\n次に、登録したい口座の支店番号（3桁）を入力してください。\n例: 001\n\n※'?口座情報'コマンドで確認できます。")
                 )
                 return
             
@@ -113,7 +116,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
                 
                 line_bot_api.reply_message(
                     event.reply_token,
-                    TextSendMessage(text=f"支店番号: {branch_code}\n\n次に、口座番号（7桁）を入力してください。")
+                    TextSendMessage(text=f"支店番号: {branch_code}\n\n次に、登録したい口座の口座番号（7桁）を入力してください。\n\n※'?口座情報'コマンドで確認できます。")
                 )
                 return
             
@@ -133,7 +136,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
                 
                 line_bot_api.reply_message(
                     event.reply_token,
-                    TextSendMessage(text=f"口座番号: {account_number}\n\n次に、生年月日をYYYY-MM-DD形式で入力してください。\n例: 2000-01-01")
+                    TextSendMessage(text=f"口座番号: {account_number}\n\n次に、口座開設時に登録した生年月日をYYYY-MM-DD形式で入力してください。\n例: 2000-01-01")
                 )
                 return
             
@@ -157,7 +160,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
                 
                 line_bot_api.reply_message(
                     event.reply_token,
-                    TextSendMessage(text=f"生年月日: {date_of_birth}\n\n最後に、4桁の暗証番号を入力してください。")
+                    TextSendMessage(text=f"生年月日: {date_of_birth}\n\n最後に、口座開設時に設定した4桁の暗証番号を入力してください。")
                 )
                 return
             
@@ -191,10 +194,11 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
                 sessions.pop(user_id, None)
                 
                 if result.get('success'):
-                    message = f"✅ {result.get('message')}\n\n支店番号: {branch_code}\n口座番号: {account_number}\n\nこれでミニゲームに参加できます！"
+                    update_text = "更新" if result.get('updated') else "登録"
+                    message = f"✅ ミニゲーム用口座を{update_text}しました！\n\n支店番号: {branch_code}\n口座番号: {account_number}\n\nこの口座でミニゲームに参加できます。\n※この口座は通常の入出金も引き続き利用できます。"
                 else:
                     error_msg = result.get('error', '不明なエラーが発生しました。')
-                    message = f"❌ 登録に失敗しました。\n\n{error_msg}\n\n入力情報を確認して、再度 '?ミニゲーム口座登録' を実行してください。"
+                    message = f"❌ 登録に失敗しました。\n\n{error_msg}\n\n入力した情報が正しいか確認してください。\n・口座開設時に登録した氏名、生年月日、暗証番号\n・登録したい口座の支店番号と口座番号\n\n'?口座情報'で口座番号を確認できます。"
                 
                 line_bot_api.reply_message(event.reply_token, TextSendMessage(text=message))
                 return
