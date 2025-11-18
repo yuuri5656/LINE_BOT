@@ -438,10 +438,13 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
                 print(f"Players listed for game start: {group.current_game.players}")
                 try:
                     from apps.minigame.minigames import start_game_session
-                    msg = start_game_session(group_id, line_bot_api, timeout_seconds=30)
-                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
+                    msg = start_game_session(group_id, line_bot_api, timeout_seconds=30, reply_token=event.reply_token)
+                    # start_game_session が文字列を返した場合はエラーメッセージ
+                    if msg and isinstance(msg, str):
+                        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
                 except Exception as e:
-                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ゲームの開始に失敗しました。"))
+                    print(f"Exception in start_game_session: {e}")
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"ゲームの開始に失敗しました。\nエラー: {str(e)}"))
                 return
             else:
                 line_bot_api.reply_message(

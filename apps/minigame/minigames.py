@@ -299,20 +299,35 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30, r
             # セッションを中止してグループに通知（1通にまとめる）
             try:
                 msg = "参加者がいないため、ゲームを開始できません。\nゲームの開始に失敗しました。"
-                line_bot_api.reply_message(session.reply_token, TextSendMessage(text=msg))
+                if reply_token:
+                    line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
+                else:
+                    line_bot_api.push_message(group_id, TextSendMessage(text=msg))
             except Exception as e:
                 # 失敗時はエラー内容も通知
                 err_msg = f"ゲーム開始エラー: {str(e)}"
-                line_bot_api.reply_message(session.reply_token, TextSendMessage(text=err_msg))
+                try:
+                    if reply_token:
+                        line_bot_api.reply_message(reply_token, TextSendMessage(text=err_msg))
+                    else:
+                        line_bot_api.push_message(group_id, TextSendMessage(text=err_msg))
+                except Exception:
+                    pass
             # セッションをクリア
             group.current_game = None
-            return
+            return "参加者がいないため、ゲームを開始できませんでした。"
     except Exception as e:
         # 失敗時はエラー内容も通知
         try:
-            line_bot_api.reply_message(session.reply_token, TextSendMessage(text=f"ゲーム開始処理中にエラーが発生しました: {str(e)}"))
+            if reply_token:
+                line_bot_api.reply_message(reply_token, TextSendMessage(text=f"ゲーム開始処理中にエラーが発生しました: {str(e)}"))
+            else:
+                line_bot_api.push_message(group_id, TextSendMessage(text=f"ゲーム開始処理中にエラーが発生しました: {str(e)}"))
         except Exception:
             pass
+        # セッションをクリア
+        group.current_game = None
+        return f"ゲーム開始処理中にエラーが発生しました: {str(e)}"
 
     # 支払いできなかったユーザーを通知
     if failed:
@@ -349,7 +364,7 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30, r
     timer.daemon = True
     timer.start()
 
-    return
+    return None  # 成功時はNoneを返す
 
 
 def find_session_by_user(user_id: str):
