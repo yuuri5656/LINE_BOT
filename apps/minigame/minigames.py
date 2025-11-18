@@ -444,6 +444,7 @@ def finish_game_session(group_id: str, line_bot_api):
 
     n = len(players)
     # 賞金計算は固定分配方式を使用
+    fee = 0
     try:
         bets = [session.min_balance for _ in ranked]
         prizes, fee = fixed_prize_distribution(bets, fee_rate=0.1)
@@ -463,15 +464,46 @@ def finish_game_session(group_id: str, line_bot_api):
         for p in players:
             share = int(distributable * weight_map[p.user_id] / total_weight) if total_weight > 0 else 0
             payouts[p.user_id] = share
-        fee = 0
+        fee = int(pot * 0.1)
 
+    # 手数料を運営口座（支店番号006、口座番号3317513）に振り込む
+    if fee > 0:
+        try:
+            # 運営口座に手数料を入金
+            from apps.minigame.main_bank_system import SessionLocal, Account
+            from sqlalchemy import select
+            db = SessionLocal()
+            try:
+                # 口座番号で運営口座を検索
+                management_account = db.execute(
+                    select(Account).filter_by(account_number="3317513")
+                ).scalars().first()
+                
+                if management_account:
+                    # user_idを使用してdeposit
+                    bank_service.deposit_to_user(management_account.user_id, fee)
+                else:
+                    print(f"finish_game_session: management account not found (account_number=3317513)")
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"finish_game_session: failed to deposit fee to management account: {e}")
+    
+    # 収支計算: 賞金 - (ベット額 - 手数料/参加者数)
+    # 各参加者の実質負担 = ベット額 - (手数料 / 参加者数)
+    fee_per_player = fee // n if n > 0 else 0
+    actual_bet = session.min_balance - fee_per_player
+    
     # 結果を1つのメッセージに統合
     result_lines = [f"じゃんけんの結果（参加者 {n} 名）"]
     for idx, p in enumerate(ranked, start=1):
         hand = p.data if p.data else "(未提出)"
         sc = scores.get(p.user_id, 0)
         pay = payouts.get(p.user_id, 0)
-        result_lines.append(f"{idx}位: {p.display_name} - 手: {hand} - スコア: {sc} - 収支: +{pay} JPY")
+        # 収支 = 賞金 - 実質ベット額
+        profit = pay - actual_bet
+        sign = "+" if profit >= 0 else ""
+        result_lines.append(f"{idx}位: {p.display_name} - 手: {hand} - スコア: {sc} - 収支: {sign}{profit} JPY")
     
     result_message = "\n".join(result_lines)
 
