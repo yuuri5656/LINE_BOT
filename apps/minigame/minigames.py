@@ -66,34 +66,25 @@ manager = GroupManager()
 # 口座が存在し、かつアクティブ状態であり、残金がmin_balanceを満たしているかどうかを確認。
 def check_account_existence_and_balance(conn, user_id, min_balance):
     """
-    conn が提供されている場合は既存の SQL を使用する。提供されていない場合は
-    `bank_service.get_active_account_by_user` を利用して残高を確認する。
+    ミニゲーム用に登録された口座の存在と残高を確認する。
+    ミニゲーム口座が未登録の場合はFalseを返す。
     """
     try:
-        if conn:
-            with conn.cursor() as cur:
-                # Avoid filtering by enum literal in SQL; select the row and
-                # validate the status in Python to prevent enum-mapping issues.
-                cur.execute("""
-                    SELECT balance, status
-                    FROM accounts
-                    WHERE user_id = %s
-                """, (user_id,))
-                result = cur.fetchone()
-                if result is None:
-                    return False  # 口座が存在しない
-                balance, status = result[0], result[1]
-                if status != 'active':
-                    return False
-                return balance >= min_balance  # 最低残高を満たしているか確認
-        else:
-            acc = bank_service.get_active_account_by_user(user_id)
-            if not acc:
+        # ミニゲーム口座が登録されているか確認
+        minigame_acc_info = bank_service.get_minigame_account_info(user_id)
+        if not minigame_acc_info:
+            return False  # ミニゲーム口座が未登録
+        
+        # 残高チェック
+        try:
+            balance_str = minigame_acc_info.get('balance')
+            if balance_str is None:
                 return False
-            try:
-                return acc.balance >= min_balance
-            except Exception:
-                return False
+            from decimal import Decimal
+            balance = Decimal(balance_str)
+            return balance >= min_balance
+        except Exception:
+            return False
     except Exception:
         return False
 
@@ -102,15 +93,13 @@ def fixed_prize_distribution(bets, fee_rate=0.1):
     """
     小規模（2～5人）向けの固定分配方式。
     1位圧倒的、下位にも少額分配。
-    手数料は10の倍数に丸められます。
     """
     N = len(bets)
     if N < 2 or N > 5:
         raise ValueError("この関数は2〜5人向けです。")
 
     total_bet = sum(bets)
-    # 手数料を10の倍数に丸める（四捨五入）
-    fee = round(total_bet * fee_rate / 10) * 10
+    fee = int(round(total_bet * fee_rate))
     prize_pool = total_bet - fee
 
     if N == 2:
@@ -192,7 +181,7 @@ def join_game_session(group_id: str, user_id: str, display_name: str, conn):
 
     # 口座存在と最低残高の確認
     if not check_account_existence_and_balance(conn, user_id, group.current_game.min_balance):
-        return f"有効な口座が存在しないか、最低残高({group.current_game.min_balance})を満たしていません。"
+        return f"ミニゲーム用口座が登録されていないか、最低残高({group.current_game.min_balance} JPY)を満たしていません。\n\n塩爺との個別チャット(1対1トーク)にて '?ミニゲーム口座登録' と入力して、ミニゲームで使用する口座を登録してください。"
 
     # すべての条件を満たしていれば参加
     group.current_game.players[user_id] = Player(user_id=user_id, display_name=display_name)
@@ -281,11 +270,10 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
     except Exception:
         pass
 
-    # 支払い失敗により参加者が2名未満になった場合のみゲームを中止
+    # 支払い後に参加者が2名未満になったらゲームを中止して支払済みを返金
     try:
         remaining = list(session.players.keys())
-        # failed が空でない（支払い失敗者がいる）かつ 残存参加者が2名未満の場合
-        if failed and len(remaining) < 2:
+        if len(remaining) < 2:
             # 返金処理(支払い済みのユーザーに戻す)
             for uid in paid:
                 try:
@@ -296,9 +284,14 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
                     except Exception:
                         pass
 
+            # セッションを中止してグループに通知
+            try:
+                line_bot_api.push_message(group_id, TextSendMessage(text="参加者の支払いに失敗したため、ゲームを中止しました。もう一度募集を開始してください。"))
+            except Exception:
+                pass
             # セッションをクリア
             group.current_game = None
-            return "参加者の支払いに失敗したため、ゲームを中止しました。もう一度募集を開始してください。"
+            return
     except Exception:
         pass
 
@@ -309,7 +302,18 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
         except Exception:
             failed_names = []
     player_names = [p.display_name for p in session.players.values()]
-    start_message = f"ゲームを開始します。参加者: {', '.join(player_names)}\n個別チャットで「グー」「チョキ」「パー」のいずれかを送ってください。締め切り: {timeout_seconds}秒"
+    try:
+        line_bot_api.push_message(group_id, TextSendMessage(text=f"ゲームを開始します。参加者: {', '.join(player_names)}\n個別チャットで「グー」「チョキ」「パー」のいずれかを送ってください。締め切り: {timeout_seconds}秒"))
+    except Exception:
+        pass
+
+    # 各参加者へ個別に案内
+    for uid, player in session.players.items():
+        try:
+            line_bot_api.push_message(uid, TextSendMessage(text=f"{player.display_name}さん、じゃんけんを始めます。個別チャットで「グー」「チョキ」「パー」のいずれかを送信してください。"))
+        except Exception:
+            # push が失敗しても続行
+            pass
 
     # タイムアウトで自動終了するタイマーを設定
     def _finish():
@@ -323,7 +327,7 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
     timer.daemon = True
     timer.start()
 
-    return start_message
+    return "ゲームを開始しました。"
 
 
 def find_session_by_user(user_id: str):
@@ -446,7 +450,6 @@ def finish_game_session(group_id: str, line_bot_api):
 
     n = len(players)
     # 賞金計算は固定分配方式を使用
-    fee = 0
     try:
         bets = [session.min_balance for _ in ranked]
         prizes, fee = fixed_prize_distribution(bets, fee_rate=0.1)
@@ -466,48 +469,16 @@ def finish_game_session(group_id: str, line_bot_api):
         for p in players:
             share = int(distributable * weight_map[p.user_id] / total_weight) if total_weight > 0 else 0
             payouts[p.user_id] = share
-        fee = int(pot * 0.1)
+        fee = 0
 
-    # 手数料を運営口座（支店番号006、口座番号3317513）に振り込む
-    if fee > 0:
-        try:
-            # 運営口座に手数料を入金
-            from apps.minigame.main_bank_system import SessionLocal, Account
-            from sqlalchemy import select
-            db = SessionLocal()
-            try:
-                # 口座番号で運営口座を検索
-                management_account = db.execute(
-                    select(Account).filter_by(account_number="3317513")
-                ).scalars().first()
-                
-                if management_account:
-                    # user_idを使用してdeposit
-                    bank_service.deposit_to_user(management_account.user_id, fee)
-                else:
-                    print(f"finish_game_session: management account not found (account_number=3317513)")
-            finally:
-                db.close()
-        except Exception as e:
-            print(f"finish_game_session: failed to deposit fee to management account: {e}")
-    
-    # 収支計算: 賞金 - (ベット額 - 手数料/参加者数)
-    # 各参加者の実質負担 = ベット額 - (手数料 / 参加者数)
-    fee_per_player = fee // n if n > 0 else 0
-    actual_bet = session.min_balance - fee_per_player
-    
-    # 結果を1つのメッセージに統合
-    result_lines = [f"じゃんけんの結果（参加者 {n} 名）"]
+    messages = []
+    header = f"じゃんけんの結果（参加者 {n} 名）\n"
+    messages.append(TextSendMessage(text=header))
     for idx, p in enumerate(ranked, start=1):
         hand = p.data if p.data else "(未提出)"
         sc = scores.get(p.user_id, 0)
         pay = payouts.get(p.user_id, 0)
-        # 収支 = 賞金 - 実質ベット額
-        profit = pay - actual_bet
-        sign = "+" if profit >= 0 else ""
-        result_lines.append(f"{idx}位: {p.display_name} - 手: {hand} - スコア: {sc} - 収支: {sign}{profit} JPY")
-    
-    result_message = "\n".join(result_lines)
+        messages.append(TextSendMessage(text=f"{idx} 位: {p.display_name} - 手: {hand} - スコア: {sc} - 収支: +{pay} JPY"))
 
     try:
         for uid, amount in payouts.items():
@@ -522,7 +493,7 @@ def finish_game_session(group_id: str, line_bot_api):
         pass
 
     try:
-        line_bot_api.push_message(group_id, TextSendMessage(text=result_message))
+        line_bot_api.push_message(group_id, messages)
     except Exception:
         pass
 

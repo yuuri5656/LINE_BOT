@@ -18,6 +18,7 @@ from apps.minigame.main_bank_system import (
     CustomerCredential,
     Transaction,
     TransactionEntry,
+    MinigameAccount,
 )
 import config
 
@@ -572,13 +573,13 @@ def authenticate_customer(user_id: str, full_name: str, date_of_birth: str, pin_
     """
     ミニゲーム参加時の顧客認証API。
     user_id、フルネーム、生年月日、暗証番号を照合する。
-    
+
     Args:
         user_id: LINE user ID
         full_name: 登録時のフルネーム
         date_of_birth: 生年月日(YYYY-MM-DD形式の文字列)
         pin_code: 4桁の暗証番号
-    
+
     Returns:
         True if authenticated, False otherwise
     """
@@ -616,5 +617,229 @@ def authenticate_customer(user_id: str, full_name: str, date_of_birth: str, pin_
     except Exception as e:
         print(f"[BankService] authenticate_customer error: {e}")
         return False
+    finally:
+        db.close()
+
+
+def register_minigame_account(user_id: str, account_number: str) -> dict:
+    """
+    ユーザーのミニゲーム用口座を登録する。
+
+    Args:
+        user_id: LINE user ID
+        account_number: 登録する口座番号
+
+    Returns:
+        成功時: {'success': True, 'minigame_account_id': int, 'message': str}
+        失敗時: {'success': False, 'error': str}
+    """
+    db = SessionLocal()
+    try:
+        with db.begin():
+            # 口座の存在確認とユーザーIDの照合
+            account = db.execute(
+                select(Account).filter_by(account_number=account_number)
+            ).scalars().first()
+
+            if not account:
+                return {'success': False, 'error': '指定された口座番号が見つかりません。'}
+
+            # 口座の所有者確認
+            if account.user_id != user_id:
+                return {'success': False, 'error': 'この口座はあなたの口座ではありません。'}
+
+            # 口座がアクティブか確認
+            try:
+                acc_status = str(getattr(account, 'status', '')).strip().lower()
+            except Exception:
+                acc_status = None
+            if acc_status != 'active':
+                return {'success': False, 'error': 'この口座は現在使用できません（凍結または閉鎖されています）。'}
+
+            # 既にミニゲーム口座として登録されているか確認（同じuser_id）
+            existing = db.execute(
+                select(MinigameAccount).filter_by(user_id=user_id)
+            ).scalars().first()
+
+            if existing:
+                # 既存のミニゲーム口座を更新
+                existing.account_id = account.account_id
+                existing.is_active = True
+                existing.registered_at = datetime.datetime.now()
+                db.flush()
+
+                return {
+                    'success': True,
+                    'minigame_account_id': existing.minigame_account_id,
+                    'message': 'ミニゲーム用口座を更新しました。',
+                    'updated': True
+                }
+
+            # この口座が他のユーザーのミニゲーム口座として登録されていないか確認
+            account_used = db.execute(
+                select(MinigameAccount).filter_by(account_id=account.account_id)
+            ).scalars().first()
+
+            if account_used:
+                return {'success': False, 'error': 'この口座は既に他のユーザーのミニゲーム口座として登録されています。'}
+
+            # 新規登録
+            minigame_acc = MinigameAccount(
+                user_id=user_id,
+                account_id=account.account_id,
+                registered_at=datetime.datetime.now(),
+                is_active=True
+            )
+            db.add(minigame_acc)
+            db.flush()
+
+            return {
+                'success': True,
+                'minigame_account_id': minigame_acc.minigame_account_id,
+                'message': 'ミニゲーム用口座を登録しました。',
+                'updated': False
+            }
+
+    except Exception as e:
+        db.rollback()
+        print(f"[BankService] register_minigame_account error: {e}")
+        return {'success': False, 'error': f'登録中にエラーが発生しました: {str(e)}'}
+    finally:
+        db.close()
+
+
+def get_minigame_account(user_id: str):
+    """
+    ユーザーのミニゲーム用口座情報を取得する。
+
+    Args:
+        user_id: LINE user ID
+
+    Returns:
+        登録済みの場合: Account オブジェクト
+        未登録の場合: None
+    """
+    db = SessionLocal()
+    try:
+        # ミニゲーム口座レコードを取得
+        minigame_acc = db.execute(
+            select(MinigameAccount).filter_by(user_id=user_id, is_active=True)
+        ).scalars().first()
+
+        if not minigame_acc:
+            return None
+
+        # 関連する口座情報を取得
+        account = db.execute(
+            select(Account).filter_by(account_id=minigame_acc.account_id)
+        ).scalars().first()
+
+        # 最終使用日時を更新
+        try:
+            minigame_acc.last_used_at = datetime.datetime.now()
+            db.commit()
+        except Exception:
+            db.rollback()
+
+        return account
+
+    except Exception as e:
+        print(f"[BankService] get_minigame_account error: {e}")
+        return None
+    finally:
+        db.close()
+
+
+def get_minigame_account_info(user_id: str):
+    """
+    ユーザーのミニゲーム用口座の詳細情報を辞書で取得する。
+    
+    Args:
+        user_id: LINE user ID
+    
+    Returns:
+        登録済みの場合: dict (account_number, balance, currency, status, etc.)
+        未登録の場合: None
+    """
+    db = SessionLocal()
+    try:
+        # ミニゲーム口座レコードを取得
+        minigame_acc = db.execute(
+            select(MinigameAccount).filter_by(user_id=user_id, is_active=True)
+        ).scalars().first()
+        
+        if not minigame_acc:
+            return None
+        
+        # 関連する口座情報を取得
+        account = db.execute(
+            select(Account).filter_by(account_id=minigame_acc.account_id)
+        ).scalars().first()
+        
+        if not account:
+            return None
+        
+        # 支店情報を取得
+        branch_code = None
+        branch_name = None
+        try:
+            if getattr(account, 'branch', None):
+                branch_code = getattr(account.branch, 'code', None)
+                branch_name = getattr(account.branch, 'name', None)
+        except Exception:
+            pass
+        
+        balance = getattr(account, 'balance', None)
+        balance_str = format(balance, '.2f') if balance is not None else None
+        
+        return {
+            'account_id': getattr(account, 'account_id', None),
+            'account_number': getattr(account, 'account_number', None),
+            'balance': balance_str,
+            'currency': getattr(account, 'currency', None),
+            'type': getattr(account, 'type', None),
+            'branch_code': branch_code,
+            'branch_name': branch_name,
+            'status': getattr(account, 'status', None),
+            'registered_at': getattr(minigame_acc, 'registered_at', None),
+            'last_used_at': getattr(minigame_acc, 'last_used_at', None),
+        }
+        
+    except Exception as e:
+        print(f"[BankService] get_minigame_account_info error: {e}")
+        return None
+    finally:
+        db.close()
+
+
+def unregister_minigame_account(user_id: str) -> dict:
+    """
+    ユーザーのミニゲーム用口座登録を解除する（is_active を False にする）。
+    
+    Args:
+        user_id: LINE user ID
+    
+    Returns:
+        {'success': True/False, 'message': str}
+    """
+    db = SessionLocal()
+    try:
+        with db.begin():
+            minigame_acc = db.execute(
+                select(MinigameAccount).filter_by(user_id=user_id, is_active=True)
+            ).scalars().first()
+            
+            if not minigame_acc:
+                return {'success': False, 'message': 'ミニゲーム用口座が登録されていません。'}
+            
+            minigame_acc.is_active = False
+            db.flush()
+            
+            return {'success': True, 'message': 'ミニゲーム用口座の登録を解除しました。'}
+            
+    except Exception as e:
+        db.rollback()
+        print(f"[BankService] unregister_minigame_account error: {e}")
+        return {'success': False, 'message': f'解除中にエラーが発生しました: {str(e)}'}
     finally:
         db.close()

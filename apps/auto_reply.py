@@ -32,6 +32,67 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         if event.source.type == 'user':  # ユーザーチャットのみ対応
             bank_reception(event, text, user_id, display_name, sessions)
             return
+    
+    # ミニゲーム口座登録処理（個別チャットのみ）
+    if text == "?ミニゲーム口座登録" or (isinstance(state, dict) and state.get("minigame_registration")):
+        if event.source.type != 'user':
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ミニゲーム口座登録は個別チャット(1対1トーク)でのみ利用可能です。"))
+            return
+        
+        # セッション管理: ミニゲーム口座登録フロー
+        if text == "?ミニゲーム口座登録":
+            # 現在の口座情報を取得
+            account_info = bank_service.get_account_info_by_user(user_id)
+            minigame_info = bank_service.get_minigame_account_info(user_id)
+            
+            messages = []
+            messages.append("【ミニゲーム口座登録】")
+            
+            if minigame_info:
+                messages.append(f"\n現在登録中のミニゲーム口座:\n口座番号: {minigame_info.get('account_number')}\n残高: {minigame_info.get('balance')} {minigame_info.get('currency')}")
+                messages.append("\n別の口座を登録する場合は、登録したい口座番号を入力してください。")
+            else:
+                messages.append("\nミニゲーム口座が未登録です。")
+                if account_info:
+                    messages.append(f"\nあなたの口座:\n口座番号: {account_info.get('account_number')}\n残高: {account_info.get('balance')} {account_info.get('currency')}")
+                messages.append("\nミニゲームで使用する口座番号を入力してください。")
+            
+            messages.append("\n※キャンセルする場合は「キャンセル」と入力してください。")
+            
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="".join(messages)))
+            
+            # セッションに状態を保存
+            sessions[user_id] = {"minigame_registration": True}
+            return
+        
+        elif isinstance(state, dict) and state.get("minigame_registration"):
+            # 口座番号の入力を受け取る
+            if text.strip().lower() in ["キャンセル", "cancel"]:
+                sessions.pop(user_id, None)
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ミニゲーム口座登録をキャンセルしました。"))
+                return
+            
+            account_number = text.strip()
+            
+            # 口座番号の形式チェック（7桁の数字）
+            if not account_number.isdigit() or len(account_number) != 7:
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="口座番号は7桁の数字で入力してください。\n\n再度口座番号を入力するか、「キャンセル」と入力してください。"))
+                return
+            
+            # 口座登録処理
+            result = bank_service.register_minigame_account(user_id, account_number)
+            
+            # セッションをクリア
+            sessions.pop(user_id, None)
+            
+            if result.get('success'):
+                message = f"✅ {result.get('message')}\n\n口座番号: {account_number}\n\nこれでミニゲームに参加できます！"
+            else:
+                error_msg = result.get('error', '不明なエラーが発生しました。')
+                message = f"❌ 登録に失敗しました。\n\n{error_msg}\n\n'?口座情報' で口座番号を確認してから、再度 '?ミニゲーム口座登録' を実行してください。"
+            
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=message))
+            return
 
     if text == "?userid":
         line_bot_api.reply_message(
@@ -65,6 +126,14 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
                 lines.append(f"作成日: {info.get('created_at')}")
             except Exception:
                 pass
+        
+        # ミニゲーム口座登録状況も表示
+        minigame_info = bank_service.get_minigame_account_info(user_id)
+        lines.append("\n【ミニゲーム口座】")
+        if minigame_info:
+            lines.append(f"登録済み: {minigame_info.get('account_number')}")
+        else:
+            lines.append("未登録 ('?ミニゲーム口座登録' で登録)")
 
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="\n".join(lines)))
         return

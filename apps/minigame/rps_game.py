@@ -54,8 +54,7 @@ def play_rps_game(event, user_id, text, display_name, group_id, sessions):
     if not check_account_existence_and_balance(None, user_id, min_balance):
         line_bot_api.reply_message(
             event.reply_token,
-            [TextSendMessage(text=f"{display_name} 様、申し訳ございませんが、じゃんけんゲームを開始するためには有効な銀行口座と最低残高 {min_balance} JPY が必要です。"),
-            TextSendMessage(text="口座をお持ちでない場合は、塩爺との個別チャットにて'?口座開設' と入力して口座を開設してください。")]
+            TextSendMessage(text=f"{display_name} 様、申し訳ございませんが、じゃんけんゲームを開始するためにはミニゲーム用口座の登録と最低残高 {min_balance} JPY が必要です。\n\n塩爺との個別チャット(1対1トーク)にて '?ミニゲーム口座登録' と入力して、ミニゲームで使用する口座を登録してください。")
         )
         return
 
