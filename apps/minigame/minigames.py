@@ -229,7 +229,7 @@ def reset_game_session(group_id: str):
 
 
 # --- 以下、ゲーム進行用ユーティリティ ---
-def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
+def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30, reply_token=None):
     from threading import Timer
     from datetime import timedelta
     group = manager.groups.get(group_id)
@@ -322,7 +322,16 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
             failed_names = []
     player_names = [p.display_name for p in session.players.values()]
     try:
-        line_bot_api.push_message(group_id, TextSendMessage(text=f"ゲームを開始します。参加者: {', '.join(player_names)}\n個別チャットで「グー」「チョキ」「パー」のいずれかを送ってください。締め切り: {timeout_seconds}秒"))
+        if reply_token:
+            line_bot_api.reply_message(
+                reply_token,
+                TextSendMessage(text=f"ゲームを開始します。参加者: {', '.join(player_names)}\n個別チャットで「グー」「チョキ」「パー」のいずれかを送ってください。締め切り: {timeout_seconds}秒")
+            )
+        else:
+            line_bot_api.push_message(
+                group_id,
+                TextSendMessage(text=f"ゲームを開始します。参加者: {', '.join(player_names)}\n個別チャットで「グー」「チョキ」「パー」のいずれかを送ってください。締め切り: {timeout_seconds}秒")
+            )
     except Exception:
         pass
 
@@ -340,7 +349,7 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30):
     timer.daemon = True
     timer.start()
 
-    return "ゲームを開始しました。"
+    return
 
 
 def find_session_by_user(user_id: str):
