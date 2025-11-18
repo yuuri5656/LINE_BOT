@@ -405,15 +405,19 @@ def get_account_transactions_by_user(user_id: str, limit: int = 20):
     """
     db = SessionLocal()
     try:
-        acc = db.execute(select(Account).filter_by(user_id=user_id)).scalars().first()
+        # アクティブな口座を取得
+        acc = db.execute(select(Account).filter_by(user_id=user_id, status='active')).scalars().first()
         if not acc:
             return []
 
-        # 口座関係のトランザクションを取得（from または to）
+        # 口座関係のトランザクションを取得（from または to）でcompletedのみ
         txs = (
             db.execute(
                 select(Transaction)
-                .filter((Transaction.from_account_id == acc.account_id) | (Transaction.to_account_id == acc.account_id))
+                .filter(
+                    ((Transaction.from_account_id == acc.account_id) | (Transaction.to_account_id == acc.account_id)),
+                    Transaction.status == 'completed'
+                )
                 .order_by(Transaction.executed_at.desc().nullslast(), Transaction.created_at.desc())
                 .limit(limit)
             )

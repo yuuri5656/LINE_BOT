@@ -472,6 +472,7 @@ def finish_game_session(group_id: str, line_bot_api):
 
     n = len(players)
     # 賞金計算は固定分配方式を使用
+    fee = 0  # 初期化
     try:
         bets = [session.min_balance for _ in ranked]
         prizes, fee = fixed_prize_distribution(bets, fee_rate=0.1)
@@ -491,7 +492,7 @@ def finish_game_session(group_id: str, line_bot_api):
         for p in players:
             share = int(distributable * weight_map[p.user_id] / total_weight) if total_weight > 0 else 0
             payouts[p.user_id] = share
-        fee = 0
+        fee = pot - distributable  # フォールバック時も手数料を計算
 
     # モダンなFlexMessageで結果を表示する
     # 各プレイヤーの収支は『受け取った賞金 - 参加費 - (手数料の均等分配)』で計算する
@@ -534,6 +535,19 @@ def finish_game_session(group_id: str, line_bot_api):
             except Exception:
                 # 個別の入金失敗はログに留め、処理は続行
                 pass
+        
+        # 手数料をミニゲーム運営用口座に振り込む
+        if fee > 0:
+            try:
+                from apps.minigame.bank_service import MINIGAME_FEE_ACCOUNT
+                bank_service.deposit_by_account_number(
+                    MINIGAME_FEE_ACCOUNT['account_number'],
+                    MINIGAME_FEE_ACCOUNT['branch_num'],
+                    fee
+                )
+            except Exception as e:
+                # 手数料の入金失敗はログに記録
+                print(f"[Minigames] Failed to deposit fee to minigame account: {e}")
     except Exception:
         pass
 
