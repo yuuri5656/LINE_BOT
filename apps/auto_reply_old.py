@@ -1,0 +1,476 @@
+from core.api import handler, line_bot_api
+from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage, FlexSendMessage
+from apps.help_flex import get_help_flex, get_detail_account_flex, get_detail_minigame_flex, get_detail_janken_flex
+import config
+import random
+import psycopg2
+from apps.minigame.minigames import Player, GameSession, Group, GroupManager, manager, join_game_session, reset_game_session, cancel_game_session, GameState
+from apps.minigame.bank_reception import bank_reception
+from apps.minigame.rps_game import play_rps_game
+from apps.minigame import bank_service
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+def check_message_today(conn, user_id, message):
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT COUNT(*)
+            FROM logs
+            WHERE user_id = %s
+            AND message LIKE %s
+            AND (sent_at AT TIME ZONE 'Asia/Tokyo')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Tokyo')::date
+        """, (user_id, message))
+        count = cur.fetchone()[0]
+        return count > 1
+
+def auto_reply(event, text, user_id, group_id, display_name, sessions):
+    # postbackイベントで詳細ヘルプを返す
+    if hasattr(event, 'postback') and event.postback and hasattr(event.postback, 'data'):
+        data = event.postback.data
+        if data == "help_detail_account":
+            line_bot_api.reply_message(event.reply_token, get_detail_account_flex())
+            return
+        elif data == "help_detail_minigame":
+            line_bot_api.reply_message(event.reply_token, get_detail_minigame_flex())
+            return
+        elif data == "help_detail_janken":
+            line_bot_api.reply_message(event.reply_token, get_detail_janken_flex())
+            return
+    conn = None
+    cur = None
+    state = sessions.get(user_id)
+
+    # 口座開設・ミニゲーム口座登録フロー中は新規開始コマンドを拒否
+    if event.source.type == 'user':
+        if isinstance(state, dict) and (state.get("step") or state.get("minigame_registration")):
+            # セッション中に新たな開始コマンドが来た場合は拒否
+            if text.strip() == "?口座開設" or text.strip() == "?ミニゲーム口座登録":
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="現在登録フロー中です。キャンセルまたは完了後に再度お試しください。"))
+                return
+            # セッション中のキャンセルコマンド
+            if text.strip() == "?キャンセル":
+                if state.get("step"):
+                    state.pop("step", None)
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text="口座開設をキャンセルしました。"))
+                    return
+                if state.get("minigame_registration"):
+                    state.pop("minigame_registration", None)
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ミニゲーム口座登録をキャンセルしました。"))
+                    return
+            # セッション中の戻るコマンド
+            if text.strip() == "?戻る":
+                bank_reception(event, text, user_id, display_name, sessions)
+                return
+            # セッション中はbank_receptionに処理を委譲
+            bank_reception(event, text, user_id, display_name, sessions)
+            return
+        # セッション外の新規開始コマンド
+        if text.strip() == "?口座開設":
+            bank_reception(event, text, user_id, display_name, sessions)
+            return
+        if text.strip() == "?ミニゲーム口座登録":
+            bank_reception(event, text, user_id, display_name, sessions)
+            return
+
+    if text == "?userid":
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=f"あなたのユーザーIDは\n{user_id}\nです。")
+        )
+        return
+    elif text == "?ヘルプ" or text == "?help":
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_help_flex()
+        )
+        return
+    elif text == "?口座情報":
+        # 個別チャットでのみ口座情報を表示
+        if event.source.type != 'user':
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="個別チャットでのみ利用可能です。塩爺に直接メッセージを送ってください。"))
+            return
+
+        from apps.help_flex import get_account_flex_bubble
+        # 複数口座対応: get_accounts_by_user を利用
+        if hasattr(bank_service, 'get_accounts_by_user'):
+            accounts = bank_service.get_accounts_by_user(user_id)
+        else:
+            # 旧関数が存在する場合はラップ
+            acc = bank_service.get_account_info_by_user(user_id)
+            accounts = [acc] if acc else []
+
+        # DBエラーやNone/空リストの場合はエラー
+        if not accounts or not isinstance(accounts, list) or len(accounts) == 0:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="有効な口座が見つかりません。「?口座開設」 を入力して口座を作成してください。"))
+            return
+
+        bubbles = [get_account_flex_bubble(acc) for acc in accounts if acc]
+        # 口座情報が1件もFlexバブル生成できなければエラー
+        if not bubbles:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="口座情報の取得に失敗しました。管理者にご連絡ください。"))
+            return
+        flex_message = FlexSendMessage(
+            alt_text="口座情報一覧",
+            contents={
+                "type": "carousel",
+                "contents": bubbles
+            }
+        )
+        line_bot_api.reply_message(event.reply_token, flex_message)
+        return
+    elif text == "?通帳":
+        # 個別チャットでのみ通帳（最近の履歴）を表示
+        if event.source.type != 'user':
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="個別チャットでのみ利用可能です。塩爺に直接メッセージを送ってください。"))
+            return
+
+        txs = bank_service.get_account_transactions_by_user(user_id, limit=20)
+        if not txs:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="取引履歴が見つかりません。"))
+            return
+
+        # 履歴を整形して送信（長すぎる場合は要分割だが簡易実装）
+        lines = ["最近の通帳（最新20件まで）:"]
+        for t in txs:
+            dt = t.get('executed_at')
+            try:
+                dt_str = dt.strftime("%Y-%m-%d %H:%M") if dt else "-"
+            except Exception:
+                dt_str = str(dt)
+            other = t.get('other_account_number') or '―'
+            lines.append(f"{dt_str} {t.get('direction')} {t.get('amount')}{t.get('currency') or ''} ({t.get('type')}) 相手: {other} 状態:{t.get('status')}")
+
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="\n".join(lines)))
+        return
+    elif text == "?明日の時間割":
+        messages = []
+        subject_message = ""
+        now = datetime.now(ZoneInfo("Asia/Tokyo"))
+        today = now.date()
+        tomorrow = today + timedelta(days=1)
+        weekday_num = tomorrow.weekday()
+        weekday_jp = ["月", "火", "水", "木", "金", "土", "日"][weekday_num]
+        subject = [
+            ["学活", "音楽", "英語", "社会", "美術", "総合"],
+            ["英語", "理科", "国語", "社会", "数学", "保体"],
+            ["数学", "理科", "技術•家庭", "国語", "道徳"],
+            ["保体", "英語", "理科", "国語", "数学", "社会"],
+            ["英語", "数学", "社会", "保体", "理科", "総合"]
+        ]
+        if weekday_num < 5:
+            messages.append(TextSendMessage(text=f"明日、{tomorrow.month}月{tomorrow.day}日{weekday_jp}曜日のC組の時間割は以下の通り。"))
+            for i in range(len(subject[weekday_num])):
+                subject_message += f"{i+1}時間目: {subject[weekday_num][i]}\n"
+            subject_message = subject_message.strip()
+            messages.append(TextSendMessage(text=subject_message))
+        else:
+            messages.append(TextSendMessage(text=f"明日、{tomorrow.month}月{tomorrow.day}日{weekday_jp}曜日は学校がありません。"))
+        messages.append(TextSendMessage(text="※この時間割はあくまで予定であり、実際の時間割とは異なる場合があります。"))
+        line_bot_api.reply_message(event.reply_token, messages)
+        return
+    elif text == "?塩爺の好きな食べ物は？":
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="草ｗｗｗ")
+        )
+        return
+    elif text == "?おみくじ":
+        conn = psycopg2.connect(config.DATABASE_URL)
+        messages = []
+        if not check_message_today(conn, user_id, text) or user_id == "Ubada9dde68b83179125cba4bc0b5633c":
+            messages.append(TextSendMessage(text=display_name+"さんの運勢は……"))
+            num = random.randint(1, 8)
+            if num == 1:
+                mess1 = ("大吉でした")
+                mess2 = ("とても良い一日になるでしょう！……ﾊｱ羨ましい……")
+            elif num == 2:
+                mess1 = ("中吉でした")
+                mess2 = ("そこそこ良い一日になるでしょう……マアマアやなあw")
+            elif num == 3:
+                mess1 = ("小吉でした")
+                mess2 = ("いい感じですね！良い一日を！……微妙で草ｗ")
+            elif num == 4:
+                mess1 = ("吉でした")
+                mess2 = ("いいですね！良い一日を！……ｷﾁｯ")
+            elif num == 5:
+                mess1 = ("末吉でした")
+                mess2 = ("まあまあですね……ギリギリで草ｗ")
+            elif num == 6:
+                mess1 = ("凶でした")
+                mess2 = ("まだいけますよ！良い一日を！……ﾌﾟｯｗ")
+            elif num == 7:
+                mess1 = ("小凶でした.....残念.........")
+                mess2 = ("大丈夫です！良い一日を！……ﾄﾞﾝﾏｲｗ")
+            else:
+                mess1 = ("大凶でした")
+                mess2 = ("気を取り直してください！良い一日を！……ﾀﾞｲｷｮｳﾀﾞｲｷｮｳｗｗｗ")
+            messages.append(TextSendMessage(text=mess1))
+            messages.append(TextSendMessage(text=mess2))
+        else:
+            messages.append(TextSendMessage(text="御神籤は一日に一度迄です。\n許されるのは塩路様だけです。"))
+
+        line_bot_api.reply_message(event.reply_token, messages)
+        if conn:
+            conn.close()
+        return
+    elif text == "?ほんちゃんはゲイ？":
+        num = random.randint(1,3)
+        if num == 1 or num == 2:
+            mess = "少し。。。"
+        else:
+            mess = "はいそうです！！！"
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=mess)
+        )
+        return
+    elif text.startswith("?RPN"):
+        tokens = text.split()[1:]  # "?RPN"の後ろの部分
+        stack = []
+
+        try:
+            for token in tokens:
+                if token.isdigit():
+                    stack.append(int(token))
+                elif token in "+-*/":
+                    if len(stack) < 2:
+                        raise ValueError("演算子の前に十分なオペランドがありません")
+                    b = stack.pop()
+                    a = stack.pop()
+                    if token == "+": stack.append(a + b)
+                    elif token == "-": stack.append(a - b)
+                    elif token == "*": stack.append(a * b)
+                    elif token == "/":
+                        if b == 0:
+                            raise ZeroDivisionError("0で割ろうとしました")
+                        stack.append(a // b)
+                else:
+                    raise ValueError(f"不正なトークン: {token}")
+
+            if len(stack) != 1:
+                raise ValueError("式の構文が正しくありません")
+
+            result = str(stack[0])
+
+        except Exception as e:
+            result = f"エラー: {e}"
+
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=result)
+        )
+
+    elif text == "?おみくじを何回も引くのは犯罪ですか？":
+        num = random.randint(1,3)
+
+        if num == 1:
+            mess = "結論:死刑！"
+        elif num == 2:
+            mess = "ｼｵｼﾞ様に限り合法"
+        elif num == 3:
+            mess = "開示だな。"
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=mess)
+        )
+    elif text == "?ほんちゃんは童貞？":
+        num = random.randint(1,6)
+
+        if num == 1:
+            result = "同級生とノリで卒業しましたｗ"
+        elif num == 2:
+            result = "ソープランドで卒業しました。"
+        elif num == 3:
+            result = "ﾌｰｿﾞｸに行きましたが卒業できませんでした。"
+        elif num == 4:
+            result = "JSにレ……この続きは当局により規制されました。"
+        elif num == 5:
+            result = "実は。。。。まだチェリーボーイ？"
+        else:
+            result = "ｼｵｼﾞと。。。。？"
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=result)
+        )
+    # elif user_id == "U2fca94c4700a475955d241b2a7ed1a15" or text == "?mesugaki":
+    #     num = random.randint(1,12)
+    #     if num == 1:
+    #         result = "ん…くっさぁ…♡"
+    #     elif num == 2:
+    #         result = "ほんちゃん♡♡イケメンっ///♡"
+    #     elif num == 3:
+    #         result = "ほんちゃん♡♡すっごいイケボｯｯｯ♡"
+    #     elif num == 4:
+    #         result = "ざぁこ♡ざぁこ♡"
+    #     elif num == 5:
+    #         result = "ざぁこ♡オレの勝ち♡♡何で負けたか明日までに考えといて下さい♡♡♡"
+    #     elif num == 6:
+    #         result = "ほらほら♡がんばれ♡がんばれ♡"
+
+    #     if num <= 6:
+    #         line_bot_api.reply_message(
+    #             event.reply_token,
+    #             TextSendMessage(text=result)
+    #         )
+    elif text.startswith("?setname"):
+        # only allow certain users to be blocked from changing name
+        if user_id in ["U5631e4bcb598c6b7c59cde211bf32f27", "U2fca94c4700a475955d241b2a7ed1a15"]:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="残念ながらあなたの名前は変えられませんｗｗｗ")
+            )
+            return
+
+        my_name = "".join(text.split()[1:])
+        if len(my_name) <= 1 or len(my_name) >= 20:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="名前が短すぎるか長すぎます。")
+            )
+            return
+
+        # open DB connection only when we need to write
+        try:
+            conn = psycopg2.connect(config.DATABASE_URL)
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO users (line_id, my_name)
+                VALUES (%s, %s)
+                ON CONFLICT (line_id)
+                DO UPDATE SET my_name = EXCLUDED.my_name
+            """, (user_id, my_name))
+            conn.commit()
+            # 確認メッセージを送信してユーザーに保存成功を通知
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="名前を保存しました。")
+            )
+            return
+        except Exception as e:
+            print("DB Error (setname):", e)
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="名前の保存中にエラーが発生しました。")
+            )
+        finally:
+            if cur:
+                cur.close()
+            if conn:
+                conn.close()
+
+    # じゃんけんゲーム関連のメッセージ処理
+    if event.source.type == 'group':
+        # そのグループに待機中もしくは開始中のゲームが無い場合、セッションを作成して募集を開始
+        if text == "?じゃんけん" and event.source.type == 'group':
+            grp = manager.groups.get(group_id, None)
+            # そのグループでセッションが無ければ作成（play_rps_game がセッションを作る）
+            if grp is None or grp.current_game is None:
+                play_rps_game(event, user_id, text, display_name, group_id, sessions)
+                return
+
+            # セッションが存在する場合は状態に応じて案内
+            state = getattr(grp.current_game, "state", None)
+            if state == GameState.RECRUITING:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text=f"{display_name} 様、現在このグループではゲームを募集中です。\n是非'?参加'と入力して参加してみてください。")
+                )
+                return
+            if state == GameState.IN_PROGRESS:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text=f"{display_name} 様、現在このグループではゲームが進行中です。\nしばらくお待ちの上、再度お試しください。")
+                )
+                return
+
+        # 参加希望者は"?参加"と入力して参加表明を行う
+        if text == "?参加" and event.source.type == 'group':
+            conn = psycopg2.connect(config.DATABASE_URL)
+            try:
+                join_message = join_game_session(group_id, user_id, display_name, conn)
+            finally:
+                conn.close()
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=join_message)
+            )
+            return
+
+        # ホストまたは参加者が"?キャンセル"と入力して参加を取り消し可能とする
+        if text == "?キャンセル":
+            group = manager.groups.get(group_id)
+            if not group or not group.current_game:
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="セッションをキャンセル出来ませんでした。"))
+                return
+
+            # ホストはゲーム開始前なら中止可能（IN_PROGRESS でなければ中止可）
+            # ホストはゲーム開始前であれば中止可能
+            host_can_cancel = getattr(group.current_game, "state", None) != GameState.IN_PROGRESS
+
+            if group.current_game.host_user_id == user_id and host_can_cancel:
+                reset_game_session(group_id)
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text="ホストがキャンセルしたため、全員の参加を取り消しました。")
+                )
+                return
+
+            # 参加者が自分の参加を取り消す（募集中のみ）
+            participant_can_cancel = getattr(group.current_game, "state", None) == GameState.RECRUITING
+            if participant_can_cancel:
+                if user_id in group.current_game.players:
+                    line_bot_api.reply_message(
+                        event.reply_token,
+                        TextSendMessage(text=cancel_game_session(group_id, user_id))
+                    )
+                    return
+
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="セッションをキャンセル出来ませんでした。")
+            )
+            return
+        if text == "?開始":
+            group = manager.groups.get(group_id)
+            if group and group.current_game and group.current_game.state == GameState.RECRUITING and group.current_game.host_user_id == user_id:
+                # ゲーム開始処理（参加者へ個別チャットで手を送るよう促す）
+                # デフォルトタイムアウトは30秒（変更可）
+                print(f"Players listed for game start: {group.current_game.players}")
+                try:
+                    from apps.minigame.minigames import start_game_session
+                    msg = start_game_session(group_id, line_bot_api, timeout_seconds=30, reply_token=event.reply_token)
+                    # start_game_session が文字列を返した場合はエラーメッセージ
+                    if msg and isinstance(msg, str):
+                        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=msg))
+                except Exception as e:
+                    print(f"Exception in start_game_session: {e}")
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"ゲームの開始に失敗しました。\nエラー: {str(e)}"))
+                return
+            else:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text="ゲームを開始できませんでした。ホストのみが開始できます。")
+                )
+            return
+    elif event.source.type == 'user':
+        # ユーザーチャットでは、進行中のじゃんけんがある場合に手（グー/チョキ/パー）を受け付ける
+        from apps.minigame.minigames import submit_player_move
+
+        # 簡易的に手の候補を判定
+        if text.strip() in ["グー","ぐー","チョキ","ちょき","パー","ぱー"]:
+            res = submit_player_move(user_id, text.strip(), line_bot_api, reply_token=event.reply_token)
+            # submit_player_move が自動で返信するためここでは戻り値のみ確認
+            return
+
+        # それ以外は通常の個別チャット用メッセージ（口座開設など）が処理されるため、簡易応答
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="塩爺です。?ヘルプ と入力すると利用可能なコマンド一覧が表示されます。")
+        )
+        return
+
+    # データベースとの接続を切断
+    if cur:
+        cur.close()
+    if conn:
+        conn.close()
