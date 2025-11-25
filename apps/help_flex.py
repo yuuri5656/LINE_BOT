@@ -173,7 +173,10 @@ def get_help_flex():
                         {"type": "text", "text": "あなたの口座情報を表示します（個別チャットのみ）", "size": "sm", "color": "#666666", "wrap": True},
                         {"type": "separator", "margin": "md"},
                         {"type": "text", "text": "?通帳", "weight": "bold", "size": "md", "color": "#1E90FF", "margin": "md"},
-                        {"type": "text", "text": "最近の取引履歴（最新20件）を表示します（個別チャットのみ）", "size": "sm", "color": "#666666", "wrap": True}
+                        {"type": "text", "text": "最近の取引履歴（最新20件）を表示します（個別チャットのみ）", "size": "sm", "color": "#666666", "wrap": True},
+                        {"type": "separator", "margin": "md"},
+                        {"type": "text", "text": "?振り込み", "weight": "bold", "size": "md", "color": "#1E90FF", "margin": "md"},
+                        {"type": "text", "text": "他の口座へ振り込みを行います（個別チャットのみ）", "size": "sm", "color": "#666666", "wrap": True}
                     ],
                     "spacing": "sm",
                     "paddingAll": "20px"
@@ -364,6 +367,23 @@ def get_detail_account_flex():
                 {
                     "type": "text",
                     "text": "直近20件の取引履歴を表示します。",
+                    "size": "md",
+                    "color": "#333333",
+                    "wrap": True,
+                    "margin": "sm"
+                },
+                {"type": "separator", "color": "#1E90FF", "margin": "md"},
+                {
+                    "type": "text",
+                    "text": "?振り込み",
+                    "weight": "bold",
+                    "size": "lg",
+                    "color": "#1E90FF",
+                    "margin": "md"
+                },
+                {
+                    "type": "text",
+                    "text": "他の口座へ振り込みを行います。支店コード、口座番号、金額、暗証番号を順に入力してください。",
                     "size": "md",
                     "color": "#333333",
                     "wrap": True,

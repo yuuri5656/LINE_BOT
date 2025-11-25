@@ -258,7 +258,7 @@ def transfer_funds(from_account_number: str, to_account_number: str, amount, cur
                 amount=amount,
                 currency=currency,
                 type='transfer',
-                status='executed',
+                status='completed',
                 executed_at=datetime.datetime.utcnow(),
             )
             db.add(tx)

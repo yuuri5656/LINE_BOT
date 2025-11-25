@@ -206,6 +206,24 @@ def handle_session_input(event, text, user_id, display_name, sessions):
     bank_reception(event, text, user_id, display_name, sessions)
 
 
+def handle_transfer(event, user_id, sessions):
+    """振り込みコマンド"""
+    from apps.banking.transfer_handler import handle_transfer_command
+    handle_transfer_command(event, user_id, sessions)
+
+
+def handle_transfer_session_input(event, text, user_id, sessions):
+    """振り込みセッション中の入力処理"""
+    from apps.banking.transfer_handler import handle_transfer_session_input
+    handle_transfer_session_input(event, text, user_id, sessions)
+
+
+def handle_transfer_cancel(event, user_id, sessions):
+    """振り込みセッションのキャンセル"""
+    from apps.banking.transfer_handler import cancel_transfer_session
+    return cancel_transfer_session(event, user_id, sessions)
+
+
 def handle_passbook_postback(event, data):
     """通帳表示のpostbackアクション処理"""
     # dataから口座情報を抽出
@@ -228,3 +246,9 @@ def handle_passbook_postback(event, data):
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="口座情報の取得に失敗しました。"))
     else:
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="不明なアクションです。"))
+
+
+def handle_transfer_account_selection_postback(event, data, user_id, sessions):
+    """振り込み用口座選択のpostbackアクション処理"""
+    from apps.banking.transfer_handler import handle_account_selection_postback
+    handle_account_selection_postback(event, data, user_id, sessions)

@@ -32,6 +32,10 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         elif data.startswith("action=view_passbook"):
             banking_commands.handle_passbook_postback(event, data)
             return
+        # 振り込み用口座選択のpostbackアクション
+        elif data.startswith("action=select_transfer_account"):
+            banking_commands.handle_transfer_account_selection_postback(event, data, user_id, sessions)
+            return
         # じゃんけんゲームのpostbackアクション
         elif data == "action=join_janken":
             if event.source.type == 'group':
@@ -50,10 +54,21 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
     
     # === 銀行機能（個別チャット） ===
     if event.source.type == 'user':
+        # 振り込みセッション中の処理
+        if isinstance(state, dict) and state.get("transfer"):
+            # キャンセルコマンド
+            if text.strip() == "?キャンセル":
+                if banking_commands.handle_transfer_cancel(event, user_id, sessions):
+                    return
+            
+            # セッション中の入力処理
+            banking_commands.handle_transfer_session_input(event, text, user_id, sessions)
+            return
+        
         # 口座開設・ミニゲーム口座登録フロー中の処理
         if isinstance(state, dict) and (state.get("step") or state.get("minigame_registration")):
             # セッション中に新たな開始コマンドが来た場合は拒否
-            if text.strip() in ["?口座開設", "?ミニゲーム口座登録"]:
+            if text.strip() in ["?口座開設", "?ミニゲーム口座登録", "?振り込み"]:
                 line_bot_api.reply_message(event.reply_token, TextSendMessage(text="現在登録フロー中です。キャンセルまたは完了後に再度お試しください。"))
                 return
             
@@ -99,6 +114,10 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
     
     if text == "?通帳":
         banking_commands.handle_passbook(event, user_id)
+        return
+    
+    if text == "?振り込み":
+        banking_commands.handle_transfer(event, user_id, sessions)
         return
     
     if text == "?明日の時間割":
