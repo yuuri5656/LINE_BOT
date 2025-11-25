@@ -32,6 +32,19 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         elif data.startswith("action=view_passbook"):
             banking_commands.handle_passbook_postback(event, data)
             return
+        # じゃんけんゲームのpostbackアクション
+        elif data == "action=join_janken":
+            if event.source.type == 'group':
+                game_commands.handle_join_game(event, user_id, display_name, group_id)
+            return
+        elif data == "action=start_janken":
+            if event.source.type == 'group':
+                game_commands.handle_game_start(event, user_id, group_id)
+            return
+        elif data == "action=cancel_janken":
+            if event.source.type == 'group':
+                game_commands.handle_game_cancel(event, user_id, group_id)
+            return
     
     state = sessions.get(user_id)
     

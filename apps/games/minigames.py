@@ -17,6 +17,127 @@ from linebot.models import TextSendMessage, FlexSendMessage
 from apps.banking.api import banking_api
 
 
+def create_game_start_flex_message(player_names, timeout_seconds):
+    """ゲーム開始時のFlexMessage作成（参加者リスト表示）"""
+    # 参加者リストのコンテンツを作成
+    player_contents = []
+    for i, name in enumerate(player_names, 1):
+        player_contents.append({
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": f"{i}.",
+                    "size": "sm",
+                    "color": "#555555",
+                    "flex": 0,
+                    "margin": "sm"
+                },
+                {
+                    "type": "text",
+                    "text": name,
+                    "size": "sm",
+                    "color": "#111111",
+                    "wrap": True,
+                    "margin": "sm"
+                }
+            ],
+            "margin": "md"
+        })
+    
+    return FlexSendMessage(
+        alt_text="じゃんけんゲーム開始",
+        contents={
+            "type": "bubble",
+            "hero": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "🎮",
+                        "size": "xxl",
+                        "align": "center",
+                        "weight": "bold",
+                        "color": "#FFFFFF"
+                    },
+                    {
+                        "type": "text",
+                        "text": "ゲーム開始!",
+                        "size": "xl",
+                        "align": "center",
+                        "weight": "bold",
+                        "color": "#FFFFFF",
+                        "margin": "md"
+                    }
+                ],
+                "backgroundColor": "#4CAF50",
+                "paddingAll": "20px"
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "参加者",
+                        "size": "lg",
+                        "weight": "bold",
+                        "color": "#111111",
+                        "margin": "md"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": player_contents,
+                        "margin": "md"
+                    },
+                    {
+                        "type": "separator",
+                        "margin": "xl"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "⏰ 手を選んでください",
+                                "size": "md",
+                                "weight": "bold",
+                                "color": "#FF6B6B",
+                                "align": "center"
+                            },
+                            {
+                                "type": "text",
+                                "text": "個別チャットで「グー」「チョキ」「パー」のいずれかを送信してください。",
+                                "size": "xs",
+                                "color": "#999999",
+                                "wrap": True,
+                                "align": "center",
+                                "margin": "md"
+                            },
+                            {
+                                "type": "text",
+                                "text": f"制限時間: {timeout_seconds}秒",
+                                "size": "sm",
+                                "color": "#FF6B6B",
+                                "align": "center",
+                                "weight": "bold",
+                                "margin": "md"
+                            }
+                        ],
+                        "margin": "xl"
+                    }
+                ],
+                "spacing": "sm",
+                "paddingAll": "20px"
+            }
+        }
+    )
+
+
 class GameState(Enum):
     RECRUITING = "recruiting"
     RECRUITMENT_CLOSED = "recruitment_closed"
@@ -337,16 +458,11 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30, r
             failed_names = []
     player_names = [p.display_name for p in session.players.values()]
     try:
+        flex_msg = create_game_start_flex_message(player_names, timeout_seconds)
         if reply_token:
-            line_bot_api.reply_message(
-                reply_token,
-                TextSendMessage(text=f"ゲームを開始します。参加者: {', '.join(player_names)}\n個別チャットで「グー」「チョキ」「パー」のいずれかを送ってください。締め切り: {timeout_seconds}秒")
-            )
+            line_bot_api.reply_message(reply_token, flex_msg)
         else:
-            line_bot_api.push_message(
-                group_id,
-                TextSendMessage(text=f"ゲームを開始します。参加者: {', '.join(player_names)}\n個別チャットで「グー」「チョキ」「パー」のいずれかを送ってください。締め切り: {timeout_seconds}秒")
-            )
+            line_bot_api.push_message(group_id, flex_msg)
     except Exception:
         pass
 

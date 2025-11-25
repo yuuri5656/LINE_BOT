@@ -25,7 +25,7 @@
 """
 from apps.games.minigames import Player, GameSession, Group, GroupManager, manager, check_account_existence_and_balance, create_game_session
 from core.api import handler, line_bot_api
-from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
+from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage, FlexSendMessage
 
 # 口座が存在し、かつアクティブ状態であり、残金がmin_balanceを満たしているかどうかを確認。
 """
@@ -33,6 +33,169 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSend
 既に同じグループラインで進行中のじゃんけんゲームがある場合、そのゲームに参加を促す。
 最初に?じゃんけんを送信したユーザーがホストとなり、そのユーザーがキャンセルまたは開始するまで募集を続ける。
 """
+
+def create_recruitment_flex_message(host_display_name, max_players, min_balance):
+    """じゃんけん募集メッセージのFlexMessage作成"""
+    return FlexSendMessage(
+        alt_text="じゃんけん参加者募集中",
+        contents={
+            "type": "bubble",
+            "hero": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "✊✌️✋",
+                        "size": "xxl",
+                        "align": "center",
+                        "weight": "bold",
+                        "color": "#FFFFFF"
+                    },
+                    {
+                        "type": "text",
+                        "text": "じゃんけん参加者募集",
+                        "size": "lg",
+                        "align": "center",
+                        "weight": "bold",
+                        "color": "#FFFFFF",
+                        "margin": "md"
+                    }
+                ],
+                "backgroundColor": "#FF6B6B",
+                "paddingAll": "20px"
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "box",
+                        "layout": "baseline",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "ホスト:",
+                                "size": "sm",
+                                "color": "#999999",
+                                "flex": 0
+                            },
+                            {
+                                "type": "text",
+                                "text": host_display_name,
+                                "size": "sm",
+                                "color": "#111111",
+                                "wrap": True,
+                                "margin": "sm"
+                            }
+                        ],
+                        "margin": "md"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "baseline",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "参加費:",
+                                "size": "sm",
+                                "color": "#999999",
+                                "flex": 0
+                            },
+                            {
+                                "type": "text",
+                                "text": f"{min_balance} JPY",
+                                "size": "sm",
+                                "color": "#111111",
+                                "margin": "sm"
+                            }
+                        ],
+                        "margin": "md"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "baseline",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "最大人数:",
+                                "size": "sm",
+                                "color": "#999999",
+                                "flex": 0
+                            },
+                            {
+                                "type": "text",
+                                "text": f"{max_players}名",
+                                "size": "sm",
+                                "color": "#111111",
+                                "margin": "sm"
+                            }
+                        ],
+                        "margin": "md"
+                    },
+                    {
+                        "type": "separator",
+                        "margin": "xl"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "下のボタンから操作できます",
+                                "size": "xs",
+                                "color": "#999999",
+                                "align": "center"
+                            }
+                        ],
+                        "margin": "xl"
+                    }
+                ],
+                "spacing": "sm",
+                "paddingAll": "20px"
+            },
+            "footer": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "button",
+                        "action": {
+                            "type": "postback",
+                            "label": "参加",
+                            "data": "action=join_janken"
+                        },
+                        "style": "primary",
+                        "color": "#4CAF50"
+                    },
+                    {
+                        "type": "button",
+                        "action": {
+                            "type": "postback",
+                            "label": "開始",
+                            "data": "action=start_janken"
+                        },
+                        "style": "primary",
+                        "color": "#2196F3",
+                        "margin": "sm"
+                    },
+                    {
+                        "type": "button",
+                        "action": {
+                            "type": "postback",
+                            "label": "キャンセル",
+                            "data": "action=cancel_janken"
+                        },
+                        "style": "secondary",
+                        "margin": "sm"
+                    }
+                ],
+                "spacing": "sm",
+                "paddingAll": "20px"
+            }
+        }
+    )
 
 def play_rps_game(event, user_id, text, display_name, group_id, sessions):
     min_balance = 110  # 最低参加費用
@@ -79,6 +242,6 @@ def play_rps_game(event, user_id, text, display_name, group_id, sessions):
 
     line_bot_api.reply_message(
         event.reply_token,
-        TextSendMessage(text=f"{display_name}が参加者を募集しています。参加希望の方は'?参加'と入力してください。募集は最大{max_players}名で締め切ります。")
+        create_recruitment_flex_message(display_name, max_players, min_balance)
     )
 
