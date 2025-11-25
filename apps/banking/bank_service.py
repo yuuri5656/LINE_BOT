@@ -399,14 +399,33 @@ def get_accounts_by_user(user_id: str):
         db.close()
 
 
-def get_account_transactions_by_user(user_id: str, limit: int = 20):
-    """指定ユーザーの口座について、取引履歴（最近のものから）をリストで返す。
+def get_account_transactions_by_account(account_number: str, branch_code: str, limit: int = 20):
+    """指定口座の取引履歴（最近のものから）をリストで返す。
     各要素は dict を返す。口座が無ければ空リストを返す。
+    
+    Args:
+        account_number: 口座番号
+        branch_code: 支店コード
+        limit: 取得件数上限
+    
+    Returns:
+        取引履歴辞書のリスト
     """
     db = SessionLocal()
     try:
-        # アクティブな口座を取得
-        acc = db.execute(select(Account).filter_by(user_id=user_id, status='active')).scalars().first()
+        # 支店情報を取得
+        branch = db.execute(select(Branch).filter_by(code=str(branch_code))).scalars().first()
+        if not branch:
+            return []
+        
+        # 口座を取得
+        acc = db.execute(
+            select(Account).filter_by(
+                account_number=account_number, 
+                branch_id=branch.branch_id,
+                status='active'
+            )
+        ).scalars().first()
         if not acc:
             return []
 
@@ -454,6 +473,37 @@ def get_account_transactions_by_user(user_id: str, limit: int = 20):
                 continue
 
         return result
+    finally:
+        db.close()
+
+
+def get_account_transactions_by_user(user_id: str, limit: int = 20):
+    """指定ユーザーの口座について、取引履歴（最近のものから）をリストで返す。
+    各要素は dict を返す。口座が無ければ空リストを返す。
+    
+    Note: この関数は後方互換性のために残しています。
+          新しいコードでは get_account_transactions_by_account を使用してください。
+    """
+    db = SessionLocal()
+    try:
+        # アクティブな口座を取得
+        acc = db.execute(select(Account).filter_by(user_id=user_id, status='active')).scalars().first()
+        if not acc:
+            return []
+
+        # 支店情報を取得
+        branch_code = None
+        try:
+            if getattr(acc, 'branch', None):
+                branch_code = getattr(acc.branch, 'code', None)
+        except Exception:
+            return []
+        
+        if not branch_code:
+            return []
+        
+        # 新しい関数を使用
+        return get_account_transactions_by_account(acc.account_number, branch_code, limit)
     finally:
         db.close()
 

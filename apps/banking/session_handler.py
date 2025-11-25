@@ -21,58 +21,12 @@ def bank_reception(event, text, user_id, display_name, sessions):
         4: TextSendMessage(text="ご自身の希望する口座種別を、普通預金・当座預金・定期預金からお選び下さい。"),
         5: TextSendMessage(text="最後に、4桁の暗証番号を設定してください。(例:1234)\nまた、セキュリティの観点から、ご自身の誕生日や連続した数字、同じ数字の繰り返しは避けてください。")
     }
-    # ?通帳コマンドで履歴カルーセル表示
+    # ?通帳コマンドは commands.py に統合されているため、ここでは処理しない
+    # （このセクションは削除可能だが、念のためコメントとして残す）
     if text.strip() == "?通帳":
-        from linebot.models import FlexSendMessage
-        from apps.banking.bank_service import get_account_transactions_by_user
-        # 履歴取得（最大20件）
-        transactions = get_account_transactions_by_user(user_id, limit=20)
-        if not transactions:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="取引履歴がありません。"))
-            return
-
-        # 5件ずつ分割
-        def chunk_list(lst, n):
-            return [lst[i:i+n] for i in range(0, len(lst), n)]
-        pages = chunk_list(transactions, 5)
-
-        # FlexMessage carousel生成
-        bubbles = []
-        for page_idx, page in enumerate(pages):
-            items = []
-            for tx in page:
-                items.append({
-                    "type": "box",
-                    "layout": "vertical",
-                    "margin": "md",
-                    "contents": [
-                        {"type": "text", "text": f"{tx.get('executed_at').strftime('%Y/%m/%d %H:%M') if tx.get('executed_at') else ''}", "size": "sm", "color": "#999999"},
-                        {"type": "text", "text": f"{tx.get('direction')} {tx.get('amount')} {tx.get('currency')}", "weight": "bold", "size": "md", "color": "#333333"},
-                        {"type": "text", "text": f"相手口座: {tx.get('other_account_number') or '-'}", "size": "sm", "color": "#666666"},
-                        {"type": "text", "text": f"種別: {tx.get('type') or '-'}", "size": "sm", "color": "#666666"},
-                        {"type": "text", "text": f"ステータス: {tx.get('status') or '-'}", "size": "sm", "color": "#666666"},
-                    ]
-                })
-            bubble = {
-                "type": "bubble",
-                "body": {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                        {"type": "text", "text": f"通帳 {page_idx+1}ページ目", "weight": "bold", "size": "lg", "color": "#222222", "margin": "md"},
-                        {"type": "separator", "margin": "md"},
-                        {"type": "box", "layout": "vertical", "margin": "md", "spacing": "sm", "contents": items}
-                    ]
-                }
-            }
-            bubbles.append(bubble)
-
-        carousel = {
-            "type": "carousel",
-            "contents": bubbles
-        }
-        flex_msg = FlexSendMessage(alt_text="通帳履歴", contents=carousel)
-        line_bot_api.reply_message(event.reply_token, flex_msg)
+        # commands.pyのhandle_passbookで処理されるため、ここには到達しない
+        # もし到達した場合は呼び出し元の実装エラー
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="通帳コマンドの処理に問題がありました。管理者にご連絡ください。"))
         return
 
     # "?戻る"の処理

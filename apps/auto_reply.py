@@ -28,6 +28,10 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         elif data == "help_detail_janken":
             line_bot_api.reply_message(event.reply_token, get_detail_janken_flex())
             return
+        # 通帳表示のpostbackアクション
+        elif data.startswith("action=view_passbook"):
+            banking_commands.handle_passbook_postback(event, data)
+            return
     
     state = sessions.get(user_id)
     

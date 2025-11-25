@@ -110,57 +110,25 @@ class BankingAPI:
         """
         service = _get_bank_service()
         return service.transfer_funds(from_account_number, to_account_number, amount, currency)
-    
+
     @staticmethod
-    def withdraw_from_user(user_id: str, amount: Any, currency: str = 'JPY') -> bool:
-        """
-        ユーザー口座から引き落とし
-        
-        Args:
-            user_id: LINE user ID
-            amount: 引き落とし額
-            currency: 通貨コード
-            
-        Returns:
-            成功時True
-        """
-        service = _get_bank_service()
-        return service.withdraw_from_user(user_id, amount, currency)
-    
-    @staticmethod
-    def withdraw_by_account(account_number: str, branch_code: str, 
-                           amount: Any, currency: str = 'JPY') -> bool:
+    def withdraw_by_account(account_number: str, branch_code: str,
+                            amount: Any, currency: str = 'JPY') -> bool:
         """
         口座番号・支店コードで引き落とし
-        
+
         Args:
             account_number: 口座番号
             branch_code: 支店コード
             amount: 引き落とし額
             currency: 通貨コード
-            
+
         Returns:
             成功時True
         """
         service = _get_bank_service()
         return service.withdraw_by_account_number(account_number, branch_code, amount, currency)
-    
-    @staticmethod
-    def deposit_to_user(user_id: str, amount: Any, currency: str = 'JPY') -> bool:
-        """
-        ユーザー口座へ入金
-        
-        Args:
-            user_id: LINE user ID
-            amount: 入金額
-            currency: 通貨コード
-            
-        Returns:
-            成功時True
-        """
-        service = _get_bank_service()
-        return service.deposit_to_user(user_id, amount, currency)
-    
+
     @staticmethod
     def deposit_by_account(account_number: str, branch_code: str, 
                           amount: Any, currency: str = 'JPY') -> bool:
@@ -178,24 +146,25 @@ class BankingAPI:
         """
         service = _get_bank_service()
         return service.deposit_by_account_number(account_number, branch_code, amount, currency)
-    
+
     # --- 取引履歴 ---
-    
+
     @staticmethod
-    def get_transactions(user_id: str, limit: int = 20) -> List[dict]:
+    def get_transactions(account_number: str, branch_code: str, limit: int = 20) -> List[dict]:
         """
-        取引履歴を取得
-        
+        取引履歴を取得（口座番号・支店コードベース）
+
         Args:
-            user_id: LINE user ID
+            account_number: 口座番号
+            branch_code: 支店コード
             limit: 取得件数上限
-            
+
         Returns:
             取引履歴辞書のリスト
         """
         service = _get_bank_service()
-        return service.get_account_transactions_by_user(user_id, limit)
-    
+        return service.get_account_transactions_by_account(account_number, branch_code, limit)
+
     # --- ミニゲーム口座 ---
     
     @staticmethod
