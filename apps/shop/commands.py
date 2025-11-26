@@ -2,14 +2,10 @@
 ショップコマンドとpostbackハンドラー
 """
 from linebot.models import TextSendMessage
-from core.sessions import SessionManager
+from apps.shop.session_manager import shop_session_manager
 from apps.banking.chip_service import get_chip_balance, get_chip_history, redeem_chips
 from apps.shop import shop_service, shop_flex
 from typing import Optional
-
-
-# セッション管理
-shop_session_manager = SessionManager()
 
 
 def handle_shop_command(user_id: str, db):
