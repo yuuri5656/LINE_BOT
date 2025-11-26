@@ -20,9 +20,9 @@ from apps.banking.main_bank_system import (
 # ショップ運営口座（事前に作成が必要）
 SHOP_OPERATIONS_ACCOUNT = {
     "full_name": "ｼｮｯﾌﾟ ｳﾝｴｲ",
-    "display_name": "🛒 SHOP",
-    "branch_num": "007",
-    "account_number": "7777777",
+    "display_name": "🅺🅸🅼🆄🆁🅰",
+    "branch_num": "001",
+    "account_number": "2103737",
     "account_type": "当座",
 }
 

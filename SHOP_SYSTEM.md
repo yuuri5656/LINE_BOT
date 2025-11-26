@@ -6,7 +6,7 @@
 - [アーキテクチャ](#アーキテクチャ)
 - [データベース設計](#データベース設計)
 - [システムフロー](#システムフロー)
-- [API仕様](#api仕様)
+- [API 仕様](#api仕様)
 - [コマンド一覧](#コマンド一覧)
 - [セットアップ手順](#セットアップ手順)
 - [拡張ガイド](#拡張ガイド)
@@ -16,20 +16,25 @@
 ## 概要
 
 ### 背景
+
 ミニゲームの金銭取引において、従来は銀行口座を直接使用していたため、以下の課題がありました：
-- 1ゲーム（4人）で約70クエリ + 9トランザクション発生
+
+- 1 ゲーム（4 人）で約 70 クエリ + 9 トランザクション発生
 - 複雑なエラーハンドリング（個別トランザクションと手動返金）
 - 銀行システムとゲームシステムの密結合
 
 ### 解決策
+
 **チップベースのゲーム通貨システム**を導入：
+
 1. ユーザーは銀行口座からショップでチップを購入
 2. ミニゲームはチップで参加（銀行システムから分離）
-3. バッチ処理により、4人ゲームで約18クエリ + 3トランザクション（74%削減）
+3. バッチ処理により、4 人ゲームで約 18 クエリ + 3 トランザクション（74%削減）
 
 ### 主要機能
+
 - 💰 **チップ管理**: 残高確認、購入、送信、履歴表示
-- 🛒 **ショップ**: カテゴリ別商品表示、購入処理、EAV属性対応
+- 🛒 **ショップ**: カテゴリ別商品表示、購入処理、EAV 属性対応
 - 🎮 **ゲーム統合**: チップロック/分配のバッチ処理
 - 💳 **支払い口座**: ユーザーごとの決済用口座登録
 
@@ -85,20 +90,20 @@
 
 ### レイヤー分離の原則
 
-| レイヤー | 責務 | 依存方向 |
-|---------|------|---------|
-| **Banking System** | 法定通貨の管理 | なし（独立） |
-| **Shop System** | 商品販売と決済 | Banking（支払い）→ Chip（クレジット） |
-| **Chip System** | ゲーム内通貨管理 | なし（独立） |
-| **Minigame System** | ゲームロジック | Chip（参加費・賞金） |
+| レイヤー            | 責務             | 依存方向                              |
+| ------------------- | ---------------- | ------------------------------------- |
+| **Banking System**  | 法定通貨の管理   | なし（独立）                          |
+| **Shop System**     | 商品販売と決済   | Banking（支払い）→ Chip（クレジット） |
+| **Chip System**     | ゲーム内通貨管理 | なし（独立）                          |
+| **Minigame System** | ゲームロジック   | Chip（参加費・賞金）                  |
 
-**重要**: 各システムは明確に分離され、APIを通じてのみ連携します。
+**重要**: 各システムは明確に分離され、API を通じてのみ連携します。
 
 ---
 
 ## データベース設計
 
-### ER図
+### ER 図
 
 ```
 ┌─────────────────┐
@@ -166,11 +171,13 @@ CREATE TABLE minigame_chips (
 ```
 
 **カラム説明**:
+
 - `balance`: 利用可能なチップ残高
 - `locked_balance`: ゲーム参加中でロックされているチップ（二重使用防止）
 - `updated_at`: 最終更新日時（自動更新トリガー付き）
 
 **制約**:
+
 ```sql
 CHECK (balance >= 0 AND locked_balance >= 0)
 ```
@@ -190,6 +197,7 @@ CREATE TABLE chip_transactions (
 ```
 
 **transaction_type 種別**:
+
 - `purchase`: ショップでの購入
 - `transfer_out`: 他ユーザーへの送信
 - `transfer_in`: 他ユーザーからの受信
@@ -199,6 +207,7 @@ CREATE TABLE chip_transactions (
 - `game_refund`: ゲームキャンセル時の返金
 
 **インデックス**:
+
 ```sql
 CREATE INDEX idx_chip_transactions_user_id ON chip_transactions(user_id);
 CREATE INDEX idx_chip_transactions_created_at ON chip_transactions(created_at DESC);
@@ -221,11 +230,12 @@ CREATE TABLE shop_items (
 ```
 
 **category 種別**:
+
 - `casino_chips`: カジノチップパック
 - `special_items`: スペシャルアイテム（将来拡張用）
 - `boosters`: ブースター（経験値倍率等）
 
-#### 4. `shop_item_attributes` - 商品属性（EAVパターン）
+#### 4. `shop_item_attributes` - 商品属性（EAV パターン）
 
 ```sql
 CREATE TABLE shop_item_attributes (
@@ -237,22 +247,24 @@ CREATE TABLE shop_item_attributes (
 );
 ```
 
-**EAVパターンの利点**:
+**EAV パターンの利点**:
+
 - 商品タイプごとに異なる属性を柔軟に定義可能
 - テーブル構造の変更なしで新属性追加可能
 
 **共通属性例**:
 
-| item_code | attribute_key | attribute_value | value_type |
-|-----------|---------------|-----------------|-----------|
-| chip_pack_100 | chip_amount | 100 | integer |
-| chip_pack_100 | bonus_chip | 0 | integer |
-| chip_pack_500 | chip_amount | 500 | integer |
-| chip_pack_500 | bonus_chip | 50 | integer |
-| exp_booster_7d | boost_rate | 2.0 | float |
-| exp_booster_7d | duration_days | 7 | integer |
+| item_code      | attribute_key | attribute_value | value_type |
+| -------------- | ------------- | --------------- | ---------- |
+| chip_pack_100  | chip_amount   | 100             | integer    |
+| chip_pack_100  | bonus_chip    | 0               | integer    |
+| chip_pack_500  | chip_amount   | 500             | integer    |
+| chip_pack_500  | bonus_chip    | 50              | integer    |
+| exp_booster_7d | boost_rate    | 2.0             | float      |
+| exp_booster_7d | duration_days | 7               | integer    |
 
 **インデックス**:
+
 ```sql
 CREATE INDEX idx_shop_item_attributes_item_id ON shop_item_attributes(item_id);
 CREATE UNIQUE INDEX idx_shop_item_attributes_unique ON shop_item_attributes(item_id, attribute_key);
@@ -450,11 +462,12 @@ CREATE TABLE shop_purchases (
 
 ---
 
-## API仕様
+## API 仕様
 
 ### Chip Service API (`apps/banking/chip_service.py`)
 
 #### `get_chip_balance(user_id: str) -> int`
+
 チップ残高を取得
 
 **戻り値**: 利用可能なチップ残高（`balance`）
@@ -462,15 +475,18 @@ CREATE TABLE shop_purchases (
 ---
 
 #### `purchase_chips(user_id, total_chips, account_number, branch_code) -> Dict`
+
 チップ購入処理
 
 **パラメータ**:
-- `user_id`: ユーザーID
+
+- `user_id`: ユーザー ID
 - `total_chips`: 購入チップ数（ボーナス含む）
 - `account_number`: 支払い元口座番号
 - `branch_code`: 支払い元支店番号
 
 **戻り値**:
+
 ```python
 {
     'status': 'success',
@@ -482,15 +498,18 @@ CREATE TABLE shop_purchases (
 ---
 
 #### `transfer_chips(from_user_id, to_user_id, amount, notes) -> Dict`
+
 チップ送信
 
 **パラメータ**:
-- `from_user_id`: 送信者ID
-- `to_user_id`: 受信者ID
+
+- `from_user_id`: 送信者 ID
+- `to_user_id`: 受信者 ID
 - `amount`: 送信枚数
 - `notes`: メモ（任意）
 
 **戻り値**:
+
 ```python
 {
     'status': 'success',
@@ -502,14 +521,17 @@ CREATE TABLE shop_purchases (
 ---
 
 #### `batch_lock_chips(user_ids, lock_amounts, game_id) -> Dict`
+
 バッチチップロック（ゲーム開始時）
 
 **パラメータ**:
-- `user_ids`: ユーザーIDリスト
+
+- `user_ids`: ユーザー ID リスト
 - `lock_amounts`: `{user_id: lock_amount}` の辞書
 - `game_id`: ゲームセッション識別子
 
 **戻り値**:
+
 ```python
 {
     'success': True,
@@ -519,6 +541,7 @@ CREATE TABLE shop_purchases (
 ```
 
 **動作**:
+
 - **アトミック**: 全員成功 or 全員ロールバック
 - `balance` から `locked_balance` に移動
 - 失敗者リストを返却（呼び出し側でセッションから除外）
@@ -526,14 +549,17 @@ CREATE TABLE shop_purchases (
 ---
 
 #### `distribute_chips(user_payouts, game_id, fee_amount) -> Dict`
+
 バッチチップ分配（ゲーム終了時）
 
 **パラメータ**:
+
 - `user_payouts`: `{user_id: payout_amount}` の辞書
 - `game_id`: ゲームセッション識別子
 - `fee_amount`: 手数料（運営口座に転送）
 
 **戻り値**:
+
 ```python
 {
     'success': True,
@@ -542,6 +568,7 @@ CREATE TABLE shop_purchases (
 ```
 
 **動作**:
+
 - `locked_balance` を解除
 - `balance` に賞金を加算
 - 手数料を運営用チップ口座に転送
@@ -549,9 +576,11 @@ CREATE TABLE shop_purchases (
 ---
 
 #### `get_chip_history(user_id, limit=10) -> List[Dict]`
+
 チップ取引履歴
 
 **戻り値**:
+
 ```python
 [
     {
@@ -569,9 +598,11 @@ CREATE TABLE shop_purchases (
 ### Shop Service API (`apps/shop/shop_service.py`)
 
 #### `get_shop_categories() -> List[Dict]`
+
 ショップカテゴリ一覧
 
 **戻り値**:
+
 ```python
 [
     {
@@ -587,9 +618,11 @@ CREATE TABLE shop_purchases (
 ---
 
 #### `get_items_by_category(category: str) -> List[Dict]`
-カテゴリ別商品一覧（EAV属性含む）
+
+カテゴリ別商品一覧（EAV 属性含む）
 
 **戻り値**:
+
 ```python
 [
     {
@@ -611,15 +644,18 @@ CREATE TABLE shop_purchases (
 ---
 
 #### `register_payment_account(db, user_id, branch_code, account_number, account_name, pin_code) -> Dict`
+
 支払い用口座登録
 
 **パラメータ**:
-- `branch_code`: 支店番号（3桁）
-- `account_number`: 口座番号（7桁）
+
+- `branch_code`: 支店番号（3 桁）
+- `account_number`: 口座番号（7 桁）
 - `account_name`: 口座名義
-- `pin_code`: 暗証番号（4桁、認証用）
+- `pin_code`: 暗証番号（4 桁、認証用）
 
 **戻り値**:
+
 ```python
 {
     'status': 'success',
@@ -630,15 +666,18 @@ CREATE TABLE shop_purchases (
 ```
 
 **セキュリティ**:
+
 - `check_pin()` で暗証番号を検証
 - 認証成功後、暗証番号は保存せず
 
 ---
 
 #### `purchase_item(db, user_id, item_id) -> Dict`
+
 商品購入処理
 
 **戻り値**:
+
 ```python
 {
     'status': 'success',
@@ -649,7 +688,8 @@ CREATE TABLE shop_purchases (
 ```
 
 **内部フロー**:
-1. 商品情報取得（EAV属性含む）
+
+1. 商品情報取得（EAV 属性含む）
 2. 支払い口座情報取得
 3. 銀行振替実行（ユーザー → ショップ運営口座）
 4. チップクレジット（`chip_service.purchase_chips`）
@@ -661,23 +701,23 @@ CREATE TABLE shop_purchases (
 
 ### ショップコマンド
 
-| コマンド | 場所 | 説明 |
-|---------|------|------|
-| ?ショップ | 個別/グループ | ショップホーム画面を表示 |
-| ?チップ残高 | 個別/グループ | 現在のチップ残高を表示 |
-| ?チップ履歴 | 個別/グループ | 最新10件の取引履歴を表示 |
-| ?チップ送信 | 個別 | 他ユーザーへチップ送信（未実装） |
+| コマンド    | 場所          | 説明                             |
+| ----------- | ------------- | -------------------------------- |
+| ?ショップ   | 個別/グループ | ショップホーム画面を表示         |
+| ?チップ残高 | 個別/グループ | 現在のチップ残高を表示           |
+| ?チップ履歴 | 個別/グループ | 最新 10 件の取引履歴を表示       |
+| ?チップ送信 | 個別          | 他ユーザーへチップ送信（未実装） |
 
 | ?チップ換金 | 個別 | チップを銀行口座に換金（100%） |
 
-### ショップPostbackアクション
+### ショップ Postback アクション
 
-| アクション | データ形式 | 説明 |
-|-----------|-----------|------|
-| ショップホーム | action=shop_home | カテゴリカルーセル表示 |
-| カテゴリ選択 | action=shop_category&category=casino_chips | 商品一覧表示 |
-| 商品購入 | action=shop_buy&item_id=1 | 購入処理実行 |
-| 口座登録開始 | action=register_payment_account | 支払い口座登録フロー |
+| アクション     | データ形式                                 | 説明                   |
+| -------------- | ------------------------------------------ | ---------------------- |
+| ショップホーム | action=shop_home                           | カテゴリカルーセル表示 |
+| カテゴリ選択   | action=shop_category&category=casino_chips | 商品一覧表示           |
+| 商品購入       | action=shop_buy&item_id=1                  | 購入処理実行           |
+| 口座登録開始   | action=register_payment_account            | 支払い口座登録フロー   |
 
 ---
 
@@ -685,7 +725,7 @@ CREATE TABLE shop_purchases (
 
 ### 概要
 
-- ?チップ換金 <枚数> で、登録済みの支払い口座に1チップ=1JPYで換金できます（換金率100%）。
+- ?チップ換金 <枚数> で、登録済みの支払い口座に 1 チップ=1JPY で換金できます（換金率 100%）。
 - 換金時は利用可能なチップのみ対象。ロック中（ゲーム参加中）は換金不可。
 - 振込失敗時は自動でチップ返金されます。
 
@@ -717,12 +757,13 @@ CREATE TABLE shop_purchases (
 
 #### `redeem_chips(user_id: str, amount: int) -> Dict`
 
-| パラメータ | 内容 |
-|---|---|
-| user_id | ユーザーID |
-| amount | 換金するチップ枚数 |
+| パラメータ | 内容               |
+| ---------- | ------------------ |
+| user_id    | ユーザー ID        |
+| amount     | 換金するチップ枚数 |
 
 **戻り値例**:
+
 ```python
 {
     'success': True,
@@ -732,6 +773,7 @@ CREATE TABLE shop_purchases (
 ```
 
 **失敗時**:
+
 ```python
 {
     'success': False,
@@ -772,10 +814,10 @@ BOT: 📊 チップ取引履歴
 
 ### ゲームコマンド（チップ対応）
 
-| コマンド | 場所 | 説明 |
-|---------|------|------|
+| コマンド    | 場所     | 説明                                       |
+| ----------- | -------- | ------------------------------------------ |
 | ?じゃんけん | グループ | じゃんけんゲーム募集開始（チップ参加費制） |
-| ?参加 | グループ | ゲームに参加（チップ残高チェック） |
+| ?参加       | グループ | ゲームに参加（チップ残高チェック）         |
 
 ---
 
@@ -792,6 +834,7 @@ psql -U your_user -d your_database
 ```
 
 **確認**:
+
 ```sql
 -- テーブル存在確認
 \dt minigame_chips
@@ -813,8 +856,8 @@ SELECT * FROM shop_item_attributes;
 INSERT INTO bank_accounts (user_id, account_number, branch_num, balance, account_name)
 VALUES (
     'SHOP_OPERATIONS',
-    '9999999',
-    '999',
+    '2103737',
+    '001',
     0,
     'ショップ運営'
 );
@@ -833,13 +876,15 @@ python main.py
 ### 4. 動作確認
 
 #### チップ購入テスト
-1. LINE個別チャットで「?ショップ」
+
+1. LINE 個別チャットで「?ショップ」
 2. カテゴリ選択（例: カジノチップ）
-3. 商品選択（例: チップパック100）
+3. 商品選択（例: チップパック 100）
 4. 支払い口座登録（初回のみ）
 5. 購入完了確認
 
 #### ゲーム参加テスト
+
 1. グループチャットで「?じゃんけん」
 2. 「?参加」（チップ残高チェック）
 3. ホストが「?スタート」（バッチロック）
@@ -852,6 +897,7 @@ python main.py
 ### 新商品の追加
 
 #### 1. 商品レコードを追加
+
 ```sql
 INSERT INTO shop_items (item_code, name, description, price, category, sort_order)
 VALUES (
@@ -864,7 +910,8 @@ VALUES (
 );
 ```
 
-#### 2. EAV属性を追加
+#### 2. EAV 属性を追加
+
 ```sql
 -- item_id=4 と仮定
 INSERT INTO shop_item_attributes (item_id, attribute_key, attribute_value, value_type)
@@ -875,6 +922,7 @@ VALUES
 ```
 
 #### 3. 処理ロジック追加（必要に応じて）
+
 ```python
 # apps/shop/shop_service.py
 
@@ -882,10 +930,10 @@ def _purchase_booster_item(db, user_id: str, item, payment_info: Dict):
     """ブースター購入処理"""
     boost_rate = get_item_attribute(item.item_id, 'boost_rate', 1.0)
     duration_days = get_item_attribute(item.item_id, 'duration_days', 0)
-    
+
     # ユーザーのブースター状態を更新
     # （実装は要件次第）
-    
+
     return {
         'status': 'success',
         'message': f'{duration_days}日間の{boost_rate}倍ブースターを適用しました'
@@ -895,6 +943,7 @@ def _purchase_booster_item(db, user_id: str, item, payment_info: Dict):
 ### 新カテゴリの追加
 
 #### 1. `get_shop_categories()` に追加
+
 ```python
 def get_shop_categories():
     return [
@@ -909,11 +958,12 @@ def get_shop_categories():
 ```
 
 #### 2. `purchase_item()` に処理分岐追加
+
 ```python
 def purchase_item(db, user_id: str, item_id: int):
     # ...
     category = item.category
-    
+
     if category == 'cosmetics':
         result = _purchase_cosmetic_item(db, user_id, item, payment_info)
     # ...
@@ -927,18 +977,18 @@ def purchase_item(db, user_id: str, item_id: int):
 def handle_chip_transfer_command(user_id: str, text: str, db):
     """?チップ送信 @user_id 100"""
     parts = text.strip().split()
-    
+
     if len(parts) != 3:
         return TextSendMessage(text="使用方法: ?チップ送信 @ユーザーID 枚数")
-    
+
     to_user_id = parts[1].lstrip('@')
     try:
         amount = int(parts[2])
     except ValueError:
         return TextSendMessage(text="枚数は整数で指定してください")
-    
+
     result = transfer_chips(user_id, to_user_id, amount, notes="ユーザー送信")
-    
+
     if result['status'] == 'success':
         return TextSendMessage(
             text=f"✅ {to_user_id} に {amount}枚のチップを送信しました\n"
@@ -948,11 +998,12 @@ def handle_chip_transfer_command(user_id: str, text: str, db):
         return TextSendMessage(text=f"❌ {result['message']}")
 ```
 
-### EAV属性の型拡張
+### EAV 属性の型拡張
 
 現在サポート: `integer`, `float`, `boolean`, `string`
 
 新しい型を追加する場合:
+
 ```python
 # apps/shop/shop_service.py
 
@@ -976,8 +1027,10 @@ def get_item_attribute(item_id: int, key: str, default=None):
 **原因**: 支払い口座が未登録、または口座情報が不正
 
 **解決策**:
+
 1. 「?ショップ」→ 商品購入 → 口座登録フローを実施
 2. データベース確認:
+
 ```sql
 SELECT * FROM shop_payment_accounts WHERE user_id = 'U1234...';
 ```
@@ -987,6 +1040,7 @@ SELECT * FROM shop_payment_accounts WHERE user_id = 'U1234...';
 **原因**: 参加者の誰かがチップ残高不足
 
 **解決策**:
+
 - エラーメッセージに失敗者リストが表示される
 - 該当ユーザーに「?チップ残高」で確認してもらう
 - 「?ショップ」でチップ購入を案内
@@ -996,6 +1050,7 @@ SELECT * FROM shop_payment_accounts WHERE user_id = 'U1234...';
 **原因**: `shop_purchases` テーブルへの INSERT が失敗
 
 **デバッグ**:
+
 ```python
 # apps/banking/chip_service.py の purchase_chips() にログ追加
 try:
@@ -1007,16 +1062,18 @@ except Exception as e:
     db.rollback()
 ```
 
-### 問題: EAV属性が取得できない
+### 問題: EAV 属性が取得できない
 
 **原因**: `value_type` が不正、または属性が存在しない
 
 **確認**:
+
 ```sql
 SELECT * FROM shop_item_attributes WHERE item_id = 1;
 ```
 
 **デフォルト値を設定**:
+
 ```python
 chip_amount = get_item_attribute(item.item_id, 'chip_amount', 0)  # デフォルト0
 ```
@@ -1027,14 +1084,14 @@ chip_amount = get_item_attribute(item.item_id, 'chip_amount', 0)  # デフォル
 
 ### バッチ処理による最適化効果
 
-| 項目 | 従来（銀行口座） | 現在（チップ） | 改善率 |
-|-----|-----------------|-----------------|--------|
-| クエリ数 | 約28件（各ユーザー7件） | 約7件（バッチ処理） | 75%削減 |
-| トランザクション数 | 4件（各ユーザー1件） | 1件（一括） | 75%削減 |
-| クエリ数 | 約36件（各ユーザー9件） | 約9件（バッチ処理） | 75%削減 |
-| トランザクション数 | 4件 + 1件（手数料） | 1件（一括） | 80%削減 |
-| クエリ数 | 約70件 | 約18件 | 74%削減 |
-| トランザクション数 | 9件 | 3件 | 67%削減 |
+| 項目               | 従来（銀行口座）            | 現在（チップ）        | 改善率  |
+| ------------------ | --------------------------- | --------------------- | ------- |
+| クエリ数           | 約 28 件（各ユーザー 7 件） | 約 7 件（バッチ処理） | 75%削減 |
+| トランザクション数 | 4 件（各ユーザー 1 件）     | 1 件（一括）          | 75%削減 |
+| クエリ数           | 約 36 件（各ユーザー 9 件） | 約 9 件（バッチ処理） | 75%削減 |
+| トランザクション数 | 4 件 + 1 件（手数料）       | 1 件（一括）          | 80%削減 |
+| クエリ数           | 約 70 件                    | 約 18 件              | 74%削減 |
+| トランザクション数 | 9 件                        | 3 件                  | 67%削減 |
 
 ### スケーラビリティ
 
@@ -1047,21 +1104,25 @@ chip_amount = get_item_attribute(item.item_id, 'chip_amount', 0)  # デフォル
 ## セキュリティ考慮事項
 
 ### 1. 暗証番号の取り扱い
+
 - ✅ **保存しない**: `register_payment_account()` で認証後、暗証番号は破棄
-- ✅ **通信経路**: LINEプラットフォーム経由（TLS暗号化）
-- ⚠️ **推奨**: 将来的にはOAuth等の外部認証を検討
+- ✅ **通信経路**: LINE プラットフォーム経由（TLS 暗号化）
+- ⚠️ **推奨**: 将来的には OAuth 等の外部認証を検討
 
 ### 2. チップの二重使用防止
+
 - ✅ **ロック機構**: ゲーム参加中は `locked_balance` に移動、他用途に使用不可
 - ✅ **アトミック処理**: バッチロック/分配は単一トランザクション内で実行
 
 ### 3. 不正購入対策
+
 - ✅ **口座認証**: 初回登録時に暗証番号で本人確認
 - ✅ **トランザクション記録**: 全ての購入・使用履歴を `chip_transactions` に記録
 - ⚠️ **推奨**: 異常な購入パターン検知（短時間大量購入等）
 
-### 4. SQL Injection対策
-- ✅ **ORM使用**: SQLAlchemyによるパラメータバインディング
+### 4. SQL Injection 対策
+
+- ✅ **ORM 使用**: SQLAlchemy によるパラメータバインディング
 - ✅ **バリデーション**: 入力値の型・長さチェック
 
 ---
@@ -1071,12 +1132,13 @@ chip_amount = get_item_attribute(item.item_id, 'chip_amount', 0)  # デフォル
 本システムは、ミニゲームの経済システム最適化プロジェクトの一環として設計・実装されました。
 
 **設計思想**:
+
 - **関心の分離**: Banking / Shop / Chip / Minigame の各層を明確に分離
-- **拡張性**: EAVパターンによる柔軟な商品属性管理
-- **パフォーマンス**: バッチ処理によるDB負荷削減
-- **保守性**: 明確なAPI境界とトランザクション管理
+- **拡張性**: EAV パターンによる柔軟な商品属性管理
+- **パフォーマンス**: バッチ処理による DB 負荷削減
+- **保守性**: 明確な API 境界とトランザクション管理
 
 ---
 
-**最終更新**: 2025年11月26日  
+**最終更新**: 2025 年 11 月 26 日
 **バージョン**: 1.0.0
