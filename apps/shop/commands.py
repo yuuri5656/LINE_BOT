@@ -137,7 +137,7 @@ def handle_shop_postback(user_id: str, data: dict, db, message_text: Optional[st
         item_id = int(data.get('item_id'))
 
         # 支払い口座の登録確認
-        payment_info = shop_service.get_payment_account_info(db, user_id)
+        payment_info = shop_service.get_payment_account_info(user_id)
 
         if not payment_info:
             # 未登録の場合、登録案内を表示
