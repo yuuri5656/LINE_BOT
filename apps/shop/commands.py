@@ -203,15 +203,28 @@ def handle_payment_registration_session(user_id: str, message_text: str, db):
         session['step'] = 'account_name'
         shop_session_manager.update_session(user_id, session)
 
-        return TextSendMessage(text="口座名義（半角カナ）を入力してください。\n例: ヤマダタロウ")
+        return TextSendMessage(text="口座名義（半角カナ）を入力してください。\n例: ﾔﾏﾀﾞ ﾀﾛｳ")
 
     # ステップ3: 口座名義
     elif step == 'account_name':
-        # 半角カナチェック（簡易版）
-        if not all(c.isspace() or ('ァ' <= c <= 'ヶ') or c in 'ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ' for c in message_text):
-            return TextSendMessage(text="❌ 口座名義は半角カナで入力してください。")
+        import re
+        account_name = message_text.strip()
 
-        session['account_name'] = message_text
+        # 全角カタカナが含まれている場合は半角カナに変換
+        has_zen_kana = re.search(r'[ァ-ンヴー]', account_name)
+        if has_zen_kana:
+            try:
+                import jaconv
+                account_name = jaconv.z2h(account_name, kana=True, digit=False, ascii=False)
+            except ImportError:
+                return TextSendMessage(text="❌ 全角カナが含まれていますが、変換に失敗しました。半角カナで入力してください。")
+
+        # 半角カナのみを許可
+        is_hankaku_kana = re.match(r'^[ｦ-ﾟ\s]+$', account_name)
+        if not is_hankaku_kana:
+            return TextSendMessage(text="❌ 口座名義は半角カナで入力してください。\n例: ﾔﾏﾀﾞ ﾀﾛｳ")
+
+        session['account_name'] = account_name
         session['step'] = 'pin_code'
         shop_session_manager.update_session(user_id, session)
 
@@ -225,26 +238,26 @@ def handle_payment_registration_session(user_id: str, message_text: str, db):
         # 口座登録を実行
         try:
             result = shop_service.register_payment_account(
-                db=db,
                 user_id=user_id,
+                full_name=session['account_name'],
                 branch_code=session['branch_code'],
                 account_number=session['account_number'],
-                account_name=session['account_name'],
                 pin_code=message_text
             )
 
             shop_session_manager.end_session(user_id)
 
-            if result['status'] == 'success':
+            if result['success']:
                 return TextSendMessage(
                     text=f"✅ 支払い用口座を登録しました！\n\n"
-                         f"支店番号: {result['branch_code']}\n"
-                         f"口座番号: {result['account_number']}\n"
-                         f"名義: {result['account_name']}\n\n"
+                         f"支店番号: {session['branch_code']}\n"
+                         f"口座番号: {session['account_number']}\n"
+                         f"名義: {session['account_name']}\n\n"
                          f"ショップでお買い物をお楽しみください！"
                 )
             else:
-                return TextSendMessage(text=f"❌ 登録に失敗しました: {result['message']}")
+                error_msg = result.get('error', result.get('message', '不明なエラー'))
+                return TextSendMessage(text=f"❌ 登録に失敗しました: {error_msg}")
 
         except Exception as e:
             shop_session_manager.end_session(user_id)
