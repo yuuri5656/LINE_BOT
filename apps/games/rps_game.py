@@ -23,7 +23,7 @@
 - 送金処理は銀行システムのAPIを使用して行う。
 - 参加者が最低2人以上必要。
 """
-from apps.games.minigames import Player, GameSession, Group, GroupManager, manager, check_account_existence_and_balance, create_game_session
+from apps.games.minigames import Player, GameSession, Group, GroupManager, manager, check_chip_balance, create_game_session
 from core.api import handler, line_bot_api
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage, FlexSendMessage
 
@@ -214,10 +214,10 @@ def play_rps_game(event, user_id, text, display_name, group_id, sessions):
         )
         return
 
-    if not check_account_existence_and_balance(None, user_id, min_balance):
+    if not check_chip_balance(user_id, min_balance):
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=f"{display_name} 様、申し訳ございませんが、じゃんけんゲームを開始するためにはミニゲーム用口座の登録と最低残高 {min_balance} JPY が必要です。\n\n塩爺との個別チャット(1対1トーク)にて '?ミニゲーム口座登録' と入力して、お持ちの口座をミニゲーム用として登録してください。")
+            TextSendMessage(text=f"{display_name} 様、申し訳ございませんが、じゃんけんゲームを開始するためには最低残高 {min_balance} チップが必要です。\n\nショップでチップを購入してください。\nコマンド: ?ショップ")
         )
         return
 
