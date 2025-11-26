@@ -145,9 +145,9 @@ def handle_shop_postback(user_id: str, data: dict, db, message_text: Optional[st
 
         # 購入実行
         try:
-            result = shop_service.purchase_item(db, user_id, item_id)
+            result = shop_service.purchase_item(user_id, item_id)
 
-            if result['status'] == 'success':
+            if result['success']:
                 return shop_flex.get_purchase_success_flex(
                     item_name=result['item_name'],
                     chips_received=result['chips_received'],
