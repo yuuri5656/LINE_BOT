@@ -536,8 +536,9 @@ def check_chip_balance(user_id, min_chips):
     ユーザーのチップ残高が必要量を満たしているか確認する。
     """
     try:
-        balance = get_chip_balance(user_id)
-        return balance >= min_chips
+        balance_info = get_chip_balance(user_id)
+        # get_chip_balance は辞書を返すので、available キーを使用
+        return balance_info.get('available', 0) >= min_chips
     except Exception:
         return False
 
