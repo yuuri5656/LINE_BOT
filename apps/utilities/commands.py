@@ -101,7 +101,7 @@ def handle_omikuji(event, user_id, display_name, text):
         messages.append(TextSendMessage(text=mess2))
     else:
         messages.append(TextSendMessage(text="御神籤は一日に一度迄です。\n許されるのは塩路様だけです。"))
-    
+
     line_bot_api.reply_message(event.reply_token, messages)
     if conn:
         conn.close()
@@ -111,7 +111,7 @@ def handle_rpn(event, text):
     """逆ポーランド記法計算コマンド"""
     tokens = text.split()[1:]
     stack = []
-    
+
     try:
         for token in tokens:
             if token.isdigit():
@@ -130,14 +130,14 @@ def handle_rpn(event, text):
                     stack.append(a // b)
             else:
                 raise ValueError(f"不正なトークン: {token}")
-        
+
         if len(stack) != 1:
             raise ValueError("式の構文が正しくありません")
-        
+
         result = str(stack[0])
     except Exception as e:
         result = f"エラー: {e}"
-    
+
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=result))
 
 
@@ -149,7 +149,7 @@ def handle_setname(event, user_id, text):
             TextSendMessage(text="残念ながらあなたの名前は変えられませんｗｗｗ")
         )
         return
-    
+
     my_name = "".join(text.split()[1:])
     if len(my_name) <= 1 or len(my_name) >= 20:
         line_bot_api.reply_message(
@@ -157,7 +157,7 @@ def handle_setname(event, user_id, text):
             TextSendMessage(text="名前が短すぎるか長すぎます。")
         )
         return
-    
+
     try:
         conn = psycopg2.connect(config.DATABASE_URL)
         cur = conn.cursor()
@@ -190,19 +190,19 @@ def handle_fun_commands(event, text):
     if text == "?塩爺の好きな食べ物は？":
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="草ｗｗｗ"))
         return True
-    
+
     if text == "?ほんちゃんはゲイ？":
         num = random.randint(1, 3)
         mess = "少し。。。" if num in [1, 2] else "はいそうです！！！"
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=mess))
         return True
-    
+
     if text == "?おみくじを何回も引くのは犯罪ですか？":
         num = random.randint(1, 3)
         mess = "結論:死刑！" if num == 1 else ("ｼｵｼﾞ様に限り合法" if num == 2 else "開示だな。")
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=mess))
         return True
-    
+
     if text == "?ほんちゃんは童貞？":
         num = random.randint(1, 6)
         results = [
@@ -215,7 +215,7 @@ def handle_fun_commands(event, text):
         ]
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=results[num-1]))
         return True
-    
+
     return False
 
 

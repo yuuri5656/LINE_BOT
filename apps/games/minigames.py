@@ -15,6 +15,11 @@ from datetime import datetime
 from enum import Enum
 from linebot.models import TextSendMessage, FlexSendMessage
 from apps.banking.api import banking_api
+from apps.banking.chip_service import (
+    get_chip_balance,
+    batch_lock_chips,
+    distribute_chips
+)
 
 
 def create_game_start_flex_message(player_names, timeout_seconds):
@@ -45,7 +50,7 @@ def create_game_start_flex_message(player_names, timeout_seconds):
             ],
             "margin": "md"
         })
-    
+
     return FlexSendMessage(
         alt_text="じゃんけんゲーム開始",
         contents={
@@ -184,28 +189,13 @@ class GroupManager:
 
 manager = GroupManager()
 
-# 口座が存在し、かつアクティブ状態であり、残金がmin_balanceを満たしているかどうかを確認。
-def check_account_existence_and_balance(conn, user_id, min_balance):
+def check_chip_balance(user_id, min_chips):
     """
-    ミニゲーム用に登録された口座の存在と残高を確認する。
-    ミニゲーム口座が未登録の場合はFalseを返す。
+    ユーザーのチップ残高が必要量を満たしているか確認する。
     """
     try:
-        # ミニゲーム口座が登録されているか確認
-        minigame_acc_info = banking_api.get_minigame_account_info(user_id)
-        if not minigame_acc_info:
-            return False  # ミニゲーム口座が未登録
-        
-        # 残高チェック
-        try:
-            balance_str = minigame_acc_info.get('balance')
-            if balance_str is None:
-                return False
-            from decimal import Decimal
-            balance = Decimal(balance_str)
-            return balance >= min_balance
-        except Exception:
-            return False
+        balance = get_chip_balance(user_id)
+        return balance >= min_chips
     except Exception:
         return False
 
@@ -300,9 +290,9 @@ def join_game_session(group_id: str, user_id: str, display_name: str, conn):
     if user_id in group.current_game.players:
         return "あなたはは既にゲームに参加しています。"
 
-    # 口座存在と最低残高の確認
-    if not check_account_existence_and_balance(conn, user_id, group.current_game.min_balance):
-        return f"ミニゲーム用口座が登録されていないか、最低残高({group.current_game.min_balance} JPY)を満たしていません。\n\n塩爺との個別チャット(1対1トーク)にて '?ミニゲーム口座登録' と入力して、お持ちの口座をミニゲーム用として登録してください。"
+    # チップ残高の確認
+    if not check_chip_balance(user_id, group.current_game.min_balance):
+        return f"チップ残高が不足しています（必要: {group.current_game.min_balance}枚）。\n\nショップでチップを購入してください。\nコマンド: ?ショップ"
 
     # すべての条件を満たしていれば参加
     group.current_game.players[user_id] = Player(user_id=user_id, display_name=display_name)
@@ -365,92 +355,65 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30, r
     session.start_time = datetime.now()
     session.deadline = session.start_time + timedelta(seconds=timeout_seconds)
 
-    # 参加費を徴収(銀行APIを利用 - 口座番号ベース)
-    paid = []
-    failed = []
-    for uid in list(session.players.keys()):
+    # 参加費をチップから一括ロック（バッチ処理）
+    user_ids = list(session.players.keys())
+    lock_amounts = {uid: session.min_balance for uid in user_ids}
+    lock_result = batch_lock_chips(user_ids, lock_amounts, f"rps_game_{group_id}")
+
+    if not lock_result['success']:
+        # 全員失敗（トランザクションロールバック済み）
+        session.state = GameState.RECRUITING
+        error_msg = lock_result.get('error', 'チップのロックに失敗しました')
         try:
-            # ミニゲーム口座情報を取得
-            minigame_acc_info = banking_api.get_minigame_account_info(uid)
-            if not minigame_acc_info:
-                raise ValueError("Minigame account not registered")
-            account_number = minigame_acc_info.get('account_number')
-            branch_code = minigame_acc_info.get('branch_code')
-            if not account_number or not branch_code:
-                raise ValueError("Account number or branch code not found")
-            # 口座番号ベースで引き落とし
-            result = banking_api.withdraw_by_account(account_number, branch_code, session.min_balance)
-            paid.append(uid)
-            print(f"start_game_session: withdraw success for user={uid} amount={session.min_balance}")
-        except Exception as e:
-            print(f"start_game_session: withdraw failed for user={uid} amount={session.min_balance} error={e}")
-            failed.append(uid)
-    # 支払い失敗したユーザーは参加者リストから除外
+            msg = f"参加費のロックに失敗しました。\n詳細: {error_msg}"
+            if reply_token:
+                line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
+            else:
+                line_bot_api.push_message(group_id, TextSendMessage(text=msg))
+        except Exception:
+            pass
+        return "参加費のロックに失敗しました。"
+
+    # 成功したユーザーのみを残す
+    locked = lock_result.get('locked', [])
+    failed = lock_result.get('failed', [])
+
+    # ロック失敗したユーザーは参加者リストから除外
     for uid in failed:
         if uid in session.players:
             del session.players[uid]
-    if not paid:
-        return "参加費の徴収に全員失敗しました。"
 
-    # デバッグ出力: 支払い状況と残存プレイヤー
+    # デバッグ出力: ロック状況と残存プレイヤー
     try:
-        print(f"start_game_session: group={group_id} paid={paid} failed={failed} remaining_players={list(session.players.keys())}")
+        print(f"start_game_session: group={group_id} locked={locked} failed={failed} remaining_players={list(session.players.keys())}")
     except Exception:
         pass
 
-    # テスト用: 1人でもゲーム開始できるよう条件変更（元に戻す場合は <2 → <2 に戻す）
-    try:
-        remaining = list(session.players.keys())
-        if len(remaining) < 1:  # ←元は <2
-            # 返金処理(支払い済みのユーザーに戻す - 口座番号ベース)
-            for uid in paid:
-                try:
-                    minigame_acc_info = banking_api.get_minigame_account_info(uid)
-                    if minigame_acc_info:
-                        account_number = minigame_acc_info.get('account_number')
-                        branch_code = minigame_acc_info.get('branch_code')
-                        if account_number and branch_code:
-                            banking_api.deposit_by_account(account_number, branch_code, session.min_balance)
-                except Exception:
-                    try:
-                        print(f"start_game_session: refund failed for user={uid} amount={session.min_balance}")
-                    except Exception:
-                        pass
-
-            # セッションを中止してグループに通知（1通にまとめる）
-            try:
-                msg = "参加者がいないため、ゲームを開始できません。\nゲームの開始に失敗しました。"
-                if reply_token:
-                    line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
-                else:
-                    line_bot_api.push_message(group_id, TextSendMessage(text=msg))
-            except Exception as e:
-                # 失敗時はエラー内容も通知
-                err_msg = f"ゲーム開始エラー: {str(e)}"
-                try:
-                    if reply_token:
-                        line_bot_api.reply_message(reply_token, TextSendMessage(text=err_msg))
-                    else:
-                        line_bot_api.push_message(group_id, TextSendMessage(text=err_msg))
-                except Exception:
-                    pass
-            # セッションをクリア
-            group.current_game = None
-            return "参加者がいないため、ゲームを開始できませんでした。"
-    except Exception as e:
-        # 失敗時はエラー内容も通知
+    # 参加者不足チェック（テスト用: 1人でも開始可能）
+    remaining = list(session.players.keys())
+    if len(remaining) < 1:  # ←元は <2
+        # バッチ処理で一括ロック済みなので、返金は不要（トランザクションがロールバック済み）
+        # セッションを中止してグループに通知
         try:
+            msg = "参加者がいないため、ゲームを開始できません。"
             if reply_token:
-                line_bot_api.reply_message(reply_token, TextSendMessage(text=f"ゲーム開始処理中にエラーが発生しました: {str(e)}"))
+                line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
             else:
-                line_bot_api.push_message(group_id, TextSendMessage(text=f"ゲーム開始処理中にエラーが発生しました: {str(e)}"))
-        except Exception:
-            pass
+                line_bot_api.push_message(group_id, TextSendMessage(text=msg))
+        except Exception as e:
+            err_msg = f"ゲーム開始エラー: {str(e)}"
+            try:
+                if reply_token:
+                    line_bot_api.reply_message(reply_token, TextSendMessage(text=err_msg))
+                else:
+                    line_bot_api.push_message(group_id, TextSendMessage(text=err_msg))
+            except Exception:
+                pass
         # セッションをクリア
         group.current_game = None
-        return f"ゲーム開始処理中にエラーが発生しました: {str(e)}"
+        return "参加者がいないため、ゲームを開始できませんでした。"
 
-    # 支払いできなかったユーザーを通知
+    # ロックできなかったユーザーを通知
     if failed:
         try:
             failed_names = [p.display_name for uid, p in list(session.players.items()) if uid in failed]
@@ -637,7 +600,7 @@ def finish_game_session(group_id: str, line_bot_api):
         # 表示用の符号と色
         sign = f"+{profit}" if profit >= 0 else f"{profit}"
         color = "#4CAF50" if profit > 0 else ("#555555" if profit == 0 else "#FF6B6B")
-        
+
         # 順位の絵文字
         rank_emoji = "🥇" if idx == 1 else ("🥈" if idx == 2 else ("🥉" if idx == 3 else f"{idx}位"))
 
@@ -676,7 +639,7 @@ def finish_game_session(group_id: str, line_bot_api):
                 },
                 {
                     "type": "text",
-                    "text": f"{sign} JPY",
+                    "text": f"{sign}枚",
                     "size": "sm",
                     "align": "end",
                     "weight": "bold",
@@ -688,37 +651,25 @@ def finish_game_session(group_id: str, line_bot_api):
         }
         flex_players.append(player_row)
 
-    # 賞金の支払い(口座番号ベース)
+    # 賞金の分配（チップで一括配布）
     try:
-        for uid, amount in payouts.items():
-            if amount <= 0:
-                continue
-            try:
-                # ミニゲーム口座情報を取得
-                minigame_acc_info = banking_api.get_minigame_account_info(uid)
-                if minigame_acc_info:
-                    account_number = minigame_acc_info.get('account_number')
-                    branch_code = minigame_acc_info.get('branch_code')
-                    if account_number and branch_code:
-                        banking_api.deposit_by_account(account_number, branch_code, amount)
-            except Exception:
-                # 個別の入金失敗はログに留め、処理は続行
-                pass
-        
-        # 手数料をミニゲーム運営用口座に振り込む
-        if fee > 0:
-            try:
-                fee_account = banking_api.get_minigame_fee_account()
-                banking_api.deposit_by_account(
-                    fee_account['account_number'],
-                    fee_account['branch_num'],
-                    fee
-                )
-            except Exception as e:
-                # 手数料の入金失敗はログに記録
-                print(f"[Minigames] Failed to deposit fee to minigame account: {e}")
-    except Exception:
-        pass
+        # チップ分配APIで一括配布（手数料も考慮）
+        distribute_result = distribute_chips(
+            user_payouts=payouts,
+            game_id=f"rps_game_{group_id}",
+            fee_amount=fee
+        )
+
+        if not distribute_result['success']:
+            # 分配失敗時はログに記録
+            error_msg = distribute_result.get('error', 'Unknown error')
+            print(f"[Minigames] Failed to distribute chips: {error_msg}")
+            # 失敗してもゲームは終了（エラー通知は別途考慮）
+        else:
+            distributed = distribute_result.get('distributed', [])
+            print(f"[Minigames] Successfully distributed chips: users={distributed}")
+    except Exception as e:
+        print(f"[Minigames] Error in chip distribution: {e}")
 
     try:
         bubble = {
@@ -779,14 +730,14 @@ def finish_game_session(group_id: str, line_bot_api):
                         "contents": [
                             {
                                 "type": "text",
-                                "text": "賞金総額:",
+                                "text": "チップ総額:",
                                 "size": "sm",
                                 "color": "#999999",
                                 "flex": 0
                             },
                             {
                                 "type": "text",
-                                "text": f"{n * session.min_balance} JPY",
+                                "text": f"{n * session.min_balance}枚",
                                 "size": "sm",
                                 "color": "#111111",
                                 "margin": "sm"
@@ -822,14 +773,14 @@ def finish_game_session(group_id: str, line_bot_api):
                         "contents": [
                             {
                                 "type": "text",
-                                "text": f"💰 手数料: {fee} JPY",
+                                "text": f"💰 手数料: {fee}枚",
                                 "size": "xs",
                                 "color": "#999999",
                                 "align": "center"
                             },
                             {
                                 "type": "text",
-                                "text": "※収支 = 賞金 - 参加費 - 手数料分",
+                                "text": "※収支 = 賞金チップ - 参加費 - 手数料分",
                                 "size": "xxs",
                                 "color": "#AAAAAA",
                                 "align": "center",

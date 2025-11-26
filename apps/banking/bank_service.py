@@ -402,12 +402,12 @@ def get_accounts_by_user(user_id: str):
 def get_account_transactions_by_account(account_number: str, branch_code: str, limit: int = 20):
     """指定口座の取引履歴（最近のものから）をリストで返す。
     各要素は dict を返す。口座が無ければ空リストを返す。
-    
+
     Args:
         account_number: 口座番号
         branch_code: 支店コード
         limit: 取得件数上限
-    
+
     Returns:
         取引履歴辞書のリスト
     """
@@ -417,11 +417,11 @@ def get_account_transactions_by_account(account_number: str, branch_code: str, l
         branch = db.execute(select(Branch).filter_by(code=str(branch_code))).scalars().first()
         if not branch:
             return []
-        
+
         # 口座を取得
         acc = db.execute(
             select(Account).filter_by(
-                account_number=account_number, 
+                account_number=account_number,
                 branch_id=branch.branch_id,
                 status='active'
             )
@@ -480,7 +480,7 @@ def get_account_transactions_by_account(account_number: str, branch_code: str, l
 def get_account_transactions_by_user(user_id: str, limit: int = 20):
     """指定ユーザーの口座について、取引履歴（最近のものから）をリストで返す。
     各要素は dict を返す。口座が無ければ空リストを返す。
-    
+
     Note: この関数は後方互換性のために残しています。
           新しいコードでは get_account_transactions_by_account を使用してください。
     """
@@ -498,10 +498,10 @@ def get_account_transactions_by_user(user_id: str, limit: int = 20):
                 branch_code = getattr(acc.branch, 'code', None)
         except Exception:
             return []
-        
+
         if not branch_code:
             return []
-        
+
         # 新しい関数を使用
         return get_account_transactions_by_account(acc.account_number, branch_code, limit)
     finally:
@@ -532,7 +532,7 @@ def reply_account_creation(event, account_info: dict, account_data: dict):
         }
         acct_type = account_info.get('account_type') if account_info else None
         type_display = account_type_display.get(acct_type, '普通')
-        
+
         # 発行年月の取得
         now = datetime.datetime.now()
         issue_date = f"{now.year % 100:02d}年/{now.month:02d}月"
@@ -580,10 +580,10 @@ def withdraw_from_user(user_id: str, amount, currency: str = 'JPY'):
                 raise ValueError(f"Account not active (status={repr(getattr(acc, 'status', None))})")
             if acc.balance < amt:
                 raise ValueError("Insufficient funds")
-            
+
             # 残高を更新
             acc.balance = acc.balance - amt
-            
+
             # トランザクションレコード作成(出金)
             tx = Transaction(
                 from_account_id=acc.account_id,
@@ -596,7 +596,7 @@ def withdraw_from_user(user_id: str, amount, currency: str = 'JPY'):
             )
             db.add(tx)
             db.flush()
-            
+
             # 二重仕訳エントリ(出金は debit)
             debit_entry = TransactionEntry(
                 transaction_id=tx.transaction_id,
@@ -605,7 +605,7 @@ def withdraw_from_user(user_id: str, amount, currency: str = 'JPY'):
                 amount=amt,
             )
             db.add(debit_entry)
-            
+
         return True
     except Exception as e:
         # 詳細ログを出して原因を把握しやすくする
@@ -635,16 +635,16 @@ def withdraw_by_account_number(account_number: str, branch_code: str, amount, cu
     """
     口座番号と支店コードから引き落とす。残高不足や口座未存在時は例外を投げる。
     transactionsテーブルとtransaction_entriesテーブルに記録される。
-    
+
     Args:
         account_number: 口座番号
         branch_code: 支店コード
         amount: 引き落とし額
         currency: 通貨コード(デフォルトはJPY)
-    
+
     Returns:
         True if successful
-    
+
     Raises:
         ValueError: 口座が見つからない、残高不足、口座が非アクティブなど
     """
@@ -656,17 +656,17 @@ def withdraw_by_account_number(account_number: str, branch_code: str, amount, cu
             branch = db.execute(select(Branch).filter_by(code=str(branch_code))).scalars().first()
             if not branch:
                 raise ValueError(f"Branch not found: {branch_code}")
-            
+
             # 口座番号と支店IDで口座を取得してロック
             acc = db.execute(
                 select(Account)
                 .filter_by(account_number=account_number, branch_id=branch.branch_id)
                 .with_for_update()
             ).scalars().first()
-            
+
             if not acc:
                 raise ValueError(f"Account not found: {account_number} at branch {branch_code}")
-            
+
             # 通貨チェック
             try:
                 acc_currency = str(getattr(acc, 'currency', '')).strip().upper()
@@ -674,7 +674,7 @@ def withdraw_by_account_number(account_number: str, branch_code: str, amount, cu
                 acc_currency = None
             if acc_currency != str(currency).strip().upper():
                 raise ValueError(f"Currency mismatch (account={repr(getattr(acc, 'currency', None))} expected={repr(currency)})")
-            
+
             # 口座ステータスチェック
             try:
                 acc_status = str(getattr(acc, 'status', '')).strip().lower()
@@ -682,14 +682,14 @@ def withdraw_by_account_number(account_number: str, branch_code: str, amount, cu
                 acc_status = None
             if acc_status != 'active':
                 raise ValueError(f"Account not active (status={repr(getattr(acc, 'status', None))})")
-            
+
             # 残高チェック
             if acc.balance < amt:
                 raise ValueError("Insufficient funds")
-            
+
             # 残高を更新
             acc.balance = acc.balance - amt
-            
+
             # トランザクションレコード作成(出金)
             tx = Transaction(
                 from_account_id=acc.account_id,
@@ -702,7 +702,7 @@ def withdraw_by_account_number(account_number: str, branch_code: str, amount, cu
             )
             db.add(tx)
             db.flush()
-            
+
             # 二重仕訳エントリ(出金は debit)
             debit_entry = TransactionEntry(
                 transaction_id=tx.transaction_id,
@@ -711,7 +711,7 @@ def withdraw_by_account_number(account_number: str, branch_code: str, amount, cu
                 amount=amt,
             )
             db.add(debit_entry)
-            
+
         return True
     except Exception as e:
         db.rollback()
@@ -746,10 +746,10 @@ def deposit_to_user(user_id: str, amount, currency: str = 'JPY'):
                 acc_status = None
             if acc_status != 'active':
                 raise ValueError(f"Account not active (status={repr(getattr(acc, 'status', None))})")
-            
+
             # 残高を更新
             acc.balance = acc.balance + amt
-            
+
             # トランザクションレコード作成(入金)
             tx = Transaction(
                 from_account_id=None,
@@ -762,7 +762,7 @@ def deposit_to_user(user_id: str, amount, currency: str = 'JPY'):
             )
             db.add(tx)
             db.flush()
-            
+
             # 二重仕訳エントリ(入金は credit)
             credit_entry = TransactionEntry(
                 transaction_id=tx.transaction_id,
@@ -771,7 +771,7 @@ def deposit_to_user(user_id: str, amount, currency: str = 'JPY'):
                 amount=amt,
             )
             db.add(credit_entry)
-            
+
         return True
     except Exception:
         db.rollback()
@@ -784,16 +784,16 @@ def deposit_by_account_number(account_number: str, branch_code: str, amount, cur
     """
     口座番号と支店コードで入金する。口座が存在しない場合は例外を投げる。
     transactionsテーブルとtransaction_entriesテーブルに記録される。
-    
+
     Args:
         account_number: 口座番号
         branch_code: 支店コード
         amount: 入金額
         currency: 通貨コード(デフォルトはJPY)
-    
+
     Returns:
         True if successful
-    
+
     Raises:
         ValueError: 口座が見つからない、口座が非アクティブなど
     """
@@ -805,17 +805,17 @@ def deposit_by_account_number(account_number: str, branch_code: str, amount, cur
             branch = db.execute(select(Branch).filter_by(code=str(branch_code))).scalars().first()
             if not branch:
                 raise ValueError(f"Branch not found: {branch_code}")
-            
+
             # 口座番号と支店IDで口座を取得してロック
             acc = db.execute(
                 select(Account)
                 .filter_by(account_number=account_number, branch_id=branch.branch_id)
                 .with_for_update()
             ).scalars().first()
-            
+
             if not acc:
                 raise ValueError(f"Account not found: {account_number} at branch {branch_code}")
-            
+
             # 通貨チェック
             try:
                 acc_currency = str(getattr(acc, 'currency', '')).strip().upper()
@@ -823,7 +823,7 @@ def deposit_by_account_number(account_number: str, branch_code: str, amount, cur
                 acc_currency = None
             if acc_currency != str(currency).strip().upper():
                 raise ValueError(f"Currency mismatch (account={repr(getattr(acc, 'currency', None))} expected={repr(currency)})")
-            
+
             # 口座ステータスチェック
             try:
                 acc_status = str(getattr(acc, 'status', '')).strip().lower()
@@ -831,10 +831,10 @@ def deposit_by_account_number(account_number: str, branch_code: str, amount, cur
                 acc_status = None
             if acc_status != 'active':
                 raise ValueError(f"Account not active (status={repr(getattr(acc, 'status', None))})")
-            
+
             # 残高を更新
             acc.balance = acc.balance + amt
-            
+
             # トランザクションレコード作成(入金)
             tx = Transaction(
                 from_account_id=None,
@@ -847,7 +847,7 @@ def deposit_by_account_number(account_number: str, branch_code: str, amount, cur
             )
             db.add(tx)
             db.flush()
-            
+
             # 二重仕訳エントリ(入金は credit)
             credit_entry = TransactionEntry(
                 transaction_id=tx.transaction_id,
@@ -1177,5 +1177,204 @@ def unregister_minigame_account(user_id: str) -> dict:
         db.rollback()
         print(f"[BankService] unregister_minigame_account error: {e}")
         return {'success': False, 'message': f'解除中にエラーが発生しました: {str(e)}'}
+    finally:
+        db.close()
+
+
+def batch_withdraw(withdrawals: list) -> dict:
+    """
+    複数口座からの一括引き落とし処理。
+    全て成功するか、全て失敗するかのアトミックな操作。
+
+    Args:
+        withdrawals: [
+            {'account_number': str, 'branch_code': str, 'amount': Decimal or int},
+            ...
+        ]
+
+    Returns:
+        {
+            'success': True/False,
+            'completed': [list of account_numbers],
+            'failed': [{'account_number': str, 'error': str}, ...],
+            'total_amount': Decimal
+        }
+    """
+    db = SessionLocal()
+    amt_total = Decimal('0')
+    completed = []
+
+    try:
+        with db.begin():
+            for w in withdrawals:
+                account_number = w['account_number']
+                branch_code = w['branch_code']
+                amount = Decimal(str(w['amount']))
+
+                # 支店取得
+                branch = db.execute(
+                    select(Branch).filter_by(code=str(branch_code))
+                ).scalars().first()
+                if not branch:
+                    raise ValueError(f"Branch not found: {branch_code}")
+
+                # 口座ロックして取得
+                acc = db.execute(
+                    select(Account)
+                    .filter_by(account_number=account_number, branch_id=branch.branch_id)
+                    .with_for_update()
+                ).scalars().first()
+
+                if not acc:
+                    raise ValueError(f"Account not found: {account_number}")
+
+                acc_status = str(getattr(acc, 'status', '')).strip().lower()
+                if acc_status != 'active':
+                    raise ValueError(f"Account not active: {account_number}")
+
+                if acc.balance < amount:
+                    raise ValueError(f"Insufficient funds: {account_number} (balance: {acc.balance}, required: {amount})")
+
+                # 残高更新
+                acc.balance -= amount
+                amt_total += amount
+
+                # トランザクション記録
+                tx = Transaction(
+                    from_account_id=acc.account_id,
+                    amount=amount,
+                    currency='JPY',
+                    type='withdrawal',
+                    status='completed',
+                    executed_at=datetime.datetime.utcnow(),
+                )
+                db.add(tx)
+                db.flush()
+
+                # 仕訳エントリ
+                entry = TransactionEntry(
+                    transaction_id=tx.transaction_id,
+                    account_id=acc.account_id,
+                    entry_type='debit',
+                    amount=amount,
+                )
+                db.add(entry)
+
+                completed.append(account_number)
+
+        return {
+            'success': True,
+            'completed': completed,
+            'failed': [],
+            'total_amount': amt_total
+        }
+
+    except Exception as e:
+        db.rollback()
+        print(f"[BankService] batch_withdraw failed: {e}")
+        return {
+            'success': False,
+            'completed': [],
+            'failed': [{'error': str(e)}],
+            'total_amount': Decimal('0')
+        }
+    finally:
+        db.close()
+
+
+def batch_deposit(deposits: list) -> dict:
+    """
+    複数口座への一括入金処理。
+    全て成功するか、全て失敗するかのアトミックな操作。
+
+    Args:
+        deposits: [
+            {'account_number': str, 'branch_code': str, 'amount': Decimal or int},
+            ...
+        ]
+
+    Returns:
+        {
+            'success': True/False,
+            'completed': [list of account_numbers],
+            'failed': [{'account_number': str, 'error': str}, ...],
+            'total_amount': Decimal
+        }
+    """
+    db = SessionLocal()
+    amt_total = Decimal('0')
+    completed = []
+
+    try:
+        with db.begin():
+            for d in deposits:
+                account_number = d['account_number']
+                branch_code = d['branch_code']
+                amount = Decimal(str(d['amount']))
+
+                # 支店取得
+                branch = db.execute(
+                    select(Branch).filter_by(code=str(branch_code))
+                ).scalars().first()
+                if not branch:
+                    raise ValueError(f"Branch not found: {branch_code}")
+
+                # 口座ロックして取得
+                acc = db.execute(
+                    select(Account)
+                    .filter_by(account_number=account_number, branch_id=branch.branch_id)
+                    .with_for_update()
+                ).scalars().first()
+
+                if not acc:
+                    raise ValueError(f"Account not found: {account_number}")
+
+                acc_status = str(getattr(acc, 'status', '')).strip().lower()
+                if acc_status != 'active':
+                    raise ValueError(f"Account not active: {account_number}")
+
+                # 残高更新
+                acc.balance += amount
+                amt_total += amount
+
+                # トランザクション記録
+                tx = Transaction(
+                    to_account_id=acc.account_id,
+                    amount=amount,
+                    currency='JPY',
+                    type='deposit',
+                    status='completed',
+                    executed_at=datetime.datetime.utcnow(),
+                )
+                db.add(tx)
+                db.flush()
+
+                # 仕訳エントリ
+                entry = TransactionEntry(
+                    transaction_id=tx.transaction_id,
+                    account_id=acc.account_id,
+                    entry_type='credit',
+                    amount=amount,
+                )
+                db.add(entry)
+
+                completed.append(account_number)
+
+        return {
+            'success': True,
+            'completed': completed,
+            'failed': [],
+            'total_amount': amt_total
+        }
+
+    except Exception as e:
+        db.rollback()
+        print(f"[BankService] batch_deposit failed: {e}")
+        return {
+            'success': False,
+            'completed': [],
+            'failed': [{'error': str(e)}],
+            'total_amount': Decimal('0')
+        }
     finally:
         db.close()

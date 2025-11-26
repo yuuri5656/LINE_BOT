@@ -5,7 +5,7 @@ from linebot.models import TextSendMessage
 from core.api import line_bot_api
 from apps.games.rps_game import play_rps_game
 from apps.games.minigames import (
-    manager, GameState, join_game_session, cancel_game_session, 
+    manager, GameState, join_game_session, cancel_game_session,
     reset_game_session, submit_player_move
 )
 import psycopg2
@@ -17,12 +17,12 @@ def handle_janken_start(event, user_id, text, display_name, group_id, sessions):
     if event.source.type != 'group':
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="じゃんけんはグループチャットでのみ利用可能です。"))
         return
-    
+
     grp = manager.groups.get(group_id, None)
     if grp is None or grp.current_game is None:
         play_rps_game(event, user_id, text, display_name, group_id, sessions)
         return
-    
+
     state = getattr(grp.current_game, "state", None)
     if state == GameState.RECRUITING:
         line_bot_api.reply_message(
@@ -43,7 +43,7 @@ def handle_join_game(event, user_id, display_name, group_id):
     if event.source.type != 'group':
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ゲーム参加はグループチャットでのみ利用可能です。"))
         return
-    
+
     conn = psycopg2.connect(config.DATABASE_URL)
     try:
         join_message = join_game_session(group_id, user_id, display_name, conn)
@@ -56,14 +56,14 @@ def handle_game_cancel(event, user_id, group_id):
     """ゲームキャンセルコマンド"""
     if event.source.type != 'group':
         return False
-    
+
     group = manager.groups.get(group_id)
     if not group or not group.current_game:
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="セッションをキャンセル出来ませんでした。"))
         return True
-    
+
     host_can_cancel = getattr(group.current_game, "state", None) != GameState.IN_PROGRESS
-    
+
     if group.current_game.host_user_id == user_id and host_can_cancel:
         reset_game_session(group_id)
         line_bot_api.reply_message(
@@ -71,7 +71,7 @@ def handle_game_cancel(event, user_id, group_id):
             TextSendMessage(text="ホストがキャンセルしたため、全員の参加を取り消しました。")
         )
         return True
-    
+
     participant_can_cancel = getattr(group.current_game, "state", None) == GameState.RECRUITING
     if participant_can_cancel:
         if user_id in group.current_game.players:
@@ -80,7 +80,7 @@ def handle_game_cancel(event, user_id, group_id):
                 TextSendMessage(text=cancel_game_session(group_id, user_id))
             )
             return True
-    
+
     line_bot_api.reply_message(
         event.reply_token,
         TextSendMessage(text="セッションをキャンセル出来ませんでした。")
@@ -92,7 +92,7 @@ def handle_game_start(event, user_id, group_id):
     """ゲーム開始コマンド"""
     if event.source.type != 'group':
         return
-    
+
     group = manager.groups.get(group_id)
     if group and group.current_game and group.current_game.state == GameState.RECRUITING and group.current_game.host_user_id == user_id:
         print(f"Players listed for game start: {group.current_game.players}")

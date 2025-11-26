@@ -259,5 +259,138 @@ class MinigameAccount(Base):
         return f"<MinigameAccount(minigame_account_id={self.minigame_account_id}, user_id={self.user_id}, account_id={self.account_id}, is_active={self.is_active})>"
 
 
+class MinigameChip(Base):
+    """minigame_chips テーブルの ORM 定義
+
+    ミニゲーム用チップ残高を管理
+    """
+    __tablename__ = 'minigame_chips'
+
+    chip_id = Column(Integer, primary_key=True)
+    user_id = Column(String(255), unique=True, nullable=False)
+    balance = Column(Numeric(15, 2), server_default=text('0'), nullable=False)
+    locked_balance = Column(Numeric(15, 2), server_default=text('0'), nullable=False)
+    created_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    updated_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+
+    def __repr__(self):
+        return f"<MinigameChip(chip_id={self.chip_id}, user_id={self.user_id}, balance={self.balance}, locked={self.locked_balance})>"
+
+
+class ChipTransaction(Base):
+    """chip_transactions テーブルの ORM 定義
+
+    チップ取引履歴
+    """
+    __tablename__ = 'chip_transactions'
+
+    transaction_id = Column(Integer, primary_key=True)
+    user_id = Column(String(255), nullable=False)
+    amount = Column(Numeric(15, 2), nullable=False)
+    balance_after = Column(Numeric(15, 2), nullable=False)
+    type = Column(String(50), nullable=False)  # 'purchase', 'transfer_in', 'transfer_out', 'game_bet', 'game_win', 'game_refund'
+    related_user_id = Column(String(255), nullable=True)
+    game_session_id = Column(String(255), nullable=True)
+    description = Column(String, nullable=True)
+    created_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+
+    def __repr__(self):
+        return f"<ChipTransaction(transaction_id={self.transaction_id}, user_id={self.user_id}, amount={self.amount}, type={self.type})>"
+
+
+class ShopPaymentAccount(Base):
+    """shop_payment_accounts テーブルの ORM 定義
+
+    ショップ支払い用口座登録
+    """
+    __tablename__ = 'shop_payment_accounts'
+
+    payment_account_id = Column(Integer, primary_key=True)
+    user_id = Column(String(255), unique=True, nullable=False)
+    account_id = Column(BigInteger, ForeignKey('accounts.account_id', ondelete='CASCADE'), nullable=False)
+    registered_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    last_used_at = Column(DateTime, nullable=True)
+    is_active = Column(Integer, server_default=text('true'))
+
+    # リレーション
+    account = relationship('Account')
+
+    def __repr__(self):
+        return f"<ShopPaymentAccount(payment_account_id={self.payment_account_id}, user_id={self.user_id}, account_id={self.account_id})>"
+
+
+class ShopItem(Base):
+    """shop_items テーブルの ORM 定義
+
+    ショップ商品マスタ
+    """
+    __tablename__ = 'shop_items'
+
+    item_id = Column(Integer, primary_key=True)
+    item_code = Column(String(100), unique=True, nullable=False)
+    category = Column(String(50), nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(String, nullable=True)
+    price = Column(Numeric(15, 2), nullable=False)
+    stock = Column(Integer, server_default=text('-1'))
+    is_available = Column(Integer, server_default=text('true'))
+    display_order = Column(Integer, server_default=text('0'))
+    image_url = Column(String, nullable=True)
+    created_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    updated_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+
+    # リレーション
+    attributes = relationship('ShopItemAttribute', back_populates='item', cascade='all, delete-orphan')
+    purchases = relationship('ShopPurchase', back_populates='item')
+
+    def __repr__(self):
+        return f"<ShopItem(item_id={self.item_id}, item_code={self.item_code}, name={self.name}, category={self.category})>"
+
+
+class ShopItemAttribute(Base):
+    """shop_item_attributes テーブルの ORM 定義
+
+    商品属性（EAVパターン）
+    """
+    __tablename__ = 'shop_item_attributes'
+
+    attribute_id = Column(Integer, primary_key=True)
+    item_id = Column(Integer, ForeignKey('shop_items.item_id', ondelete='CASCADE'), nullable=False)
+    attribute_key = Column(String(100), nullable=False)
+    attribute_value = Column(String, nullable=False)
+    attribute_type = Column(String(50), server_default=text("'string'"))
+    created_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+
+    # リレーション
+    item = relationship('ShopItem', back_populates='attributes')
+
+    def __repr__(self):
+        return f"<ShopItemAttribute(attribute_id={self.attribute_id}, item_id={self.item_id}, key={self.attribute_key}, value={self.attribute_value})>"
+
+
+class ShopPurchase(Base):
+    """shop_purchases テーブルの ORM 定義
+
+    ショップ購入履歴
+    """
+    __tablename__ = 'shop_purchases'
+
+    purchase_id = Column(Integer, primary_key=True)
+    user_id = Column(String(255), nullable=False)
+    item_id = Column(Integer, ForeignKey('shop_items.item_id'), nullable=False)
+    quantity = Column(Integer, server_default=text('1'))
+    total_price = Column(Numeric(15, 2), nullable=False)
+    payment_account_id = Column(BigInteger, ForeignKey('accounts.account_id'), nullable=True)
+    status = Column(String(50), server_default=text("'completed'"))
+    purchased_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+
+    # リレーション
+    item = relationship('ShopItem', back_populates='purchases')
+    payment_account = relationship('Account', foreign_keys=[payment_account_id])
+
+    def __repr__(self):
+        return f"<ShopPurchase(purchase_id={self.purchase_id}, user_id={self.user_id}, item_id={self.item_id}, status={self.status})>"
+
+
 # セッションファクトリ（必要に応じて外部で利用）
 SessionLocal = sessionmaker(bind=engine)

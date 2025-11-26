@@ -56,7 +56,7 @@ def bank_reception(event, text, user_id, display_name, sessions):
         if event.source.type != 'user':
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="口座開設は個別チャット(1対1トーク)でのみ利用可能です。"))
             return
-        
+
         # セッションを初期化してステップ1を開始
         sessions[user_id] = {"step": 1}
         line_bot_api.reply_message(

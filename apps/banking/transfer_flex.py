@@ -137,7 +137,7 @@ def get_transfer_guide_flex():
 
 def get_transfer_success_flex(transfer_info: dict):
     """振り込み完了FlexMessage
-    
+
     Args:
         transfer_info: {
             'from_account_number': str,
@@ -194,7 +194,7 @@ def get_transfer_success_flex(transfer_info: dict):
                             "layout": "baseline",
                             "contents": [
                                 {"type": "text", "text": "振込元", "size": "sm", "color": "#6B7280", "flex": 3},
-                                {"type": "text", "text": f"{transfer_info.get('from_branch_code')}-{transfer_info.get('from_account_number')}", 
+                                {"type": "text", "text": f"{transfer_info.get('from_branch_code')}-{transfer_info.get('from_account_number')}",
                                  "size": "sm", "color": "#111317", "align": "end", "flex": 5}
                             ],
                             "spacing": "sm"
@@ -204,7 +204,7 @@ def get_transfer_success_flex(transfer_info: dict):
                             "layout": "baseline",
                             "contents": [
                                 {"type": "text", "text": "振込先", "size": "sm", "color": "#6B7280", "flex": 3},
-                                {"type": "text", "text": f"{transfer_info.get('to_branch_code')}-{transfer_info.get('to_account_number')}", 
+                                {"type": "text", "text": f"{transfer_info.get('to_branch_code')}-{transfer_info.get('to_account_number')}",
                                  "size": "sm", "color": "#111317", "align": "end", "flex": 5}
                             ],
                             "spacing": "sm",
@@ -215,7 +215,7 @@ def get_transfer_success_flex(transfer_info: dict):
                             "layout": "baseline",
                             "contents": [
                                 {"type": "text", "text": "振込金額", "size": "sm", "color": "#6B7280", "flex": 3},
-                                {"type": "text", "text": f"{transfer_info.get('amount')} {transfer_info.get('currency')}", 
+                                {"type": "text", "text": f"{transfer_info.get('amount')} {transfer_info.get('currency')}",
                                  "size": "md", "color": "#FF6347", "align": "end", "flex": 5, "weight": "bold"}
                             ],
                             "spacing": "sm",
@@ -227,7 +227,7 @@ def get_transfer_success_flex(transfer_info: dict):
                             "layout": "baseline",
                             "contents": [
                                 {"type": "text", "text": "実行日時", "size": "xs", "color": "#6B7280", "flex": 3},
-                                {"type": "text", "text": transfer_info.get('executed_at', ''), 
+                                {"type": "text", "text": transfer_info.get('executed_at', ''),
                                  "size": "xs", "color": "#111317", "align": "end", "flex": 5}
                             ],
                             "spacing": "sm",
@@ -238,7 +238,7 @@ def get_transfer_success_flex(transfer_info: dict):
                             "layout": "baseline",
                             "contents": [
                                 {"type": "text", "text": "振込後残高", "size": "xs", "color": "#6B7280", "flex": 3},
-                                {"type": "text", "text": f"{transfer_info.get('new_balance')} {transfer_info.get('currency')}", 
+                                {"type": "text", "text": f"{transfer_info.get('new_balance')} {transfer_info.get('currency')}",
                                  "size": "xs", "color": "#111317", "align": "end", "flex": 5}
                             ],
                             "spacing": "sm",
@@ -269,7 +269,7 @@ def get_transfer_success_flex(transfer_info: dict):
 
 def get_transfer_error_flex(error_message: str, error_type: str = "error"):
     """振り込みエラーFlexMessage
-    
+
     Args:
         error_message: エラーメッセージ
         error_type: エラー種別 ('error', 'validation', 'auth')
@@ -280,9 +280,9 @@ def get_transfer_error_flex(error_message: str, error_type: str = "error"):
         'validation': {'bg': '#FFA500', 'icon': '⚠️'},
         'auth': {'bg': '#FF4500', 'icon': '🔒'}
     }
-    
+
     config = colors.get(error_type, colors['error'])
-    
+
     bubble = {
         "type": "bubble",
         "size": "mega",
@@ -384,16 +384,16 @@ def get_transfer_error_flex(error_message: str, error_type: str = "error"):
 
 def get_account_selection_flex(accounts: list):
     """口座選択用FlexMessage（複数口座がある場合）
-    
+
     Args:
         accounts: 口座情報のリスト
     """
     from apps.help_flex import get_account_flex_bubble
-    
+
     bubbles = []
     for acc in accounts:
         bubble = get_account_flex_bubble(acc)
-        
+
         # 振り込み用のボタンを追加
         footer = {
             "type": "box",
@@ -414,10 +414,10 @@ def get_account_selection_flex(accounts: list):
         }
         bubble["footer"] = footer
         bubbles.append(bubble)
-    
+
     carousel = {
         "type": "carousel",
         "contents": bubbles
     }
-    
+
     return FlexSendMessage(alt_text="振込口座を選択してください", contents=carousel)
