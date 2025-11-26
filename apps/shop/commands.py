@@ -151,7 +151,7 @@ def handle_shop_postback(user_id: str, data: dict, db, message_text: Optional[st
                 return shop_flex.get_purchase_success_flex(
                     item_name=result['item_name'],
                     chips_received=result['chips_received'],
-                    new_balance=result['new_chip_balance']
+                    new_balance=result['new_balance']
                 )
             else:
                 return TextSendMessage(text=f"❌ 購入に失敗しました: {result['message']}")
