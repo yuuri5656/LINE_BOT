@@ -394,3 +394,12 @@ class ShopPurchase(Base):
 
 # セッションファクトリ（必要に応じて外部で利用）
 SessionLocal = sessionmaker(bind=engine)
+
+
+def get_db():
+    """データベースセッションを取得するジェネレータ関数"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
