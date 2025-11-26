@@ -104,9 +104,52 @@ def create_recruitment_flex_message(host_display_name, max_players, min_balance)
                             },
                             {
                                 "type": "text",
-                                "text": f"{min_balance} JPY",
+                                "text": f"{min_balance} チップ",
                                 "size": "sm",
                                 "color": "#111111",
+                                "margin": "sm"
+                            }
+                        ],
+                        "margin": "md"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "baseline",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "賞金:",
+                                "size": "sm",
+                                "color": "#999999",
+                                "flex": 0
+                            },
+                            {
+                                "type": "text",
+                                "text": "勝者総取り",
+                                "size": "sm",
+                                "color": "#FF6B6B",
+                                "weight": "bold",
+                                "margin": "sm"
+                            }
+                        ],
+                        "margin": "md"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "baseline",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "手数料:",
+                                "size": "sm",
+                                "color": "#999999",
+                                "flex": 0
+                            },
+                            {
+                                "type": "text",
+                                "text": "約10%",
+                                "size": "sm",
+                                "color": "#999999",
                                 "margin": "sm"
                             }
                         ],
@@ -143,10 +186,19 @@ def create_recruitment_flex_message(host_display_name, max_players, min_balance)
                         "contents": [
                             {
                                 "type": "text",
+                                "text": "🔥 最後の一人になるまで戦います！",
+                                "size": "xs",
+                                "color": "#FF6B6B",
+                                "align": "center",
+                                "weight": "bold"
+                            },
+                            {
+                                "type": "text",
                                 "text": "下のボタンから操作できます",
                                 "size": "xs",
                                 "color": "#999999",
-                                "align": "center"
+                                "align": "center",
+                                "margin": "sm"
                             }
                         ],
                         "margin": "xl"

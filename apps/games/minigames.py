@@ -10,7 +10,7 @@
 # 1-2.通貨の獲得・消費の関数を実装する。
 
 from dataclasses import dataclass, field
-from typing import Dict
+from typing import Dict, List
 from datetime import datetime
 from enum import Enum
 from linebot.models import TextSendMessage, FlexSendMessage
@@ -20,6 +20,9 @@ from apps.banking.chip_service import (
     batch_lock_chips,
     distribute_chips
 )
+
+# じゃんけんゲームの最大再戦回数
+MAX_ROUNDS = 6
 
 
 def create_game_start_flex_message(player_names, timeout_seconds):
@@ -143,6 +146,341 @@ def create_game_start_flex_message(player_names, timeout_seconds):
     )
 
 
+def create_round_result_flex_message(round_num, all_hands, eliminated, remaining_players):
+    """
+    各ラウンドの結果を表示するFlexMessage
+
+    Args:
+        round_num: ラウンド番号
+        all_hands: 全プレイヤーの手 {user_id: {'name': str, 'hand': str}}
+        eliminated: 脱落者リスト [{'user_id', 'display_name', 'hand'}]
+        remaining_players: 残存プレイヤー数
+    """
+    # 手の絵文字マッピング
+    hand_emoji = {
+        "グー": "✊",
+        "チョキ": "✌️",
+        "パー": "✋"
+    }
+
+    # 全プレイヤーの手を表示
+    hand_contents = []
+    for uid, info in all_hands.items():
+        emoji = hand_emoji.get(info['hand'], "❓")
+        is_eliminated = any(e['user_id'] == uid for e in eliminated)
+        color = "#FF5252" if is_eliminated else "#111111"
+
+        hand_contents.append({
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": f"{emoji} {info['name']}",
+                    "size": "sm",
+                    "color": color,
+                    "weight": "bold" if is_eliminated else "regular",
+                    "flex": 3,
+                    "wrap": True
+                },
+                {
+                    "type": "text",
+                    "text": info['hand'],
+                    "size": "sm",
+                    "color": color,
+                    "align": "end",
+                    "flex": 1
+                }
+            ],
+            "margin": "md"
+        })
+
+    # 結果メッセージ
+    if eliminated:
+        eliminated_names = "、".join([e['display_name'] for e in eliminated])
+        result_text = f"❌ 脱落: {eliminated_names}"
+        result_color = "#FF5252"
+    else:
+        result_text = "あいこでしょ！"
+        result_color = "#FFA726"
+
+    return FlexSendMessage(
+        alt_text=f"第{round_num}ラウンド結果",
+        contents={
+            "type": "bubble",
+            "hero": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": f"第{round_num}ラウンド",
+                        "size": "xl",
+                        "align": "center",
+                        "weight": "bold",
+                        "color": "#FFFFFF"
+                    }
+                ],
+                "backgroundColor": "#42A5F5",
+                "paddingAll": "20px"
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "出された手",
+                        "size": "md",
+                        "weight": "bold",
+                        "color": "#111111",
+                        "margin": "md"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": hand_contents,
+                        "margin": "md"
+                    },
+                    {
+                        "type": "separator",
+                        "margin": "xl"
+                    },
+                    {
+                        "type": "text",
+                        "text": result_text,
+                        "size": "lg",
+                        "weight": "bold",
+                        "color": result_color,
+                        "align": "center",
+                        "margin": "xl"
+                    },
+                    {
+                        "type": "text",
+                        "text": f"残り{remaining_players}人",
+                        "size": "sm",
+                        "color": "#666666",
+                        "align": "center",
+                        "margin": "md"
+                    }
+                ],
+                "spacing": "sm",
+                "paddingAll": "20px"
+            }
+        }
+    )
+
+
+def create_winner_result_flex_message(winner_info, prize_info, round_history):
+    """
+    最終結果（勝者）を表示するFlexMessage
+
+    Args:
+        winner_info: {'user_id', 'display_name', 'hand'}
+        prize_info: {'total_pot', 'fee', 'prize', 'fee_rate'}
+        round_history: 全ラウンド履歴 [{'round', 'hands': {user_id: {'name', 'hand'}}, 'eliminated': [...]}]
+    """
+    hand_emoji = {
+        "グー": "✊",
+        "チョキ": "✌️",
+        "パー": "✋"
+    }
+
+    winner_emoji = hand_emoji.get(winner_info['hand'], "❓")
+    fee_rate_percent = prize_info['fee_rate'] * 100
+
+    # ラウンド履歴を簡潔に表示
+    history_contents = []
+    for hist in round_history:
+        round_num = hist['round']
+        eliminated = hist.get('eliminated', [])
+        if eliminated:
+            elim_names = "、".join([e['display_name'] for e in eliminated])
+            history_text = f"R{round_num}: {elim_names} 脱落"
+        else:
+            history_text = f"R{round_num}: あいこ"
+
+        history_contents.append({
+            "type": "text",
+            "text": history_text,
+            "size": "xs",
+            "color": "#666666",
+            "margin": "sm"
+        })
+
+    return FlexSendMessage(
+        alt_text="じゃんけん結果",
+        contents={
+            "type": "bubble",
+            "hero": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "🏆",
+                        "size": "xxl",
+                        "align": "center",
+                        "weight": "bold",
+                        "color": "#FFFFFF"
+                    },
+                    {
+                        "type": "text",
+                        "text": "じゃんけん結果",
+                        "size": "xl",
+                        "align": "center",
+                        "weight": "bold",
+                        "color": "#FFFFFF",
+                        "margin": "md"
+                    }
+                ],
+                "backgroundColor": "#FFA726",
+                "paddingAll": "20px"
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "🥇 優勝",
+                        "size": "lg",
+                        "weight": "bold",
+                        "color": "#FFD700",
+                        "margin": "md"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": f"{winner_emoji} {winner_info['display_name']}",
+                                "size": "md",
+                                "weight": "bold",
+                                "color": "#111111",
+                                "flex": 3,
+                                "wrap": True
+                            },
+                            {
+                                "type": "text",
+                                "text": winner_info['hand'],
+                                "size": "md",
+                                "color": "#111111",
+                                "align": "end",
+                                "flex": 1
+                            }
+                        ],
+                        "margin": "md"
+                    },
+                    {
+                        "type": "separator",
+                        "margin": "xl"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "box",
+                                "layout": "baseline",
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": "総額:",
+                                        "size": "sm",
+                                        "color": "#999999",
+                                        "flex": 0
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": f"{prize_info['total_pot']}枚",
+                                        "size": "sm",
+                                        "color": "#111111",
+                                        "margin": "sm"
+                                    }
+                                ],
+                                "margin": "md"
+                            },
+                            {
+                                "type": "box",
+                                "layout": "baseline",
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": "手数料:",
+                                        "size": "sm",
+                                        "color": "#999999",
+                                        "flex": 0
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": f"{prize_info['fee']}枚 ({fee_rate_percent:.1f}%)",
+                                        "size": "sm",
+                                        "color": "#FF5252",
+                                        "margin": "sm"
+                                    }
+                                ],
+                                "margin": "md"
+                            },
+                            {
+                                "type": "box",
+                                "layout": "baseline",
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": "獲得賞金:",
+                                        "size": "sm",
+                                        "color": "#999999",
+                                        "flex": 0
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": f"{prize_info['prize']}枚",
+                                        "size": "md",
+                                        "color": "#4CAF50",
+                                        "weight": "bold",
+                                        "margin": "sm"
+                                    }
+                                ],
+                                "margin": "md"
+                            }
+                        ],
+                        "margin": "xl"
+                    },
+                    {
+                        "type": "separator",
+                        "margin": "xl"
+                    },
+                    {
+                        "type": "text",
+                        "text": "ラウンド履歴",
+                        "size": "sm",
+                        "weight": "bold",
+                        "color": "#111111",
+                        "margin": "xl"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": history_contents if history_contents else [
+                            {
+                                "type": "text",
+                                "text": "1ラウンドで決着",
+                                "size": "xs",
+                                "color": "#666666"
+                            }
+                        ],
+                        "margin": "sm"
+                    }
+                ],
+                "spacing": "sm",
+                "paddingAll": "20px"
+            }
+        }
+    )
+
+
 class GameState(Enum):
     RECRUITING = "recruiting"
     RECRUITMENT_CLOSED = "recruitment_closed"
@@ -170,6 +508,10 @@ class GameSession:
     start_time: datetime = None
     deadline: datetime = None
     timer: object = None
+    # 再戦管理用フィールド
+    round_count: int = 0  # 現在のラウンド数
+    eliminated_players: List[Dict] = field(default_factory=list)  # 脱落者履歴: [{'user_id', 'display_name', 'hand', 'round'}]
+    round_history: List[Dict] = field(default_factory=list)  # 各ラウンドの全員の手: [{'round', 'hands': {user_id: hand}}]
 
 @dataclass
 class Group:
@@ -200,10 +542,43 @@ def check_chip_balance(user_id, min_chips):
         return False
 
 
+def calculate_winner_takes_all(total_players: int, bet_amount: int):
+    """
+    勝者総取り方式の賞金計算。
+    手数料は全体の約10%で、10の倍数に丸め込まれる。
+
+    Args:
+        total_players: 参加者総数
+        bet_amount: 1人あたりの参加費
+
+    Returns:
+        dict: {
+            'total_pot': 総額,
+            'fee': 手数料,
+            'prize': 勝者への賞金,
+            'fee_rate': 実際の手数料率
+        }
+    """
+    total_pot = total_players * bet_amount
+    # 手数料を10%として計算し、10の倍数に丸め込む
+    fee_raw = total_pot * 0.1
+    fee = round(fee_raw / 10) * 10
+    prize = total_pot - fee
+    fee_rate = fee / total_pot if total_pot > 0 else 0.0
+
+    return {
+        'total_pot': total_pot,
+        'fee': fee,
+        'prize': prize,
+        'fee_rate': fee_rate
+    }
+
+
 def fixed_prize_distribution(bets, fee_rate=0.1):
     """
     小規模（2～5人）向けの固定分配方式。
     1位圧倒的、下位にも少額分配。
+    ※この関数は後方互換性のために残していますが、じゃんけんゲームでは使用しません。
     """
     N = len(bets)
     if N < 2 or N > 5:
@@ -357,8 +732,15 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30, r
 
     # 参加費をチップから一括ロック（バッチ処理）
     user_ids = list(session.players.keys())
-    lock_amounts = {uid: session.min_balance for uid in user_ids}
-    lock_result = batch_lock_chips(user_ids, lock_amounts, f"rps_game_{group_id}")
+    lock_data = [
+        {
+            'user_id': uid,
+            'amount': session.min_balance,
+            'game_session_id': f"rps_game_{group_id}_round{session.round_count}"
+        }
+        for uid in user_ids
+    ]
+    lock_result = batch_lock_chips(lock_data)
 
     if not lock_result['success']:
         # 全員失敗（トランザクションロールバック済み）
@@ -519,285 +901,363 @@ def submit_player_move(user_id: str, move: str, line_bot_api, reply_token=None):
 
 
 def finish_game_session(group_id: str, line_bot_api):
+    """
+    じゃんけんゲームのラウンド終了処理（脱落制・勝者総取り方式）
+    """
+    from threading import Timer
+
     group = manager.groups.get(group_id)
     if not group or not group.current_game:
         return
 
     session = group.current_game
-    # デバッグ出力: 終了時のセッション情報
-    try:
-        print(f"finish_game_session: group={group_id} state={session.state} players={list(session.players.keys())}")
-    except Exception:
-        pass
-    session.state = GameState.FINISHED
+    print(f"finish_game_session: group={group_id} round={session.round_count} state={session.state} players={list(session.players.keys())}")
 
-    players = list(session.players.values())
+    # ラウンド数をインクリメント
+    session.round_count += 1
+    current_round = session.round_count
 
-    def beats(a, b):
-        if a == b:
-            return 0
-        rules = {"グー":"チョキ", "チョキ":"パー", "パー":"グー"}
-        return 1 if rules.get(a) == b else -1
+    # 現在のプレイヤーリスト
+    active_players = list(session.players.values())
 
-    scores = {p.user_id: 0 for p in players}
-    for i in range(len(players)):
-        for j in range(i+1, len(players)):
-            pi = players[i]
-            pj = players[j]
-            if not pi.data and not pj.data:
-                continue
-            if not pi.data:
-                scores[pj.user_id] += 1
-                scores[pi.user_id] -= 1
-                continue
-            if not pj.data:
-                scores[pi.user_id] += 1
-                scores[pj.user_id] -= 1
-                continue
-            res = beats(pi.data, pj.data)
-            if res == 1:
-                scores[pi.user_id] += 1
-                scores[pj.user_id] -= 1
-            elif res == -1:
-                scores[pj.user_id] += 1
-                scores[pi.user_id] -= 1
-
-    ranked = sorted(players, key=lambda p: scores.get(p.user_id, 0), reverse=True)
-
-    n = len(players)
-    # 賞金計算は固定分配方式を使用
-    fee = 0  # 初期化
-    try:
-        bets = [session.min_balance for _ in ranked]
-        prizes, fee = fixed_prize_distribution(bets, fee_rate=0.1)
-        payouts = {ranked[i].user_id: prizes[i] for i in range(len(ranked))}
-    except Exception:
-        # フォールバック: 以前の簡易分配（等比）
-        n = len(players)
-        pot = n * session.min_balance
-        distributable = int(pot * 0.9)
-        weight_map = {}
-        total_weight = 0
-        for p in players:
-            w = max(scores.get(p.user_id, 0), 0) + 1
-            weight_map[p.user_id] = w
-            total_weight += w
-        payouts = {}
-        for p in players:
-            share = int(distributable * weight_map[p.user_id] / total_weight) if total_weight > 0 else 0
-            payouts[p.user_id] = share
-        fee = pot - distributable  # フォールバック時も手数料を計算
-
-    # FlexMessageで結果を表示する（募集・開始メッセージと統一したデザイン）
-    # 各プレイヤーの収支は『受け取った賞金 - 参加費 - (手数料の均等分配)』で計算する
-    flex_players = []
-    fee_share_per_player = (fee // n) if n > 0 else 0
-    for idx, p in enumerate(ranked, start=1):
-        hand = p.data if p.data else "未提出"
-        sc = scores.get(p.user_id, 0)
-        pay = payouts.get(p.user_id, 0)
-        profit = pay - session.min_balance - fee_share_per_player
-        # 表示用の符号と色
-        sign = f"+{profit}" if profit >= 0 else f"{profit}"
-        color = "#4CAF50" if profit > 0 else ("#555555" if profit == 0 else "#FF6B6B")
-
-        # 順位の絵文字
-        rank_emoji = "🥇" if idx == 1 else ("🥈" if idx == 2 else ("🥉" if idx == 3 else f"{idx}位"))
-
-        player_row = {
-            "type": "box",
-            "layout": "horizontal",
-            "contents": [
-                {
-                    "type": "text",
-                    "text": rank_emoji,
-                    "size": "md",
-                    "weight": "bold",
-                    "color": "#111111",
-                    "flex": 1
-                },
-                {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                        {
-                            "type": "text",
-                            "text": p.display_name,
-                            "size": "sm",
-                            "weight": "bold",
-                            "color": "#111111"
-                        },
-                        {
-                            "type": "text",
-                            "text": f"手: {hand}",
-                            "size": "xs",
-                            "color": "#999999",
-                            "margin": "xs"
-                        }
-                    ],
-                    "flex": 4
-                },
-                {
-                    "type": "text",
-                    "text": f"{sign}枚",
-                    "size": "sm",
-                    "align": "end",
-                    "weight": "bold",
-                    "color": color,
-                    "flex": 2
-                }
-            ],
-            "margin": "md"
+    # 全員の手を収集
+    current_hands = {}
+    for p in active_players:
+        hand = p.data if p.data else None
+        current_hands[p.user_id] = {
+            'name': p.display_name,
+            'hand': hand if hand else "未提出"
         }
-        flex_players.append(player_row)
 
-    # 賞金の分配（チップで一括配布）
-    try:
-        # チップ分配APIで一括配布（手数料も考慮）
-        distribute_result = distribute_chips(
-            user_payouts=payouts,
-            game_id=f"rps_game_{group_id}",
-            fee_amount=fee
-        )
+    # 未提出者の処理（タイムアウト扱い）
+    timeout_players = [p for p in active_players if not p.data]
 
-        if not distribute_result['success']:
-            # 分配失敗時はログに記録
-            error_msg = distribute_result.get('error', 'Unknown error')
-            print(f"[Minigames] Failed to distribute chips: {error_msg}")
-            # 失敗してもゲームは終了（エラー通知は別途考慮）
+    # 提出済みプレイヤーのみで判定
+    submitted_players = [p for p in active_players if p.data]
+
+    if len(submitted_players) < 1:
+        # 全員未提出の場合はゲーム終了（返金処理）
+        session.state = GameState.FINISHED
+        try:
+            line_bot_api.push_message(group_id, TextSendMessage(
+                text="全員が手を提出しなかったため、ゲームを終了し参加費を返却します。"
+            ))
+        except Exception:
+            pass
+
+        # 返金処理
+        total_players = len(active_players) + len(session.eliminated_players)
+        distributions = {
+            p.user_id: {
+                'locked': session.min_balance,
+                'payout': session.min_balance  # 全額返金
+            } for p in active_players
+        }
+
+        try:
+            distribute_chips(distributions, f"rps_game_{group_id}_round{current_round}")
+        except Exception as e:
+            print(f"[Minigames] Error in refund: {e}")
+
+        group.current_game = None
+        return
+
+    # あいこ判定関数
+    def check_draw(players_list):
+        """あいこかどうかを判定"""
+        if len(players_list) < 2:
+            return False
+
+        hands = [p.data for p in players_list]
+        unique_hands = set(hands)
+
+        if len(players_list) == 2:
+            # 2人の場合：同じ手ならあいこ
+            return len(unique_hands) == 1
         else:
-            distributed = distribute_result.get('distributed', [])
-            print(f"[Minigames] Successfully distributed chips: users={distributed}")
-    except Exception as e:
-        print(f"[Minigames] Error in chip distribution: {e}")
+            # 3人以上の場合：グー・チョキ・パー全種類揃う OR 全員同じ手
+            return len(unique_hands) == 3 or len(unique_hands) == 1
 
+    # 脱落者判定関数
+    def find_eliminated(players_list):
+        """最弱の手のプレイヤーを特定"""
+        hand_groups = {"グー": [], "チョキ": [], "パー": []}
+        for p in players_list:
+            if p.data in hand_groups:
+                hand_groups[p.data].append(p)
+
+        # 存在する手の種類を確認
+        existing_hands = [h for h in ["グー", "チョキ", "パー"] if hand_groups[h]]
+
+        if len(existing_hands) == 3:
+            # 3種類揃った場合はあいこ（この関数は呼ばれないはず）
+            return []
+        elif len(existing_hands) == 2:
+            # 2種類の場合、負ける方を特定
+            if "グー" in existing_hands and "パー" in existing_hands:
+                return hand_groups["グー"]  # パーに負ける
+            elif "チョキ" in existing_hands and "グー" in existing_hands:
+                return hand_groups["チョキ"]  # グーに負ける
+            elif "パー" in existing_hands and "チョキ" in existing_hands:
+                return hand_groups["パー"]  # チョキに負ける
+        elif len(existing_hands) == 1:
+            # 全員同じ手（あいこ、この関数は呼ばれないはず）
+            return []
+
+        return []
+
+    # あいこ判定
+    is_draw = check_draw(submitted_players)
+
+    # タイムアウト者を脱落扱いに
+    if timeout_players:
+        for p in timeout_players:
+            session.eliminated_players.append({
+                'user_id': p.user_id,
+                'display_name': p.display_name,
+                'hand': '未提出',
+                'round': current_round
+            })
+            if p.user_id in session.players:
+                del session.players[p.user_id]
+
+        # タイムアウト者除外後に再判定
+        active_players = list(session.players.values())
+        submitted_players = [p for p in active_players if p.data]
+
+    # ラウンド履歴に記録
+    round_eliminated = []
+
+    if is_draw:
+        # あいこの場合
+        print(f"[Minigames] Round {current_round}: Draw")
+
+        # ラウンド履歴に記録
+        session.round_history.append({
+            'round': current_round,
+            'hands': current_hands,
+            'eliminated': []
+        })
+
+        # 最大ラウンド数チェック
+        if current_round >= MAX_ROUNDS:
+            # 上限到達：参加費返却
+            session.state = GameState.FINISHED
+
+            try:
+                line_bot_api.push_message(group_id, create_round_result_flex_message(
+                    current_round, current_hands, [], len(submitted_players)
+                ))
+                line_bot_api.push_message(group_id, TextSendMessage(
+                    text=f"🤝 {MAX_ROUNDS}回あいこが続いたため、ゲームを終了し参加費を全額返却します！"
+                ))
+            except Exception as e:
+                print(f"[Minigames] Error sending draw limit message: {e}")
+
+            # 返金処理
+            total_players = len(active_players) + len(session.eliminated_players)
+            distributions = {}
+
+            # 残存プレイヤーに返金
+            for p in active_players:
+                distributions[p.user_id] = {
+                    'locked': session.min_balance,
+                    'payout': session.min_balance
+                }
+
+            # 脱落者にも返金
+            for elim in session.eliminated_players:
+                distributions[elim['user_id']] = {
+                    'locked': session.min_balance,
+                    'payout': session.min_balance
+                }
+
+            try:
+                distribute_chips(distributions, f"rps_game_{group_id}_round{current_round}")
+            except Exception as e:
+                print(f"[Minigames] Error in refund: {e}")
+
+            group.current_game = None
+            return
+
+        # 再戦処理
+        # プレイヤーの手をクリア
+        for p in active_players:
+            p.data = ""
+
+        # 状態をIN_PROGRESSに戻す
+        session.state = GameState.IN_PROGRESS
+
+        # ラウンド結果を送信
+        try:
+            line_bot_api.push_message(group_id, create_round_result_flex_message(
+                current_round, current_hands, [], len(submitted_players)
+            ))
+            line_bot_api.push_message(group_id, TextSendMessage(
+                text=f"あいこでしょ！次のラウンドを開始します（残り{len(submitted_players)}人）"
+            ))
+        except Exception as e:
+            print(f"[Minigames] Error sending draw message: {e}")
+
+        # タイマー再設定
+        timeout_seconds = 30
+
+        def _finish():
+            try:
+                finish_game_session(group_id, line_bot_api)
+            except Exception as e:
+                print(f"[Minigames] Error in timer finish: {e}")
+
+        if session.timer:
+            try:
+                session.timer.cancel()
+            except Exception:
+                pass
+
+        timer = Timer(timeout_seconds, _finish)
+        session.timer = timer
+        timer.daemon = True
+        timer.start()
+
+        return
+
+    # あいこでない場合：脱落者を特定
+    eliminated = find_eliminated(submitted_players)
+
+    for p in eliminated:
+        round_eliminated.append({
+            'user_id': p.user_id,
+            'display_name': p.display_name,
+            'hand': p.data
+        })
+        session.eliminated_players.append({
+            'user_id': p.user_id,
+            'display_name': p.display_name,
+            'hand': p.data,
+            'round': current_round
+        })
+        if p.user_id in session.players:
+            del session.players[p.user_id]
+
+    # ラウンド履歴に記録
+    session.round_history.append({
+        'round': current_round,
+        'hands': current_hands,
+        'eliminated': round_eliminated
+    })
+
+    # 残存プレイヤー確認
+    remaining_players = list(session.players.values())
+
+    print(f"[Minigames] Round {current_round}: Eliminated={len(eliminated)}, Remaining={len(remaining_players)}")
+
+    # ラウンド結果を送信
     try:
-        bubble = {
-            "type": "bubble",
-            "hero": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": "🏆",
-                        "size": "xxl",
-                        "align": "center",
-                        "weight": "bold",
-                        "color": "#FFFFFF"
-                    },
-                    {
-                        "type": "text",
-                        "text": "じゃんけん結果",
-                        "size": "xl",
-                        "align": "center",
-                        "weight": "bold",
-                        "color": "#FFFFFF",
-                        "margin": "md"
-                    }
-                ],
-                "backgroundColor": "#FFA726",
-                "paddingAll": "20px"
-            },
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                    {
-                        "type": "box",
-                        "layout": "baseline",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": "参加者:",
-                                "size": "sm",
-                                "color": "#999999",
-                                "flex": 0
-                            },
-                            {
-                                "type": "text",
-                                "text": f"{n}名",
-                                "size": "sm",
-                                "color": "#111111",
-                                "margin": "sm"
-                            }
-                        ],
-                        "margin": "md"
-                    },
-                    {
-                        "type": "box",
-                        "layout": "baseline",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": "チップ総額:",
-                                "size": "sm",
-                                "color": "#999999",
-                                "flex": 0
-                            },
-                            {
-                                "type": "text",
-                                "text": f"{n * session.min_balance}枚",
-                                "size": "sm",
-                                "color": "#111111",
-                                "margin": "sm"
-                            }
-                        ],
-                        "margin": "md"
-                    },
-                    {
-                        "type": "separator",
-                        "margin": "xl"
-                    },
-                    {
-                        "type": "text",
-                        "text": "順位",
-                        "size": "lg",
-                        "weight": "bold",
-                        "color": "#111111",
-                        "margin": "xl"
-                    },
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "contents": flex_players,
-                        "margin": "md"
-                    },
-                    {
-                        "type": "separator",
-                        "margin": "xl"
-                    },
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": f"💰 手数料: {fee}枚",
-                                "size": "xs",
-                                "color": "#999999",
-                                "align": "center"
-                            },
-                            {
-                                "type": "text",
-                                "text": "※収支 = 賞金チップ - 参加費 - 手数料分",
-                                "size": "xxs",
-                                "color": "#AAAAAA",
-                                "align": "center",
-                                "margin": "sm"
-                            }
-                        ],
-                        "margin": "xl"
-                    }
-                ],
-                "spacing": "sm",
-                "paddingAll": "20px"
-            }
+        line_bot_api.push_message(group_id, create_round_result_flex_message(
+            current_round, current_hands, round_eliminated, len(remaining_players)
+        ))
+    except Exception as e:
+        print(f"[Minigames] Error sending round result: {e}")
+
+    if len(remaining_players) == 1:
+        # 勝者決定
+        session.state = GameState.FINISHED
+        winner = remaining_players[0]
+
+        # 賞金計算
+        total_players = len(session.eliminated_players) + 1  # 脱落者 + 勝者
+        prize_info = calculate_winner_takes_all(total_players, session.min_balance)
+
+        # チップ分配
+        distributions = {}
+
+        # 勝者に賞金
+        distributions[winner.user_id] = {
+            'locked': session.min_balance,
+            'payout': prize_info['prize']
         }
 
-        flex_message = FlexSendMessage(alt_text="じゃんけんの結果", contents=bubble)
-        line_bot_api.push_message(group_id, flex_message)
-    except Exception:
-        pass
+        # 敗者は0
+        for elim in session.eliminated_players:
+            distributions[elim['user_id']] = {
+                'locked': session.min_balance,
+                'payout': 0
+            }
 
-    group.current_game = None
+        try:
+            result = distribute_chips(distributions, f"rps_game_{group_id}_round{current_round}")
+            if result.get('success'):
+                print(f"[Minigames] Successfully distributed chips to winner: {winner.user_id}")
+            else:
+                print(f"[Minigames] Failed to distribute chips: {result.get('error')}")
+        except Exception as e:
+            print(f"[Minigames] Error in chip distribution: {e}")
+
+        # 最終結果FlexMessage送信
+        winner_info = {
+            'user_id': winner.user_id,
+            'display_name': winner.display_name,
+            'hand': winner.data
+        }
+
+        try:
+            line_bot_api.push_message(group_id, create_winner_result_flex_message(
+                winner_info, prize_info, session.round_history
+            ))
+        except Exception as e:
+            print(f"[Minigames] Error sending winner result: {e}")
+
+        # セッションクリア
+        group.current_game = None
+        return
+
+    elif len(remaining_players) > 1:
+        # まだ複数人残っている：再戦
+        # プレイヤーの手をクリア
+        for p in remaining_players:
+            p.data = ""
+
+        # 状態をIN_PROGRESSに戻す
+        session.state = GameState.IN_PROGRESS
+
+        # 次のラウンド開始メッセージ
+        try:
+            line_bot_api.push_message(group_id, TextSendMessage(
+                text=f"次のラウンドを開始します！残り{len(remaining_players)}人"
+            ))
+        except Exception as e:
+            print(f"[Minigames] Error sending next round message: {e}")
+
+        # タイマー再設定
+        timeout_seconds = 30
+
+        def _finish():
+            try:
+                finish_game_session(group_id, line_bot_api)
+            except Exception as e:
+                print(f"[Minigames] Error in timer finish: {e}")
+
+        if session.timer:
+            try:
+                session.timer.cancel()
+            except Exception:
+                pass
+
+        timer = Timer(timeout_seconds, _finish)
+        session.timer = timer
+        timer.daemon = True
+        timer.start()
+
+        return
+
+    else:
+        # 残り0人（全員脱落）：エラー処理
+        session.state = GameState.FINISHED
+        try:
+            line_bot_api.push_message(group_id, TextSendMessage(
+                text="全員が脱落したため、ゲームを終了します。"
+            ))
+        except Exception:
+            pass
+        group.current_game = None
+        return
