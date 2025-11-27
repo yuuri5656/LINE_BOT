@@ -406,7 +406,7 @@ def redeem_chips(user_id: str, amount: int) -> Dict:
     try:
         # 支払い口座情報を取得（換金先口座）
         payment_acc = db.execute(
-            select(ShopPaymentAccount).filter_by(user_id=user_id)
+            select(ShopPaymentAccount).filter_by(user_id=user_id, is_active=True)
         ).scalars().first()
 
         if not payment_acc:
@@ -415,44 +415,64 @@ def redeem_chips(user_id: str, amount: int) -> Dict:
                 'error': '換金先口座が登録されていません。先に「?ショップ」から支払い口座を登録してください。'
             }
 
-        with db.begin():
-            # チップ残高を確認
-            chip_acc = db.execute(
-                select(MinigameChip).filter_by(user_id=user_id).with_for_update()
-            ).scalars().first()
+        # 口座情報を取得
+        account = db.execute(
+            select(Account).filter_by(account_id=payment_acc.account_id)
+        ).scalars().first()
 
-            if not chip_acc:
-                raise ValueError('チップ残高がありません')
+        if not account:
+            return {
+                'success': False,
+                'error': '登録された口座が見つかりません。'
+            }
 
-            available = chip_acc.balance - chip_acc.locked_balance
-            if available < amt:
-                raise ValueError(f'利用可能なチップが不足しています（必要: {amount}, 利用可能: {int(available)}）')
+        branch = db.execute(
+            select(Branch).filter_by(branch_id=account.branch_id)
+        ).scalars().first()
 
-            # チップを減らす
-            chip_acc.balance -= amt
-            chip_acc.updated_at = datetime.datetime.utcnow()
+        if not branch:
+            return {
+                'success': False,
+                'error': '支店情報が見つかりません。'
+            }
 
-            # 取引履歴を記録
-            tx = ChipTransaction(
-                user_id=user_id,
-                amount=-amt,
-                balance_after=chip_acc.balance,
-                type='redeem',
-                description=f'{amount}枚のチップを換金'
-            )
-            db.add(tx)
-            db.flush()
+        # チップ残高を確認・更新
+        chip_acc = db.execute(
+            select(MinigameChip).filter_by(user_id=user_id).with_for_update()
+        ).scalars().first()
 
-            new_balance = int(chip_acc.balance)
+        if not chip_acc:
+            return {'success': False, 'error': 'チップ残高がありません'}
 
-        # トランザクション完了後、明示的にコミット
+        available = chip_acc.balance - chip_acc.locked_balance
+        if available < amt:
+            return {
+                'success': False,
+                'error': f'利用可能なチップが不足しています（必要: {amount}, 利用可能: {int(available)}）'
+            }
+
+        # チップを減らす
+        chip_acc.balance -= amt
+        chip_acc.updated_at = datetime.datetime.utcnow()
+
+        # 取引履歴を記録
+        tx = ChipTransaction(
+            user_id=user_id,
+            amount=-amt,
+            balance_after=chip_acc.balance,
+            type='redeem',
+            description=f'{amount}枚のチップを換金'
+        )
+        db.add(tx)
         db.commit()
+
+        new_balance = int(chip_acc.balance)
 
         # 銀行口座に入金
         try:
             deposit_by_account_number(
-                payment_acc.account_number,
-                payment_acc.branch_code,
+                account.account_number,
+                branch.code,
                 amt,
                 'JPY'
             )
