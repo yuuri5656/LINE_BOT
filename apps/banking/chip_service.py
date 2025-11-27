@@ -387,7 +387,7 @@ def distribute_chips(distributions: Dict, game_session_id: str) -> Dict:
 def redeem_chips(user_id: str, amount: int) -> Dict:
     """
     チップを換金（銀行口座に振り込み）
-    換金率: 1チップ = 1 JPY（100%）
+    換金率: 1チップ = 12 JPY
 
     Args:
         user_id: ユーザーID
@@ -468,12 +468,13 @@ def redeem_chips(user_id: str, amount: int) -> Dict:
 
         new_balance = int(chip_acc.balance)
 
-        # 銀行口座に入金
+        # 銀行口座に入金（1チップ = 12円で換金）
+        redeem_amount = amt * Decimal('12')
         try:
             deposit_by_account_number(
                 account.account_number,
                 branch.code,
-                amt,
+                redeem_amount,
                 'JPY'
             )
         except Exception as e:
@@ -507,7 +508,7 @@ def redeem_chips(user_id: str, amount: int) -> Dict:
         return {
             'success': True,
             'new_balance': new_balance,
-            'amount_received': amount
+            'amount_received': int(redeem_amount)
         }
 
     except Exception as e:

@@ -43,7 +43,7 @@ def handle_chip_redeem_command(user_id: str, text: str, db):
             text="💵 チップ換金\n\n"
                  "使用方法: ?チップ換金 <枚数>\n"
                  "例: ?チップ換金 100\n\n"
-                 "換金率: 1チップ = 1 JPY (100%)\n"
+                 "換金率: 1チップ = 12 JPY\n"
                  "※登録済みの支払い口座に振り込まれます"
         )
 
