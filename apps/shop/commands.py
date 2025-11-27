@@ -154,7 +154,8 @@ def handle_shop_postback(user_id: str, data: dict, db, message_text: Optional[st
                     new_balance=result['new_balance']
                 )
             else:
-                return TextSendMessage(text=f"❌ 購入に失敗しました: {result['message']}")
+                error_message = result.get('error', result.get('message', '不明なエラー'))
+                return TextSendMessage(text=f"❌ 購入に失敗しました: {error_message}")
 
         except Exception as e:
             return TextSendMessage(text=f"❌ エラーが発生しました: {str(e)}")
