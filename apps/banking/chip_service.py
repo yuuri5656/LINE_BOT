@@ -401,6 +401,7 @@ def redeem_chips(user_id: str, amount: int) -> Dict:
 
     db = SessionLocal()
     amt = Decimal(str(amount))
+    new_balance = 0
 
     try:
         # 支払い口座情報を取得（換金先口座）
@@ -444,6 +445,9 @@ def redeem_chips(user_id: str, amount: int) -> Dict:
 
             new_balance = int(chip_acc.balance)
 
+        # トランザクション完了後、明示的にコミット
+        db.commit()
+
         # 銀行口座に入金
         try:
             deposit_by_account_number(
@@ -471,6 +475,7 @@ def redeem_chips(user_id: str, amount: int) -> Dict:
                         description=f'換金失敗による返金: {amount}枚'
                     )
                     db2.add(tx_refund)
+                db2.commit()
             finally:
                 db2.close()
 
