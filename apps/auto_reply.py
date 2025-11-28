@@ -4,7 +4,7 @@
 """
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 from core.api import line_bot_api
-from apps.help_flex import get_detail_account_flex, get_detail_minigame_flex, get_detail_janken_flex
+from apps.help_flex import get_detail_account_flex, get_detail_janken_flex, get_detail_shop_flex, get_detail_utility_flex
 
 # 各機能のコマンドハンドラーをインポート
 from apps.banking import commands as banking_commands
@@ -23,11 +23,14 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         if data == "help_detail_account":
             line_bot_api.reply_message(event.reply_token, get_detail_account_flex())
             return
-        elif data == "help_detail_minigame":
-            line_bot_api.reply_message(event.reply_token, get_detail_minigame_flex())
-            return
         elif data == "help_detail_janken":
             line_bot_api.reply_message(event.reply_token, get_detail_janken_flex())
+            return
+        elif data == "help_detail_shop":
+            line_bot_api.reply_message(event.reply_token, get_detail_shop_flex())
+            return
+        elif data == "help_detail_utility":
+            line_bot_api.reply_message(event.reply_token, get_detail_utility_flex())
             return
         # 通帳表示のpostbackアクション
         elif data.startswith("action=view_passbook"):
@@ -95,10 +98,10 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             banking_commands.handle_transfer_session_input(event, text, user_id, sessions)
             return
 
-        # 口座開設・ミニゲーム口座登録フロー中の処理
-        if isinstance(state, dict) and (state.get("step") or state.get("minigame_registration")):
+        # 口座開設フロー中の処理
+        if isinstance(state, dict) and state.get("step"):
             # セッション中に新たな開始コマンドが来た場合は拒否
-            if text.strip() in ["?口座開設", "?ミニゲーム口座登録", "?振り込み"]:
+            if text.strip() in ["?口座開設", "?振り込み"]:
                 line_bot_api.reply_message(event.reply_token, TextSendMessage(text="現在登録フロー中です。キャンセルまたは完了後に再度お試しください。"))
                 return
 
@@ -119,10 +122,6 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         # 新規開始コマンド
         if text.strip() == "?口座開設":
             banking_commands.handle_account_opening(event, text, user_id, display_name, sessions)
-            return
-
-        if text.strip() == "?ミニゲーム口座登録":
-            banking_commands.handle_minigame_registration(event, text, user_id, display_name, sessions)
             return
 
         # プレイヤーの手入力（じゃんけん）

@@ -12,11 +12,6 @@ def handle_account_opening(event, text, user_id, display_name, sessions):
     bank_reception(event, text, user_id, display_name, sessions)
 
 
-def handle_minigame_registration(event, text, user_id, display_name, sessions):
-    """ミニゲーム口座登録コマンド"""
-    bank_reception(event, text, user_id, display_name, sessions)
-
-
 def handle_account_info(event, user_id):
     """口座情報表示コマンド"""
     if event.source.type != 'user':
@@ -188,10 +183,6 @@ def handle_cancel(event, user_id, sessions):
         if state.get("step"):
             state.pop("step", None)
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="口座開設をキャンセルしました。"))
-            return True
-        if state.get("minigame_registration"):
-            state.pop("minigame_registration", None)
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ミニゲーム口座登録をキャンセルしました。"))
             return True
     return False
 

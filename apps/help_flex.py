@@ -281,7 +281,7 @@ def get_help_flex():
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
-                        {"type": "text", "text": "ページ 3/3", "size": "xs", "color": "#999999", "align": "center"},
+                        {"type": "text", "text": "ページ 2/4", "size": "xs", "color": "#999999", "align": "center"},
                         {
                             "type": "button",
                             "action": {
@@ -291,6 +291,109 @@ def get_help_flex():
                             },
                             "style": "primary",
                             "color": "#32CD32",
+                            "margin": "md"
+                        }
+                    ],
+                    "paddingAll": "10px"
+                }
+            },
+            {
+                "type": "bubble",
+                "hero": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {"type": "text", "text": "ショップ機能", "weight": "bold", "size": "xl", "color": "#ffffff"}
+                    ],
+                    "backgroundColor": "#FF8C00",
+                    "paddingAll": "20px"
+                },
+                "body": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {"type": "text", "text": "?ショップ", "weight": "bold", "size": "md", "color": "#FF8C00", "margin": "md"},
+                        {"type": "text", "text": "ショップを開いて商品を購入できます", "size": "sm", "color": "#666666", "wrap": True},
+                        {"type": "separator", "margin": "md"},
+                        {"type": "text", "text": "?チップ残高", "weight": "bold", "size": "md", "color": "#FF8C00", "margin": "md"},
+                        {"type": "text", "text": "現在のチップ残高を確認します", "size": "sm", "color": "#666666", "wrap": True},
+                        {"type": "separator", "margin": "md"},
+                        {"type": "text", "text": "?チップ履歴", "weight": "bold", "size": "md", "color": "#FF8C00", "margin": "md"},
+                        {"type": "text", "text": "チップの取引履歴を表示します（最新20件）", "size": "sm", "color": "#666666", "wrap": True},
+                        {"type": "separator", "margin": "md"},
+                        {"type": "text", "text": "?チップ換金 [金額]", "weight": "bold", "size": "md", "color": "#FF8C00", "margin": "md"},
+                        {"type": "text", "text": "チップを現金に換金します（個別チャットのみ）", "size": "sm", "color": "#666666", "wrap": True}
+                    ],
+                    "spacing": "sm",
+                    "paddingAll": "20px"
+                },
+                "footer": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {"type": "text", "text": "ページ 3/4", "size": "xs", "color": "#999999", "align": "center"},
+                        {
+                            "type": "button",
+                            "action": {
+                                "type": "postback",
+                                "label": "ショップ機能の詳細ヘルプ",
+                                "data": "help_detail_shop"
+                            },
+                            "style": "primary",
+                            "color": "#FF8C00",
+                            "margin": "md"
+                        }
+                    ],
+                    "paddingAll": "10px"
+                }
+            },
+            {
+                "type": "bubble",
+                "hero": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {"type": "text", "text": "ユーティリティ", "weight": "bold", "size": "xl", "color": "#ffffff"}
+                    ],
+                    "backgroundColor": "#9370DB",
+                    "paddingAll": "20px"
+                },
+                "body": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {"type": "text", "text": "?userid", "weight": "bold", "size": "md", "color": "#9370DB", "margin": "md"},
+                        {"type": "text", "text": "あなたのユーザーIDを表示します", "size": "sm", "color": "#666666", "wrap": True},
+                        {"type": "separator", "margin": "md"},
+                        {"type": "text", "text": "?明日の時間割", "weight": "bold", "size": "md", "color": "#9370DB", "margin": "md"},
+                        {"type": "text", "text": "明日の授業時間割を表示します", "size": "sm", "color": "#666666", "wrap": True},
+                        {"type": "separator", "margin": "md"},
+                        {"type": "text", "text": "?おみくじ", "weight": "bold", "size": "md", "color": "#9370DB", "margin": "md"},
+                        {"type": "text", "text": "運勢を占います", "size": "sm", "color": "#666666", "wrap": True},
+                        {"type": "separator", "margin": "md"},
+                        {"type": "text", "text": "?RPN [式]", "weight": "bold", "size": "md", "color": "#9370DB", "margin": "md"},
+                        {"type": "text", "text": "逆ポーランド記法で計算します", "size": "sm", "color": "#666666", "wrap": True},
+                        {"type": "separator", "margin": "md"},
+                        {"type": "text", "text": "?setname [名前]", "weight": "bold", "size": "md", "color": "#9370DB", "margin": "md"},
+                        {"type": "text", "text": "表示名を設定します", "size": "sm", "color": "#666666", "wrap": True}
+                    ],
+                    "spacing": "sm",
+                    "paddingAll": "20px"
+                },
+                "footer": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {"type": "text", "text": "ページ 4/4", "size": "xs", "color": "#999999", "align": "center"},
+                        {
+                            "type": "button",
+                            "action": {
+                                "type": "postback",
+                                "label": "ユーティリティの詳細ヘルプ",
+                                "data": "help_detail_utility"
+                            },
+                            "style": "primary",
+                            "color": "#9370DB",
                             "margin": "md"
                         }
                     ],
@@ -397,60 +500,6 @@ def get_detail_account_flex():
     }
     return FlexSendMessage(alt_text="口座関連詳細ヘルプ", contents=detail)
 
-def get_detail_minigame_flex():
-    detail = {
-        "type": "bubble",
-        "header": {
-            "type": "box",
-            "layout": "vertical",
-            "contents": [
-                {
-                    "type": "text",
-                    "text": "🎮 ミニゲーム口座 詳細ヘルプ",
-                    "weight": "bold",
-                    "size": "xl",
-                    "color": "#FF6347"
-                }
-            ]
-        },
-        "body": {
-            "type": "box",
-            "layout": "vertical",
-            "contents": [
-                {"type": "separator", "color": "#FF6347"},
-                {
-                    "type": "text",
-                    "text": "?ミニゲーム口座登録",
-                    "weight": "bold",
-                    "size": "lg",
-                    "color": "#FF6347",
-                    "margin": "md"
-                },
-                {
-                    "type": "text",
-                    "text": "口座をミニゲーム専用として登録。支店番号・口座番号・カタカナ氏名・暗証番号を順に入力。登録後はミニゲームで利用可能。",
-                    "size": "md",
-                    "color": "#333333",
-                    "wrap": True,
-                    "margin": "sm"
-                },
-                {"type": "separator", "color": "#FF6347", "margin": "md"},
-                {
-                    "type": "text",
-                    "text": "キャンセルは「?キャンセル」で中断できます。",
-                    "size": "md",
-                    "color": "#FF6347",
-                    "wrap": True,
-                    "margin": "md"
-                }
-            ],
-            "spacing": "md",
-            "paddingAll": "lg",
-            "backgroundColor": "#FFF5F0"
-        }
-    }
-    return FlexSendMessage(alt_text="ミニゲーム口座詳細ヘルプ", contents=detail)
-
 def get_detail_janken_flex():
     detail = {
         "type": "bubble",
@@ -555,3 +604,212 @@ def get_detail_janken_flex():
         }
     }
     return FlexSendMessage(alt_text="じゃんけんゲーム詳細ヘルプ", contents=detail)
+
+def get_detail_shop_flex():
+    detail = {
+        "type": "bubble",
+        "header": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": "🛒 ショップ機能 詳細ヘルプ",
+                    "weight": "bold",
+                    "size": "xl",
+                    "color": "#FF8C00"
+                }
+            ]
+        },
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {"type": "separator", "color": "#FF8C00"},
+                {
+                    "type": "text",
+                    "text": "?ショップ",
+                    "weight": "bold",
+                    "size": "lg",
+                    "color": "#FF8C00",
+                    "margin": "md"
+                },
+                {
+                    "type": "text",
+                    "text": "商品カテゴリを表示し、チップを使って商品を購入できます。商品購入にはチップ残高と支払い口座の登録が必要です。",
+                    "size": "md",
+                    "color": "#333333",
+                    "wrap": True,
+                    "margin": "sm"
+                },
+                {"type": "separator", "color": "#FF8C00", "margin": "md"},
+                {
+                    "type": "text",
+                    "text": "?チップ残高",
+                    "weight": "bold",
+                    "size": "lg",
+                    "color": "#FF8C00",
+                    "margin": "md"
+                },
+                {
+                    "type": "text",
+                    "text": "現在保有しているチップの残高を確認できます。",
+                    "size": "md",
+                    "color": "#333333",
+                    "wrap": True,
+                    "margin": "sm"
+                },
+                {"type": "separator", "color": "#FF8C00", "margin": "md"},
+                {
+                    "type": "text",
+                    "text": "?チップ履歴",
+                    "weight": "bold",
+                    "size": "lg",
+                    "color": "#FF8C00",
+                    "margin": "md"
+                },
+                {
+                    "type": "text",
+                    "text": "最近のチップ取引履歴（最新20件）を表示します。購入や換金の履歴を確認できます。",
+                    "size": "md",
+                    "color": "#333333",
+                    "wrap": True,
+                    "margin": "sm"
+                },
+                {"type": "separator", "color": "#FF8C00", "margin": "md"},
+                {
+                    "type": "text",
+                    "text": "?チップ換金 [金額]",
+                    "weight": "bold",
+                    "size": "lg",
+                    "color": "#FF8C00",
+                    "margin": "md"
+                },
+                {
+                    "type": "text",
+                    "text": "保有チップを現金に換金します。個別チャットでのみ利用可能。換金額を指定してください。（例：?チップ換金 100）",
+                    "size": "md",
+                    "color": "#333333",
+                    "wrap": True,
+                    "margin": "sm"
+                }
+            ],
+            "spacing": "md",
+            "paddingAll": "lg",
+            "backgroundColor": "#FFF5E6"
+        }
+    }
+    return FlexSendMessage(alt_text="ショップ機能詳細ヘルプ", contents=detail)
+
+def get_detail_utility_flex():
+    detail = {
+        "type": "bubble",
+        "header": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": "🔧 ユーティリティ 詳細ヘルプ",
+                    "weight": "bold",
+                    "size": "xl",
+                    "color": "#9370DB"
+                }
+            ]
+        },
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {"type": "separator", "color": "#9370DB"},
+                {
+                    "type": "text",
+                    "text": "?userid",
+                    "weight": "bold",
+                    "size": "lg",
+                    "color": "#9370DB",
+                    "margin": "md"
+                },
+                {
+                    "type": "text",
+                    "text": "あなたのLINE User IDを表示します。サポートや問い合わせ時に必要になることがあります。",
+                    "size": "md",
+                    "color": "#333333",
+                    "wrap": True,
+                    "margin": "sm"
+                },
+                {"type": "separator", "color": "#9370DB", "margin": "md"},
+                {
+                    "type": "text",
+                    "text": "?明日の時間割",
+                    "weight": "bold",
+                    "size": "lg",
+                    "color": "#9370DB",
+                    "margin": "md"
+                },
+                {
+                    "type": "text",
+                    "text": "明日の授業スケジュールを表示します。",
+                    "size": "md",
+                    "color": "#333333",
+                    "wrap": True,
+                    "margin": "sm"
+                },
+                {"type": "separator", "color": "#9370DB", "margin": "md"},
+                {
+                    "type": "text",
+                    "text": "?おみくじ",
+                    "weight": "bold",
+                    "size": "lg",
+                    "color": "#9370DB",
+                    "margin": "md"
+                },
+                {
+                    "type": "text",
+                    "text": "今日の運勢を占います。大吉から大凶まで結果が出ます。",
+                    "size": "md",
+                    "color": "#333333",
+                    "wrap": True,
+                    "margin": "sm"
+                },
+                {"type": "separator", "color": "#9370DB", "margin": "md"},
+                {
+                    "type": "text",
+                    "text": "?RPN [式]",
+                    "weight": "bold",
+                    "size": "lg",
+                    "color": "#9370DB",
+                    "margin": "md"
+                },
+                {
+                    "type": "text",
+                    "text": "逆ポーランド記法（Reverse Polish Notation）で数式を計算します。（例：?RPN 3 4 +）",
+                    "size": "md",
+                    "color": "#333333",
+                    "wrap": True,
+                    "margin": "sm"
+                },
+                {"type": "separator", "color": "#9370DB", "margin": "md"},
+                {
+                    "type": "text",
+                    "text": "?setname [名前]",
+                    "weight": "bold",
+                    "size": "lg",
+                    "color": "#9370DB",
+                    "margin": "md"
+                },
+                {
+                    "type": "text",
+                    "text": "表示名を変更します。（例：?setname 太郎）",
+                    "size": "md",
+                    "color": "#333333",
+                    "wrap": True,
+                    "margin": "sm"
+                }
+            ],
+            "spacing": "md",
+            "paddingAll": "lg",
+            "backgroundColor": "#F3E5F5"
+        }
+    }
+    return FlexSendMessage(alt_text="ユーティリティ詳細ヘルプ", contents=detail)
