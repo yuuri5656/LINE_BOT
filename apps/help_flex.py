@@ -185,7 +185,7 @@ def get_help_flex():
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
-                        {"type": "text", "text": "ページ 1/3", "size": "xs", "color": "#999999", "align": "center"},
+                        {"type": "text", "text": "ページ 1/4", "size": "xs", "color": "#999999", "align": "center"},
                         {
                             "type": "button",
                             "action": {
@@ -195,52 +195,6 @@ def get_help_flex():
                             },
                             "style": "primary",
                             "color": "#1E90FF",
-                            "margin": "md"
-                        }
-                    ],
-                    "paddingAll": "10px"
-                }
-            },
-            {
-                "type": "bubble",
-                "hero": {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                        {"type": "text", "text": "ミニゲーム口座", "weight": "bold", "size": "xl", "color": "#ffffff"}
-                    ],
-                    "backgroundColor": "#FF6347",
-                    "paddingAll": "20px"
-                },
-                "body": {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                        {"type": "text", "text": "?ミニゲーム口座登録", "weight": "bold", "size": "md", "color": "#FF6347", "margin": "md"},
-                        {"type": "text", "text": "お持ちの口座をミニゲーム専用口座として登録します（個別チャットのみ）", "size": "sm", "color": "#666666", "wrap": True},
-                        {"type": "separator", "margin": "md"},
-                        {"type": "text", "text": "登録手順:", "weight": "bold", "size": "sm", "margin": "md"},
-                        {"type": "text", "text": "1. 支店番号（3桁）\n2. 口座番号（7桁）\n3. フルネーム（カタカナ）\n4. 暗証番号（4桁）", "size": "xs", "color": "#666666", "wrap": True},
-                        {"type": "separator", "margin": "md"},
-                        {"type": "text", "text": "※キャンセルは「?キャンセル」と入力", "size": "xs", "color": "#999999", "wrap": True, "margin": "md"}
-                    ],
-                    "spacing": "sm",
-                    "paddingAll": "20px"
-                },
-                "footer": {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                        {"type": "text", "text": "ページ 2/3", "size": "xs", "color": "#999999", "align": "center"},
-                        {
-                            "type": "button",
-                            "action": {
-                                "type": "postback",
-                                "label": "ミニゲーム口座の詳細ヘルプ",
-                                "data": "help_detail_minigame"
-                            },
-                            "style": "primary",
-                            "color": "#FF6347",
                             "margin": "md"
                         }
                     ],
