@@ -33,5 +33,5 @@ def on_postback(event):
     display_name = profile.display_name
 
     # postbackイベントはtextがないので空文字を渡す
-    recording_logs(event, user_id, event.postback.data, display_name, group_id)
+    recording_logs(event, user_id, event.postback.data, display_name)
     auto_reply(event, '', user_id, group_id, display_name, sessions)
