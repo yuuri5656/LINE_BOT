@@ -71,6 +71,59 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
 
     state = sessions.get(user_id)
 
+    # === ?コマンドの優先処理（セッション中でも実行可能） ===
+    # キャンセルコマンド（最優先）
+    if text.strip() == "?キャンセル":
+        # 銀行セッションのキャンセル
+        if isinstance(state, dict) and (state.get("step") or state.get("transfer")):
+            if state.get("transfer"):
+                if banking_commands.handle_transfer_cancel(event, user_id, sessions):
+                    return
+            elif state.get("step"):
+                if banking_commands.handle_cancel(event, user_id, sessions):
+                    return
+        # ゲームセッションのキャンセル
+        if event.source.type == 'group':
+            if game_commands.handle_game_cancel(event, user_id, group_id):
+                return
+
+    # その他の?コマンド（セッション中でも実行可能）
+    if text == "?userid":
+        utility_commands.handle_userid(event, user_id)
+        return
+
+    if text in ["?ヘルプ", "?help"]:
+        utility_commands.handle_help(event)
+        return
+
+    if text == "?口座情報":
+        banking_commands.handle_account_info(event, user_id)
+        return
+
+    if text == "?通帳":
+        banking_commands.handle_passbook(event, user_id)
+        return
+
+    if text == "?チップ残高":
+        from apps.banking.main_bank_system import get_db
+        db = next(get_db())
+        try:
+            response = shop_commands.handle_chip_balance_command(user_id, db)
+            line_bot_api.reply_message(event.reply_token, response)
+        finally:
+            db.close()
+        return
+
+    if text == "?チップ履歴":
+        from apps.banking.main_bank_system import get_db
+        db = next(get_db())
+        try:
+            response = shop_commands.handle_chip_history_command(user_id, db)
+            line_bot_api.reply_message(event.reply_token, response)
+        finally:
+            db.close()
+        return
+
     # === 銀行機能（個別チャット） ===
     if event.source.type == 'user':
         # ショップ支払い口座登録セッション中の処理
@@ -89,11 +142,6 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
 
         # 振り込みセッション中の処理
         if isinstance(state, dict) and state.get("transfer"):
-            # キャンセルコマンド
-            if text.strip() == "?キャンセル":
-                if banking_commands.handle_transfer_cancel(event, user_id, sessions):
-                    return
-
             # セッション中の入力処理
             banking_commands.handle_transfer_session_input(event, text, user_id, sessions)
             return
@@ -104,11 +152,6 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             if text.strip() in ["?口座開設", "?振り込み"]:
                 line_bot_api.reply_message(event.reply_token, TextSendMessage(text="現在登録フロー中です。キャンセルまたは完了後に再度お試しください。"))
                 return
-
-            # キャンセルコマンド
-            if text.strip() == "?キャンセル":
-                if banking_commands.handle_cancel(event, user_id, sessions):
-                    return
 
             # 戻るコマンド
             if text.strip() == "?戻る":
@@ -128,11 +171,6 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         if game_commands.handle_player_move(event, user_id, text):
             return
 
-    # === 共通コマンド ===
-    if text == "?userid":
-        utility_commands.handle_userid(event, user_id)
-        return
-
     if text in ["?ヘルプ", "?help"]:
         utility_commands.handle_help(event)
         return
@@ -145,9 +183,11 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         banking_commands.handle_passbook(event, user_id)
         return
 
-    if text == "?振り込み":
-        banking_commands.handle_transfer(event, user_id, sessions)
-        return
+    # === セッションが必要なコマンド（個別チャット） ===
+    if event.source.type == 'user':
+        if text == "?振り込み":
+            banking_commands.handle_transfer(event, user_id, sessions)
+            return
 
     # === ショップ機能 ===
     if text == "?ショップ":
@@ -155,26 +195,6 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         db = next(get_db())
         try:
             response = shop_commands.handle_shop_command(user_id, db)
-            line_bot_api.reply_message(event.reply_token, response)
-        finally:
-            db.close()
-        return
-
-    if text == "?チップ残高":
-        from apps.banking.main_bank_system import get_db
-        db = next(get_db())
-        try:
-            response = shop_commands.handle_chip_balance_command(user_id, db)
-            line_bot_api.reply_message(event.reply_token, response)
-        finally:
-            db.close()
-        return
-
-    if text == "?チップ履歴":
-        from apps.banking.main_bank_system import get_db
-        db = next(get_db())
-        try:
-            response = shop_commands.handle_chip_history_command(user_id, db)
             line_bot_api.reply_message(event.reply_token, response)
         finally:
             db.close()
@@ -219,10 +239,6 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         if text == "?参加":
             game_commands.handle_join_game(event, user_id, display_name, group_id)
             return
-
-        if text == "?キャンセル":
-            if game_commands.handle_game_cancel(event, user_id, group_id):
-                return
 
         if text == "?開始":
             game_commands.handle_game_start(event, user_id, group_id)

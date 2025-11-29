@@ -1210,9 +1210,10 @@ def finish_game_session(group_id: str, line_bot_api):
 
         # セッションクリア
         group.current_game = None
+        # 勝者決定後は即座にreturnして、次のラウンド処理に進まないようにする
         return
 
-    elif len(remaining_players) > 1:
+    if len(remaining_players) > 1:
         # まだ複数人残っている：再戦
         # プレイヤーの手をクリア
         for p in remaining_players:

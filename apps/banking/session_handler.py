@@ -230,8 +230,14 @@ def bank_reception(event, text, user_id, display_name, sessions):
                 line_bot_api.reply_message(event.reply_token, TextSendMessage(text=message))
                 return
 
+    # キャンセルコマンドの優先チェック（全ステップ共通）
+    if text.strip() == "?キャンセル" and isinstance(state, dict) and state.get("step"):
+        sessions.pop(user_id, None)
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="口座開設をキャンセルしました。"))
+        return
+
     # 口座開設中のやり取り
-    elif current_step == 1 and not text.startswith("?") and text.strip() != "?キャンセル":
+    elif current_step == 1 and not text.startswith("?"):
         full_name = text.strip()
         import re
         # 全角カタカナ→半角カタカナ変換関数
