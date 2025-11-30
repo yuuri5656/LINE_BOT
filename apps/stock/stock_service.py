@@ -35,17 +35,10 @@ class StockService:
         """
         db = SessionLocal()
         try:
-            # 既存口座チェック
+            # 既存口座チェック（一度連携すると変更不可）
             existing = db.query(StockAccount).filter_by(user_id=user_id).first()
             if existing:
-                return {
-                    'stock_account_id': existing.stock_account_id,
-                    'user_id': existing.user_id,
-                    'cash_balance': float(existing.cash_balance),
-                    'total_value': float(existing.total_value or 0),
-                    'registered_at': existing.registered_at,
-                    'exists': True
-                }
+                raise ValueError("既に株式口座が登録されています。変更はできません。")
 
             # 銀行口座の存在確認
             bank_account = db.query(Account).filter_by(account_id=bank_account_id).first()
@@ -105,18 +98,33 @@ class StockService:
         """全銘柄情報を取得"""
         db = SessionLocal()
         try:
+            from apps.stock.models import StockPriceHistory
             stocks = db.query(StockSymbol).filter_by(is_tradable=True).all()
-            return [{
-                'symbol_id': s.symbol_id,
-                'symbol_code': s.symbol_code,
-                'name': s.name,
-                'sector': s.sector,
-                'current_price': s.current_price,
-                'volatility': float(s.volatility),
-                'dividend_yield': float(s.dividend_yield),
-                'market_cap': s.market_cap,
-                'description': s.description
-            } for s in stocks]
+            result = []
+            for s in stocks:
+                # 前日終値取得（2番目に新しい価格履歴）
+                previous_prices = db.query(StockPriceHistory)\
+                    .filter_by(symbol_id=s.symbol_id)\
+                    .order_by(StockPriceHistory.timestamp.desc())\
+                    .limit(2).all()
+
+                previous_close = previous_prices[1].price if len(previous_prices) >= 2 else s.current_price
+                change_rate = ((s.current_price - previous_close) / previous_close * 100) if previous_close > 0 else 0
+
+                result.append({
+                    'symbol_id': s.symbol_id,
+                    'symbol_code': s.symbol_code,
+                    'name': s.name,
+                    'sector': s.sector,
+                    'current_price': s.current_price,
+                    'previous_close': previous_close,
+                    'change_rate': change_rate,
+                    'volatility': float(s.volatility),
+                    'dividend_yield': float(s.dividend_yield),
+                    'market_cap': s.market_cap,
+                    'description': s.description
+                })
+            return result
         finally:
             db.close()
 
@@ -125,9 +133,25 @@ class StockService:
         """銘柄コードから銘柄情報を取得"""
         db = SessionLocal()
         try:
+            from apps.stock.models import StockPriceHistory
             stock = db.query(StockSymbol).filter_by(symbol_code=symbol_code, is_tradable=True).first()
             if not stock:
                 return None
+
+            # 価格履歴から前日終値と高安値を取得
+            latest_history = db.query(StockPriceHistory)\
+                .filter_by(symbol_id=stock.symbol_id)\
+                .order_by(StockPriceHistory.timestamp.desc())\
+                .first()
+
+            previous_prices = db.query(StockPriceHistory)\
+                .filter_by(symbol_id=stock.symbol_id)\
+                .order_by(StockPriceHistory.timestamp.desc())\
+                .limit(2).all()
+
+            previous_close = previous_prices[1].price if len(previous_prices) >= 2 else stock.current_price
+            daily_high = latest_history.daily_high if latest_history else stock.current_price
+            daily_low = latest_history.daily_low if latest_history else stock.current_price
 
             return {
                 'symbol_id': stock.symbol_id,
@@ -135,6 +159,9 @@ class StockService:
                 'name': stock.name,
                 'sector': stock.sector,
                 'current_price': stock.current_price,
+                'previous_close': previous_close,
+                'daily_high': daily_high,
+                'daily_low': daily_low,
                 'volatility': float(stock.volatility),
                 'dividend_yield': float(stock.dividend_yield),
                 'market_cap': stock.market_cap,
@@ -206,7 +233,7 @@ class StockService:
                 return False, f"残高不足です（必要: ¥{total_amount:,}、残高: ¥{bank_account.balance:,}）", None
 
             # 引き落とし実行（banking_api使用）
-            withdraw_result = banking_api.withdraw_by_account_number(
+            withdraw_result = banking_api.withdraw_by_account(
                 bank_account.account_number,
                 bank_account.branch.code,
                 float(total_amount),
@@ -318,7 +345,7 @@ class StockService:
             if not bank_account:
                 return False, "連携銀行口座が見つかりません", None
 
-            deposit_result = banking_api.deposit_by_account_number(
+            deposit_result = banking_api.deposit_by_account(
                 bank_account.account_number,
                 bank_account.branch.code,
                 float(total_amount),

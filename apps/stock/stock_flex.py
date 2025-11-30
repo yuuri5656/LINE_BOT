@@ -148,7 +148,7 @@ def get_stock_dashboard(user_id: str, has_account: bool) -> FlexSendMessage:
     )
 
 
-def get_stock_list_carousel(stocks: List[Dict], page: int = 0, per_page: int = 5) -> FlexSendMessage:
+def get_stock_list_carousel(stocks: List[Dict], page: int = 0, per_page: int = 10) -> FlexSendMessage:
     """
     銘柄一覧カルーセル
 
@@ -163,6 +163,12 @@ def get_stock_list_carousel(stocks: List[Dict], page: int = 0, per_page: int = 5
 
     bubbles = []
     for stock in page_stocks:
+        # 騰落率計算
+        change_rate = stock.get('change_rate', 0)
+        change_color = "#4CAF50" if change_rate >= 0 else "#F44336"
+        change_arrow = "▲" if change_rate >= 0 else "▼"
+        change_sign = "+" if change_rate > 0 else ""
+
         bubble = {
             "type": "bubble",
             "size": "kilo",
@@ -170,8 +176,8 @@ def get_stock_list_carousel(stocks: List[Dict], page: int = 0, per_page: int = 5
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                    {"type": "text", "text": stock['symbol_code'], "size": "xl", "weight": "bold", "color": "#FFFFFF", "align": "center"},
-                    {"type": "text", "text": stock['name'], "size": "sm", "color": "#FFFFFF", "align": "center", "margin": "md", "wrap": True}
+                    {"type": "text", "text": stock['symbol_code'], "size": "md", "weight": "bold", "color": "#FFFFFF", "align": "center"},
+                    {"type": "text", "text": stock['name'], "size": "lg", "color": "#FFFFFF", "align": "center", "margin": "md", "wrap": True}
                 ],
                 "backgroundColor": "#2196F3",
                 "paddingAll": "20px"
@@ -182,11 +188,13 @@ def get_stock_list_carousel(stocks: List[Dict], page: int = 0, per_page: int = 5
                 "contents": [
                     {
                         "type": "box",
-                        "layout": "baseline",
+                        "layout": "horizontal",
                         "contents": [
-                            {"type": "text", "text": "現在値", "size": "sm", "color": "#666666", "flex": 3},
-                            {"type": "text", "text": f"¥{stock['current_price']:,}", "size": "lg", "weight": "bold", "color": "#4CAF50", "flex": 5, "align": "end"}
-                        ]
+                            {"type": "text", "text": change_arrow, "size": "sm", "color": change_color, "flex": 0, "margin": "none"},
+                            {"type": "text", "text": f"{change_sign}{change_rate:.2f}%", "size": "xs", "color": change_color, "flex": 0, "margin": "sm"},
+                            {"type": "text", "text": f"¥{stock['current_price']:,}", "size": "xl", "weight": "bold", "color": "#333333", "flex": 1, "align": "end"}
+                        ],
+                        "alignItems": "center"
                     },
                     {
                         "type": "box",
@@ -196,18 +204,9 @@ def get_stock_list_carousel(stocks: List[Dict], page: int = 0, per_page: int = 5
                             {"type": "text", "text": stock['sector'], "size": "sm", "flex": 5, "align": "end", "wrap": True}
                         ],
                         "margin": "md"
-                    },
-                    {
-                        "type": "box",
-                        "layout": "baseline",
-                        "contents": [
-                            {"type": "text", "text": "配当利回り", "size": "sm", "color": "#666666", "flex": 3},
-                            {"type": "text", "text": f"{stock['dividend_yield']:.2f}%", "size": "sm", "flex": 5, "align": "end"}
-                        ],
-                        "margin": "md"
                     }
                 ],
-                "paddingAll": "20px"
+                "paddingAll": "18px"
             },
             "footer": {
                 "type": "box",
@@ -274,6 +273,9 @@ def get_stock_detail_flex(stock: Dict, has_holding: bool = False) -> FlexSendMes
                     "layout": "vertical",
                     "contents": [
                         _create_info_row("セクター", stock['sector']),
+                        _create_info_row("前日終値", f"¥{stock.get('previous_close', 0):,}" if stock.get('previous_close') else "N/A"),
+                        _create_info_row("高値", f"¥{stock.get('daily_high', 0):,}" if stock.get('daily_high') else "N/A"),
+                        _create_info_row("安値", f"¥{stock.get('daily_low', 0):,}" if stock.get('daily_low') else "N/A"),
                         _create_info_row("時価総額", f"¥{stock['market_cap']:,}" if stock.get('market_cap') else "N/A"),
                         _create_info_row("配当利回り", f"{stock['dividend_yield']:.2f}%"),
                     ],
@@ -591,7 +593,7 @@ def get_trade_result_flex(success: bool, trade_type: str, result_data: Optional[
                 "contents": [
                     {"type": "text", "text": f"❌ {action_text}失敗", "weight": "bold", "size": "xl", "color": "#FFFFFF"}
                 ],
-                "backgroundColor": "#F44336",
+                "backgroundColor": "#C62828",
                 "paddingAll": "20px"
             },
             "body": {
@@ -634,11 +636,14 @@ def get_account_registration_flex(accounts: List[Dict]) -> FlexSendMessage:
                 "layout": "vertical",
                 "contents": [
                     {"type": "text", "text": "以下の銀行口座と連携した株式口座を開設します", "wrap": True, "color": "#666666", "size": "sm"},
+                    {"type": "text", "text": "⚠️ 一度連携すると変更できません", "wrap": True, "color": "#F44336", "size": "xs", "weight": "bold", "margin": "sm"},
                     {"type": "separator", "margin": "lg"},
                     {
                         "type": "box",
                         "layout": "vertical",
                         "contents": [
+                            _create_info_row("名義", account.get('account_holder', 'N/A')),
+                            _create_info_row("種別", account.get('account_type', 'N/A')),
                             _create_info_row("支店", f"{account['branch_code']} - {account['branch_name']}"),
                             _create_info_row("口座番号", account['account_number']),
                             _create_info_row("残高", f"¥{float(account['balance']):,.0f}"),
@@ -669,6 +674,30 @@ def get_account_registration_flex(accounts: List[Dict]) -> FlexSendMessage:
         }
     else:
         # 口座が複数の場合は選択画面
+        account_boxes = []
+        for i, acc in enumerate(accounts):
+            if i > 0:
+                account_boxes.append({"type": "separator", "margin": "lg"})
+            account_boxes.append({
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": f"📌 {acc.get('account_holder', 'N/A')}", "size": "md", "weight": "bold", "color": "#2196F3"},
+                    {"type": "text", "text": f"種別: {acc.get('account_type', 'N/A')}", "size": "xs", "color": "#666666", "margin": "sm"},
+                    {"type": "text", "text": f"{acc['branch_code']}-{acc['account_number']}", "size": "sm", "weight": "bold", "margin": "sm"},
+                    {"type": "text", "text": f"残高: ¥{float(acc['balance']):,.0f}", "size": "xs", "color": "#666666"},
+                    {"type": "text", "text": "👆 タップして選択", "size": "xxs", "color": "#999999", "align": "center", "margin": "sm"}
+                ],
+                "margin": "lg",
+                "paddingAll": "15px",
+                "backgroundColor": "#F5F5F5",
+                "cornerRadius": "md",
+                "action": {
+                    "type": "postback",
+                    "data": f"action=select_stock_account&account_id={acc['account_id']}"
+                }
+            })
+
         bubble = {
             "type": "bubble",
             "size": "mega",
@@ -685,23 +714,9 @@ def get_account_registration_flex(accounts: List[Dict]) -> FlexSendMessage:
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                    {"type": "text", "text": "連携する銀行口座を選択してください", "wrap": True, "color": "#666666", "size": "sm"}
-                ] + [
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "contents": [
-                            {"type": "text", "text": f"{acc['branch_code']}-{acc['account_number']}", "size": "sm", "weight": "bold"},
-                            {"type": "text", "text": f"残高: ¥{float(acc['balance']):,.0f}", "size": "xs", "color": "#666666"}
-                        ],
-                        "margin": "lg",
-                        "action": {
-                            "type": "postback",
-                            "data": f"action=select_stock_account&account_id={acc['account_id']}"
-                        }
-                    }
-                    for acc in accounts
-                ],
+                    {"type": "text", "text": "連携する銀行口座を選択してください", "wrap": True, "color": "#666666", "size": "sm"},
+                    {"type": "text", "text": "⚠️ 一度連携すると変更できません", "wrap": True, "color": "#F44336", "size": "xs", "weight": "bold", "margin": "sm"}
+                ] + account_boxes,
                 "paddingAll": "20px"
             }
         }

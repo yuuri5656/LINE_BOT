@@ -337,7 +337,7 @@ class PriceService:
                         continue
 
                     # 銀行APIを使って入金（取引履歴付き）
-                    deposit_result = banking_api.deposit_by_account_number(
+                    deposit_result = banking_api.deposit_by_account(
                         account_number=bank_account.account_number,
                         branch_code=bank_account.branch.code,
                         amount=float(total_dividend),

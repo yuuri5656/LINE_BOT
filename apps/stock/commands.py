@@ -36,6 +36,11 @@ def handle_account_registration(event, user_id):
         )
         return
 
+    # FlexMessage用に名前をマッピング
+    for acc in bank_accounts:
+        acc['account_holder'] = acc.get('full_name', 'N/A')
+        acc['account_type'] = acc.get('type', 'N/A')
+
     # 株式口座登録セッション開始
     stock_api.start_account_registration_session(user_id, bank_accounts)
 
