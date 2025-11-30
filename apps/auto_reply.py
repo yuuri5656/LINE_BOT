@@ -11,6 +11,7 @@ from apps.banking import commands as banking_commands
 from apps.games import commands as game_commands
 from apps.utilities import commands as utility_commands
 from apps.shop import commands as shop_commands
+from apps.stock import commands as stock_commands
 
 
 def auto_reply(event, text, user_id, group_id, display_name, sessions):
@@ -68,6 +69,12 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             finally:
                 db.close()
             return
+        # 株式のpostbackアクション
+        elif data.startswith("action=stock_") or data.startswith("action=confirm_stock_") or data.startswith("action=buy_stock") or data.startswith("action=sell_stock") or data.startswith("action=confirm_buy") or data.startswith("action=confirm_sell") or data.startswith("action=cancel_trade") or data.startswith("action=my_holdings") or data.startswith("action=market_news") or data.startswith("action=select_stock_account"):
+            import urllib.parse
+            parsed_data = dict(urllib.parse.parse_qsl(data))
+            stock_commands.handle_stock_postback(event, parsed_data, user_id)
+            return
 
     state = sessions.get(user_id)
 
@@ -104,6 +111,10 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         banking_commands.handle_passbook(event, user_id)
         return
 
+    if text == "?株":
+        stock_commands.handle_stock_command(event, user_id)
+        return
+
     if text == "?チップ残高":
         from apps.banking.main_bank_system import get_db
         db = next(get_db())
@@ -126,6 +137,12 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
 
     # === 銀行機能（個別チャット） ===
     if event.source.type == 'user':
+        # 株式トレードセッション中の処理
+        from apps.stock.api import stock_api
+        if stock_api.has_session(user_id):
+            if stock_commands.handle_stock_session(event, user_id, text.strip()):
+                return
+
         # ショップ支払い口座登録セッション中の処理
         from apps.shop.commands import shop_session_manager
         shop_state = shop_session_manager.get_session(user_id)

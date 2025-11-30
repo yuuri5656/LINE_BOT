@@ -2,8 +2,12 @@ from flask import Flask, request, abort
 from linebot.exceptions import InvalidSignatureError
 from core.api import handler
 import core.handler
+from apps.stock.background_updater import start_background_updater
 
 app = Flask(__name__)
+
+# 株価バックグラウンド更新を開始
+start_background_updater()
 
 @app.route("/callback", methods=['POST'])
 def callback():
