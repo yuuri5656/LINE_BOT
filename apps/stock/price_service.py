@@ -67,7 +67,7 @@ class PriceService:
         """全銘柄の価格を更新"""
         db = SessionLocal()
         try:
-            stocks = db.query(StockSymbol).filter_by(is_tradable=1).all()
+            stocks = db.query(StockSymbol).filter_by(is_tradable=True).all()
 
             for stock in stocks:
                 # AIトレーダーの売買集計
@@ -166,8 +166,8 @@ class PriceService:
         """AIトレーダーの取引を実行"""
         db = SessionLocal()
         try:
-            traders = db.query(AITrader).filter_by(is_active=1).all()
-            stocks = db.query(StockSymbol).filter_by(is_tradable=1).all()
+            traders = db.query(AITrader).filter_by(is_active=True).all()
+            stocks = db.query(StockSymbol).filter_by(is_tradable=True).all()
 
             for trader in traders:
                 # 各AIトレーダーがランダムに1-2銘柄を取引

@@ -58,7 +58,7 @@ class StockService:
                 linked_bank_account_id=bank_account_id,
                 cash_balance=Decimal('0'),
                 total_value=Decimal('0'),
-                is_active=1
+                is_active=True
             )
             db.add(new_account)
             db.commit()
@@ -84,7 +84,7 @@ class StockService:
         """株式口座情報を取得"""
         db = SessionLocal()
         try:
-            account = db.query(StockAccount).filter_by(user_id=user_id, is_active=1).first()
+            account = db.query(StockAccount).filter_by(user_id=user_id, is_active=True).first()
             if not account:
                 return None
 
@@ -105,7 +105,7 @@ class StockService:
         """全銘柄情報を取得"""
         db = SessionLocal()
         try:
-            stocks = db.query(StockSymbol).filter_by(is_tradable=1).all()
+            stocks = db.query(StockSymbol).filter_by(is_tradable=True).all()
             return [{
                 'symbol_id': s.symbol_id,
                 'symbol_code': s.symbol_code,
@@ -125,7 +125,7 @@ class StockService:
         """銘柄コードから銘柄情報を取得"""
         db = SessionLocal()
         try:
-            stock = db.query(StockSymbol).filter_by(symbol_code=symbol_code, is_tradable=1).first()
+            stock = db.query(StockSymbol).filter_by(symbol_code=symbol_code, is_tradable=True).first()
             if not stock:
                 return None
 
@@ -185,12 +185,12 @@ class StockService:
         db = SessionLocal()
         try:
             # 株式口座取得
-            stock_account = db.query(StockAccount).filter_by(user_id=user_id, is_active=1).first()
+            stock_account = db.query(StockAccount).filter_by(user_id=user_id, is_active=True).first()
             if not stock_account:
                 return False, "株式口座が登録されていません", None
 
             # 銘柄情報取得
-            stock = db.query(StockSymbol).filter_by(symbol_code=symbol_code, is_tradable=1).first()
+            stock = db.query(StockSymbol).filter_by(symbol_code=symbol_code, is_tradable=True).first()
             if not stock:
                 return False, "指定された銘柄が見つかりません", None
 
@@ -289,12 +289,12 @@ class StockService:
         db = SessionLocal()
         try:
             # 株式口座取得
-            stock_account = db.query(StockAccount).filter_by(user_id=user_id, is_active=1).first()
+            stock_account = db.query(StockAccount).filter_by(user_id=user_id, is_active=True).first()
             if not stock_account:
                 return False, "株式口座が登録されていません", None
 
             # 銘柄情報取得
-            stock = db.query(StockSymbol).filter_by(symbol_code=symbol_code, is_tradable=1).first()
+            stock = db.query(StockSymbol).filter_by(symbol_code=symbol_code, is_tradable=True).first()
             if not stock:
                 return False, "指定された銘柄が見つかりません", None
 
