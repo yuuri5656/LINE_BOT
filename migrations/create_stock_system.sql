@@ -40,7 +40,7 @@ CREATE INDEX idx_stock_price_timestamp ON stock_price_history(timestamp DESC);
 CREATE TABLE IF NOT EXISTS stock_accounts (
     stock_account_id SERIAL PRIMARY KEY,
     user_id VARCHAR(255) NOT NULL UNIQUE,
-    linked_bank_account_id INTEGER NOT NULL REFERENCES accounts(account_id),
+    linked_bank_account_id INTEGER NOT NULL,        -- 外部キー制約なし（アプリケーション層で整合性管理）
     cash_balance DECIMAL(18, 2) DEFAULT 0 NOT NULL, -- 現金残高（証券口座内）
     total_value DECIMAL(18, 2) DEFAULT 0,           -- 総資産評価額
     registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

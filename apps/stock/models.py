@@ -96,7 +96,7 @@ class StockAccount(Base):
 
     stock_account_id = Column(Integer, primary_key=True)
     user_id = Column(String(255), unique=True, nullable=False)
-    linked_bank_account_id = Column(BigInteger, ForeignKey('accounts.account_id'), nullable=False)
+    linked_bank_account_id = Column(BigInteger, nullable=False)  # 外部キー制約を削除（異なるエンジン間では使用できない）
     cash_balance = Column(Numeric(18, 2), server_default=text('0'), nullable=False)
     total_value = Column(Numeric(18, 2), server_default=text('0'))
     registered_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
