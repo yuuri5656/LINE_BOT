@@ -18,7 +18,14 @@ from sqlalchemy import (
 import config
 
 # データベースに接続するためのエンジンを作成
-engine = create_engine(config.DATABASE_URL)
+# 接続プールの設定を追加してSSLエラーを回避
+engine = create_engine(
+    config.DATABASE_URL,
+    pool_pre_ping=True,  # 接続を使う前に有効性を確認
+    pool_recycle=3600,   # 1時間ごとに接続を再作成
+    pool_size=5,         # 接続プールサイズ
+    max_overflow=10      # 最大オーバーフロー接続数
+)
 
 Base = declarative_base()
 
