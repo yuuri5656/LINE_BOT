@@ -7,8 +7,16 @@
 from typing import Optional, List, Dict, Tuple
 from .stock_service import stock_service
 from .price_service import price_service
-from .chart_service import chart_service
 from .session_manager import stock_session_manager
+
+# chart_serviceは重い依存関係があるため遅延インポート
+def _get_chart_service():
+    try:
+        from .chart_service import chart_service
+        return chart_service
+    except Exception as e:
+        print(f"[警告] チャート機能は利用できません: {e}")
+        return None
 
 
 class StockAPI:
@@ -93,18 +101,27 @@ class StockAPI:
 
     @staticmethod
     def generate_stock_chart(symbol_code: str, days: int = 30) -> Optional[str]:
-        """株価チャートを生成（Base64エンコード画像）"""
-        return chart_service.generate_stock_chart(symbol_code, days)
+        """株価チャートを生成してImgur画像URLを返す"""
+        chart_service = _get_chart_service()
+        if chart_service:
+            return chart_service.generate_stock_chart(symbol_code, days)
+        return None
 
     @staticmethod
     def generate_portfolio_chart(holdings: List[Dict]) -> Optional[str]:
-        """ポートフォリオチャートを生成"""
-        return chart_service.generate_portfolio_chart(holdings)
+        """ポートフォリオチャートを生成してImgur画像URLを返す"""
+        chart_service = _get_chart_service()
+        if chart_service:
+            return chart_service.generate_portfolio_chart(holdings)
+        return None
 
     @staticmethod
     def generate_comparison_chart(holdings: List[Dict]) -> Optional[str]:
-        """保有株損益比較チャートを生成"""
-        return chart_service.generate_comparison_chart(holdings)
+        """保有株損益比較チャートを生成してImgur画像URLを返す"""
+        chart_service = _get_chart_service()
+        if chart_service:
+            return chart_service.generate_comparison_chart(holdings)
+        return None
 
     # === セッション管理 ===
 

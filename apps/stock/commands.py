@@ -83,19 +83,21 @@ def handle_stock_detail(event, symbol_code: str, user_id: str):
     # 詳細FlexMessage
     detail_flex = stock_flex.get_stock_detail_flex(stock, has_holding)
 
-    # チャート画像生成
-    chart_base64 = stock_api.generate_stock_chart(symbol_code, days=30)
+    # チャート画像生成（Imgur統合）
+    chart_url = stock_api.generate_stock_chart(symbol_code, days=30)
 
     messages = [detail_flex]
 
-    if chart_base64:
-        # Base64画像をLINEに送信するためにはアップロードが必要
-        # 簡易的にテキストで通知（実際の実装では画像アップロードが必要）
-        messages.append(TextSendMessage(text=f"📊 {symbol_code}の株価チャート（直近30日）"))
+    if chart_url:
+        # 画像URLを使ってImageSendMessageで送信
+        from linebot.models import ImageSendMessage
+        chart_image = ImageSendMessage(
+            original_content_url=chart_url,
+            preview_image_url=chart_url
+        )
+        messages.append(chart_image)
 
     line_bot_api.reply_message(event.reply_token, messages)
-
-
 def handle_my_holdings(event, user_id: str):
     """保有株一覧表示"""
     holdings = stock_api.get_user_holdings(user_id)

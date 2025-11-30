@@ -11,3 +11,8 @@ LINE_CHANNEL_ACCESS_TOKEN = _get_env_or_raise('LINE_CHANNEL_ACCESS_TOKEN')
 DATABASE_URL = _get_env_or_raise('DATABASE_URL')
 # 任意: 管理者/作成者のLINE userId。設定されていれば口座作成完了通知を個別送信する。
 ADMIN_USER_ID = os.environ.get('ADMIN_USER_ID')
+# 画像アップロードAPI設定（チャート画像用）
+# Imgur: https://imgur.com/account/settings/apps でClient IDを取得
+IMGUR_CLIENT_ID = os.environ.get('IMGUR_CLIENT_ID')
+# ImgBB（代替）: https://api.imgbb.com/ でAPI Keyを取得
+IMGBB_API_KEY = os.environ.get('IMGBB_API_KEY')

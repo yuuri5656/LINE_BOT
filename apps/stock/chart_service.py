@@ -3,32 +3,178 @@
 
 外部から直接インポートせず、api.py経由で使用すること
 """
-import matplotlib
-matplotlib.use('Agg')  # GUIバックエンドを使わない
-import matplotlib.pyplot as plt
-import japanize_matplotlib
+try:
+    import matplotlib
+    matplotlib.use('Agg')  # GUIバックエンドを使わない
+    import matplotlib.pyplot as plt
+    import japanize_matplotlib
+    MATPLOTLIB_AVAILABLE = True
+except ImportError as e:
+    print(f"[警告] matplotlib/japanize-matplotlibがインストールされていません: {e}")
+    MATPLOTLIB_AVAILABLE = False
+
+try:
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    print(f"[警告] requestsがインストールされていません")
+    REQUESTS_AVAILABLE = False
+
 from typing import List, Dict, Optional
 import io
 import base64
 from datetime import datetime
 from .price_service import price_service
+from config import IMGUR_CLIENT_ID, IMGBB_API_KEY
 
 
 class ChartService:
     """株価チャート生成サービス"""
 
     @staticmethod
+    def upload_to_imgbb(image_base64: str) -> Optional[str]:
+        """
+        Base64画像をImgBBにアップロードしてURLを取得
+
+        Args:
+            image_base64: Base64エンコードされた画像データ
+
+        Returns:
+            アップロードされた画像のURL、失敗時はNone
+        """
+        if not REQUESTS_AVAILABLE:
+            print("[ImgBB] requestsライブラリが利用できません")
+            return None
+
+        if not IMGBB_API_KEY:
+            print("[ImgBB] IMGBB_API_KEYが設定されていません")
+            return None
+
+        try:
+            data = {
+                'key': IMGBB_API_KEY,
+                'image': image_base64
+            }
+
+            response = requests.post(
+                'https://api.imgbb.com/1/upload',
+                data=data,
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('success'):
+                    image_url = result['data']['url']
+                    print(f"[ImgBB] 画像アップロード成功: {image_url}")
+                    return image_url
+                else:
+                    print(f"[ImgBB] アップロード失敗: {result}")
+                    return None
+            else:
+                print(f"[ImgBB] HTTPエラー: {response.status_code} - {response.text}")
+                return None
+
+        except Exception as e:
+            print(f"[ImgBB] アップロードエラー: {e}")
+            return None
+
+    @staticmethod
+    def upload_to_imgur(image_base64: str) -> Optional[str]:
+        """
+        Base64画像をImgurにアップロードしてURLを取得
+
+        Args:
+            image_base64: Base64エンコードされた画像データ
+
+        Returns:
+            アップロードされた画像のURL、失敗時はNone
+        """
+        if not REQUESTS_AVAILABLE:
+            print("[Imgur] requestsライブラリが利用できません")
+            return None
+
+        if not IMGUR_CLIENT_ID:
+            print("[Imgur] IMGUR_CLIENT_IDが設定されていません")
+            return None
+
+        try:
+            headers = {
+                'Authorization': f'Client-ID {IMGUR_CLIENT_ID}'
+            }
+            data = {
+                'image': image_base64,
+                'type': 'base64'
+            }
+
+            response = requests.post(
+                'https://api.imgur.com/3/image',
+                headers=headers,
+                data=data,
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('success'):
+                    image_url = result['data']['link']
+                    print(f"[Imgur] 画像アップロード成功: {image_url}")
+                    return image_url
+                else:
+                    print(f"[Imgur] アップロード失敗: {result}")
+                    return None
+            else:
+                print(f"[Imgur] HTTPエラー: {response.status_code} - {response.text}")
+                return None
+
+        except Exception as e:
+            print(f"[Imgur] アップロードエラー: {e}")
+            return None
+
+    @staticmethod
+    def upload_image(image_base64: str) -> Optional[str]:
+        """
+        Base64画像を画像ホスティングサービスにアップロード
+        ImgBB → Imgurの優先順位で試行
+
+        Args:
+            image_base64: Base64エンコードされた画像データ
+
+        Returns:
+            アップロードされた画像のURL、失敗時はNone
+        """
+        # ImgBBを優先的に使用（登録が簡単なため）
+        if IMGBB_API_KEY:
+            url = ChartService.upload_to_imgbb(image_base64)
+            if url:
+                return url
+            print("[画像アップロード] ImgBBが失敗、Imgurを試行...")
+
+        # Imgurをフォールバック
+        if IMGUR_CLIENT_ID:
+            url = ChartService.upload_to_imgur(image_base64)
+            if url:
+                return url
+
+        print("[画像アップロード] すべてのサービスが利用できません")
+        return None
+
+    @staticmethod
     def generate_stock_chart(symbol_code: str, days: int = 30) -> Optional[str]:
         """
-        株価チャートを生成してBase64エンコードした画像を返す
+        株価チャートを生成してImgurにアップロード
 
         Args:
             symbol_code: 銘柄コード
             days: 表示日数
 
         Returns:
-            Base64エンコードされた画像データ、失敗時はNone
+            Imgur画像URL、失敗時はNone
         """
+        if not MATPLOTLIB_AVAILABLE:
+            print("[チャート] matplotlibが利用できないため、チャート生成をスキップします")
+            return None
+
         try:
             # 株価履歴取得
             history = price_service.get_price_history(symbol_code, limit=days)
@@ -75,7 +221,9 @@ class ChartService:
             plt.close(fig)
             buf.close()
 
-            return image_base64
+            # 画像アップロード（ImgBBまたはImgur）
+            image_url = ChartService.upload_image(image_base64)
+            return image_url
 
         except Exception as e:
             print(f"チャート生成エラー: {e}")
@@ -84,14 +232,17 @@ class ChartService:
     @staticmethod
     def generate_portfolio_chart(holdings: List[Dict]) -> Optional[str]:
         """
-        ポートフォリオ（保有株の割合）チャートを生成
+        ポートフォリオ（保有株の割合）チャートを生成してImgurにアップロード
 
         Args:
             holdings: 保有株リスト
 
         Returns:
-            Base64エンコードされた画像データ
+            Imgur画像URL、失敗時はNone
         """
+        if not MATPLOTLIB_AVAILABLE:
+            return None
+
         try:
             if not holdings:
                 return None
@@ -133,7 +284,9 @@ class ChartService:
             plt.close(fig)
             buf.close()
 
-            return image_base64
+            # 画像アップロード（ImgBBまたはImgur）
+            image_url = ChartService.upload_image(image_base64)
+            return image_url
 
         except Exception as e:
             print(f"ポートフォリオチャート生成エラー: {e}")
@@ -142,14 +295,17 @@ class ChartService:
     @staticmethod
     def generate_comparison_chart(holdings: List[Dict]) -> Optional[str]:
         """
-        保有株の損益比較チャート（棒グラフ）を生成
+        保有株の損益比較チャート（棒グラフ）を生成してImgurにアップロード
 
         Args:
             holdings: 保有株リスト
 
         Returns:
-            Base64エンコードされた画像データ
+            Imgur画像URL、失敗時はNone
         """
+        if not MATPLOTLIB_AVAILABLE:
+            return None
+
         try:
             if not holdings:
                 return None
@@ -206,7 +362,9 @@ class ChartService:
             plt.close(fig)
             buf.close()
 
-            return image_base64
+            # 画像アップロード（ImgBBまたはImgur）
+            image_url = ChartService.upload_image(image_base64)
+            return image_url
 
         except Exception as e:
             print(f"損益比較チャート生成エラー: {e}")
