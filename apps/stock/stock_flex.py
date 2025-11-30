@@ -641,7 +641,7 @@ def get_account_registration_flex(accounts: List[Dict]) -> FlexSendMessage:
                         "contents": [
                             _create_info_row("支店", f"{account['branch_code']} - {account['branch_name']}"),
                             _create_info_row("口座番号", account['account_number']),
-                            _create_info_row("残高", f"¥{account['balance']:,.0f}"),
+                            _create_info_row("残高", f"¥{float(account['balance']):,.0f}"),
                         ],
                         "margin": "lg",
                         "spacing": "md"
@@ -692,7 +692,7 @@ def get_account_registration_flex(accounts: List[Dict]) -> FlexSendMessage:
                         "layout": "vertical",
                         "contents": [
                             {"type": "text", "text": f"{acc['branch_code']}-{acc['account_number']}", "size": "sm", "weight": "bold"},
-                            {"type": "text", "text": f"残高: ¥{acc['balance']:,.0f}", "size": "xs", "color": "#666666"}
+                            {"type": "text", "text": f"残高: ¥{float(acc['balance']):,.0f}", "size": "xs", "color": "#666666"}
                         ],
                         "margin": "lg",
                         "action": {
