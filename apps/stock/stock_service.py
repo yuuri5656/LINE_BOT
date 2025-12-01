@@ -17,6 +17,10 @@ from apps.stock.models import (
 from apps.banking.main_bank_system import Account
 from apps.banking.api import banking_api
 
+# 準備預金口座（株式決済用）
+RESERVE_ACCOUNT_NUMBER = '7777777'
+RESERVE_BRANCH_CODE = '001'
+
 
 class StockService:
     """株式売買・保有管理サービス"""
@@ -224,7 +228,7 @@ class StockService:
             # 必要金額計算
             total_amount = Decimal(str(stock.current_price * quantity))
 
-            # 銀行口座から引き落とし
+            # 銀行口座取得
             bank_account = db.query(Account).filter_by(account_id=stock_account.linked_bank_account_id).first()
             if not bank_account:
                 return False, "連携銀行口座が見つかりません", None
@@ -232,16 +236,18 @@ class StockService:
             if bank_account.balance < total_amount:
                 return False, f"残高不足です（必要: ¥{total_amount:,}、残高: ¥{bank_account.balance:,}）", None
 
-            # 引き落とし実行（banking_api使用）
-            withdraw_result = banking_api.withdraw_by_account(
-                bank_account.account_number,
-                bank_account.branch.code,
-                float(total_amount),
-                'JPY'
-            )
-
-            if not withdraw_result:
-                return False, "銀行口座からの引き落としに失敗しました", None
+            # 準備預金口座へ振込（株式購入代金）
+            description = f"株式購入 {stock.symbol_code} {quantity}株"
+            try:
+                banking_api.transfer(
+                    from_account_number=bank_account.account_number,
+                    to_account_number=RESERVE_ACCOUNT_NUMBER,
+                    amount=float(total_amount),
+                    currency='JPY',
+                    description=description
+                )
+            except Exception as e:
+                return False, f"決済処理に失敗しました: {str(e)}", None
 
             # 保有株更新または新規作成
             holding = db.query(UserStockHolding).filter_by(
@@ -340,20 +346,23 @@ class StockService:
             # 売却金額計算
             total_amount = Decimal(str(stock.current_price * quantity))
 
-            # 銀行口座に入金
+            # 銀行口座取得
             bank_account = db.query(Account).filter_by(account_id=stock_account.linked_bank_account_id).first()
             if not bank_account:
                 return False, "連携銀行口座が見つかりません", None
 
-            deposit_result = banking_api.deposit_by_account(
-                bank_account.account_number,
-                bank_account.branch.code,
-                float(total_amount),
-                'JPY'
-            )
-
-            if not deposit_result:
-                return False, "銀行口座への入金に失敗しました", None
+            # 準備預金口座から振込（株式売却代金）
+            description = f"株式売却 {stock.symbol_code} {quantity}株"
+            try:
+                banking_api.transfer(
+                    from_account_number=RESERVE_ACCOUNT_NUMBER,
+                    to_account_number=bank_account.account_number,
+                    amount=float(total_amount),
+                    currency='JPY',
+                    description=description
+                )
+            except Exception as e:
+                return False, f"決済処理に失敗しました: {str(e)}", None
 
             # 保有株更新
             if holding.quantity == quantity:

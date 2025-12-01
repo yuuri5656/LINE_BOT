@@ -336,13 +336,21 @@ class PriceService:
                         fail_count += 1
                         continue
 
-                    # 銀行APIを使って入金（取引履歴付き）
-                    deposit_result = banking_api.deposit_by_account(
-                        account_number=bank_account.account_number,
-                        branch_code=bank_account.branch.code,
-                        amount=float(total_dividend),
-                        currency='JPY'
-                    )
+                    # 準備預金口座から振込（配当金）
+                    from apps.stock.stock_service import RESERVE_ACCOUNT_NUMBER
+                    description = f"配当金 {stock.symbol_code} {holding.quantity}株"
+                    try:
+                        banking_api.transfer(
+                            from_account_number=RESERVE_ACCOUNT_NUMBER,
+                            to_account_number=bank_account.account_number,
+                            amount=float(total_dividend),
+                            currency='JPY',
+                            description=description
+                        )
+                        deposit_result = True
+                    except Exception as e:
+                        print(f"[配当金] 振込エラー (user_id={holding.user_id}): {e}")
+                        deposit_result = False
 
                     if deposit_result:
                         # 配当金支払い記録を作成

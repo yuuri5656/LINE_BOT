@@ -95,7 +95,7 @@ class BankingAPI:
 
     @staticmethod
     def transfer(from_account_number: str, to_account_number: str,
-                 amount: Any, currency: str = 'JPY'):
+                 amount: Any, currency: str = 'JPY', description: str = None):
         """
         口座間送金
 
@@ -104,12 +104,13 @@ class BankingAPI:
             to_account_number: 送金先口座番号
             amount: 金額
             currency: 通貨コード
+            description: 摘要（オプション）
 
         Returns:
             Transactionオブジェクト
         """
         service = _get_bank_service()
-        return service.transfer_funds(from_account_number, to_account_number, amount, currency)
+        return service.transfer_funds(from_account_number, to_account_number, amount, currency, description)
 
     @staticmethod
     def withdraw_by_account(account_number: str, branch_code: str,

@@ -135,7 +135,7 @@ def _display_transaction_history(event, account_number, branch_code):
                      "weight": "bold", "size": "md", "color": "#333333"},
                     {"type": "text", "text": f"相手口座: {tx.get('other_account_number') or '-'}",
                      "size": "sm", "color": "#666666"},
-                    {"type": "text", "text": f"種別: {tx.get('type') or '-'}",
+                    {"type": "text", "text": f"摘要: {tx.get('description') or '-'}",
                      "size": "sm", "color": "#666666"},
                 ],
                 "paddingAll": "8px",

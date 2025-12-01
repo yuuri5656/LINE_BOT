@@ -210,10 +210,13 @@ def create_account_optimized(event, account_info: dict, sessions: dict, operator
         db.close()
 
 
-def transfer_funds(from_account_number: str, to_account_number: str, amount, currency: str = 'JPY'):
+def transfer_funds(from_account_number: str, to_account_number: str, amount, currency: str = 'JPY', description: str = None):
     """
     送金処理: 二重仕訳 + 残高更新 を単一の DB トランザクションで行う。
     Returns the Transaction object.
+
+    Args:
+        description: 摘要（取引の説明）
     """
     db = SessionLocal()
     amount = Decimal(amount)
@@ -259,6 +262,7 @@ def transfer_funds(from_account_number: str, to_account_number: str, amount, cur
                 currency=currency,
                 type='transfer',
                 status='completed',
+                description=description,  # 摘要を追加
                 executed_at=datetime.datetime.utcnow(),
             )
             db.add(tx)
@@ -466,6 +470,7 @@ def get_account_transactions_by_account(account_number: str, branch_code: str, l
                     'amount': format(getattr(t, 'amount', 0), '.2f'),
                     'currency': getattr(t, 'currency', None),
                     'other_account_number': other_acc_num,
+                    'description': getattr(t, 'description', None),
                     'executed_at': dt,
                     'status': getattr(t, 'status', None),
                 })
