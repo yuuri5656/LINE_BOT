@@ -534,21 +534,13 @@ manager = GroupManager()
 
 def check_chip_balance(user_id, min_chips):
     """
-    ユーザーのミニゲーム口座（銀行口座）が存在し、残高が必要量を満たしているか確認する。
+    ユーザーのチップ残高が必要量を満たしているか確認する。
     """
-    from apps.banking.bank_service import get_minigame_account_info
     try:
-        minigame_acc_info = get_minigame_account_info(user_id)
-        if not minigame_acc_info:
-            return False
-
-        balance = minigame_acc_info.get('balance', '0')
-        # balance は文字列で返されるので Decimal に変換
-        from decimal import Decimal
-        balance_decimal = Decimal(balance)
-        return balance_decimal >= Decimal(str(min_chips))
-    except Exception as e:
-        print(f"[Minigames] check_chip_balance error: {e}")
+        balance_info = get_chip_balance(user_id)
+        # get_chip_balance は辞書を返すので、available キーを使用
+        return balance_info.get('available', 0) >= min_chips
+    except Exception:
         return False
 
 
@@ -675,15 +667,9 @@ def join_game_session(group_id: str, user_id: str, display_name: str, conn):
     if user_id in group.current_game.players:
         return "あなたはは既にゲームに参加しています。"
 
-    # ミニゲーム口座の登録チェック
-    from apps.banking.bank_service import get_minigame_account_info
-    minigame_acc_info = get_minigame_account_info(user_id)
-    if not minigame_acc_info:
-        return f"じゃんけんゲームに参加するには、ミニゲーム用口座の登録が必要です。\n\nまず銀行口座を開設し、「?ミニゲーム口座登録」コマンドでミニゲーム用口座を登録してください。"
-
-    # 残高の確認
+    # チップ残高の確認
     if not check_chip_balance(user_id, group.current_game.min_balance):
-        return f"残高が不足しています（必要: {group.current_game.min_balance} JPY）。\n\n現在の残高: {minigame_acc_info.get('balance', '0')} JPY"
+        return f"チップ残高が不足しています（必要: {group.current_game.min_balance}枚）。\n\nショップでチップを購入してください。\nコマンド: ?ショップ"
 
     # すべての条件を満たしていれば参加
     group.current_game.players[user_id] = Player(user_id=user_id, display_name=display_name)
@@ -734,8 +720,6 @@ def reset_game_session(group_id: str):
 def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30, reply_token=None):
     from threading import Timer
     from datetime import timedelta
-    from apps.banking.bank_service import get_minigame_account_info
-
     group = manager.groups.get(group_id)
     if not group or not group.current_game:
         return "このグループではゲームが開催されていません。"
@@ -744,32 +728,12 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30, r
     if session.state != GameState.RECRUITING:
         return "ゲームは現在開始できる状態ではありません。"
 
-    # 全参加者のミニゲーム口座登録チェック
-    user_ids = list(session.players.keys())
-    unregistered_users = []
-    for uid in user_ids:
-        minigame_acc_info = get_minigame_account_info(uid)
-        if not minigame_acc_info:
-            player = session.players.get(uid)
-            display_name = player.display_name if player else uid
-            unregistered_users.append(display_name)
-
-    if unregistered_users:
-        msg = f"以下の参加者がミニゲーム用口座を登録していないため、ゲームを開始できません：\n{', '.join(unregistered_users)}\n\n参加者全員がミニゲーム用口座を登録する必要があります。"
-        try:
-            if reply_token:
-                line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
-            else:
-                line_bot_api.push_message(group_id, TextSendMessage(text=msg))
-        except Exception:
-            pass
-        return "参加者にミニゲーム用口座未登録者がいます。"
-
     session.state = GameState.IN_PROGRESS
     session.start_time = now_jst()
     session.deadline = session.start_time + timedelta(seconds=timeout_seconds)
 
     # 参加費をチップから一括ロック（バッチ処理）
+    user_ids = list(session.players.keys())
     lock_data = [
         {
             'user_id': uid,

@@ -245,17 +245,11 @@ def transfer_chips(from_user_id: str, to_user_id: str, amount: int) -> Dict:
 
 def batch_lock_chips(locks: List[Dict]) -> Dict:
     """
-    複数ユーザーのミニゲーム用銀行口座から一括引き落とし（ゲーム開始時）
-
-    Note: この関数は実際には銀行口座から引き落としを行います（minigame_accounts経由）
-    "ロック"という名前ですが、実際には即座に引き落とされます。
+    複数ユーザーのチップを一括ロック（ゲーム開始時）
 
     Args:
         locks: [{'user_id': str, 'amount': int, 'game_session_id': str}, ...]
     """
-    from apps.banking.bank_service import get_minigame_account_info, withdraw_by_account_number
-    from apps.banking.main_bank_system import MinigameAccount
-
     db = SessionLocal()
     completed = []
     failed = []
@@ -268,25 +262,31 @@ def batch_lock_chips(locks: List[Dict]) -> Dict:
                 game_session_id = lock['game_session_id']
 
                 try:
-                    # ミニゲーム口座の取得
-                    minigame_acc_info = get_minigame_account_info(user_id)
-                    if not minigame_acc_info:
-                        failed.append({'user_id': user_id, 'error': 'ミニゲーム口座が登録されていません'})
+                    chip_acc = db.execute(
+                        select(MinigameChip).filter_by(user_id=user_id).with_for_update()
+                    ).scalars().first()
+
+                    if not chip_acc:
+                        failed.append({'user_id': user_id, 'error': 'チップアカウントなし'})
                         continue
 
-                    # 残高チェック
-                    balance = Decimal(minigame_acc_info.get('balance', '0'))
-                    if balance < amt:
-                        failed.append({'user_id': user_id, 'error': f'残高不足（必要:{lock["amount"]}, 残高:{int(balance)}）'})
+                    available = chip_acc.balance - chip_acc.locked_balance
+                    if available < amt:
+                        failed.append({'user_id': user_id, 'error': f'チップ不足（必要:{lock["amount"]}, 利用可能:{int(available)}）'})
                         continue
 
-                    # 銀行口座から引き落とし
-                    withdraw_by_account_number(
-                        minigame_acc_info['account_number'],
-                        minigame_acc_info['branch_code'],
-                        amt,
-                        'JPY'
+                    chip_acc.locked_balance += amt
+                    chip_acc.updated_at = now_jst()
+
+                    tx = ChipTransaction(
+                        user_id=user_id,
+                        amount=-amt,
+                        balance_after=chip_acc.balance,
+                        type='game_bet',
+                        game_session_id=game_session_id,
+                        description=f'ゲーム参加費{lock["amount"]}枚'
                     )
+                    db.add(tx)
 
                     completed.append(user_id)
 
@@ -295,13 +295,13 @@ def batch_lock_chips(locks: List[Dict]) -> Dict:
 
             # 全員成功が必要
             if failed:
-                raise ValueError(f"{len(failed)}人の引き落としに失敗しました")
+                raise ValueError(f"{len(failed)}人のチップロックに失敗しました")
 
             db.flush()
 
         return {
             'success': True,
-            'locked': completed,
+            'completed': completed,
             'failed': []
         }
 
@@ -309,7 +309,7 @@ def batch_lock_chips(locks: List[Dict]) -> Dict:
         db.rollback()
         return {
             'success': False,
-            'locked': [],
+            'completed': [],
             'failed': failed if failed else [{'error': str(e)}]
         }
     finally:
@@ -318,53 +318,55 @@ def batch_lock_chips(locks: List[Dict]) -> Dict:
 
 def distribute_chips(distributions: Dict, game_session_id: str) -> Dict:
     """
-    ゲーム終了時に賞金を分配（ミニゲーム用銀行口座に入金）
-
-    Note: batch_lock_chipsで既に引き落とし済みなので、ここでは賞金のみを入金します
+    ゲーム終了時にチップを分配（ロック解除 + 賞金付与）
 
     Args:
         distributions: {
             user_id: {
-                'locked': int,  # 引き落としていた額（参考値、ここでは使用しない）
-                'payout': int   # 賞金額（勝者への分配金）
+                'locked': int,  # ロックしていた額
+                'payout': int   # 賞金額（純粋な獲得分、参加費は含まない）
             },
             ...
         }
         game_session_id: ゲームセッションID
     """
-    from apps.banking.bank_service import get_minigame_account_info, deposit_by_account_number
-
     db = SessionLocal()
     completed = []
 
     try:
         with db.begin():
             for user_id, dist in distributions.items():
+                locked_amt = Decimal(str(dist['locked']))
                 payout_amt = Decimal(str(dist['payout']))
 
-                # 賞金がある場合のみ入金
-                if payout_amt > 0:
-                    # ミニゲーム口座の取得
-                    minigame_acc_info = get_minigame_account_info(user_id)
-                    if not minigame_acc_info:
-                        print(f"[ChipService] distribute_chips: User {user_id} has no minigame account")
-                        continue
+                chip_acc = db.execute(
+                    select(MinigameChip).filter_by(user_id=user_id).with_for_update()
+                ).scalars().first()
 
-                    # 銀行口座に入金
-                    try:
-                        deposit_by_account_number(
-                            minigame_acc_info['account_number'],
-                            minigame_acc_info['branch_code'],
-                            payout_amt,
-                            'JPY'
-                        )
-                        completed.append(user_id)
-                    except Exception as e:
-                        print(f"[ChipService] Failed to deposit payout to {user_id}: {e}")
-                        continue
-                else:
-                    # 賞金0の場合もcompletedに追加（処理済みとして扱う）
-                    completed.append(user_id)
+                if not chip_acc:
+                    continue
+
+                # ロック解除（ベット額を残高から引く）
+                chip_acc.balance -= locked_amt
+                chip_acc.locked_balance -= locked_amt
+
+                # 賞金付与
+                chip_acc.balance += payout_amt
+                chip_acc.updated_at = now_jst()
+
+                # 履歴記録
+                if payout_amt > 0:
+                    tx = ChipTransaction(
+                        user_id=user_id,
+                        amount=payout_amt,
+                        balance_after=chip_acc.balance,
+                        type='game_win',
+                        game_session_id=game_session_id,
+                        description=f'ゲーム賞金{int(payout_amt)}枚獲得'
+                    )
+                    db.add(tx)
+
+                completed.append(user_id)
 
             db.flush()
 

@@ -266,20 +266,10 @@ def play_rps_game(event, user_id, text, display_name, group_id, sessions):
         )
         return
 
-    # ミニゲーム口座の登録チェック
-    from apps.banking.bank_service import get_minigame_account_info
-    minigame_acc_info = get_minigame_account_info(user_id)
-    if not minigame_acc_info:
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=f"{display_name} 様、じゃんけんゲームに参加するには、ミニゲーム用口座の登録が必要です。\n\nまず銀行口座を開設し、「?ミニゲーム口座登録」コマンドでミニゲーム用口座を登録してください。")
-        )
-        return
-
     if not check_chip_balance(user_id, min_balance):
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=f"{display_name} 様、申し訳ございませんが、じゃんけんゲームを開始するためには最低残高 {min_balance} JPY が必要です。\n\n現在の残高: {minigame_acc_info.get('balance', '0')} JPY")
+            TextSendMessage(text=f"{display_name} 様、申し訳ございませんが、じゃんけんゲームを開始するためには最低残高 {min_balance} チップが必要です。\n\nショップでチップを購入してください。\nコマンド: ?ショップ")
         )
         return
 
