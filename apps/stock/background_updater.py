@@ -12,15 +12,19 @@ from apps.stock.api import stock_api
 class StockBackgroundUpdater:
     """株価バックグラウンド更新"""
 
-    def __init__(self, update_interval: int = 60):
+    def __init__(self, ai_trade_interval: int = 120, price_update_interval: int = 300):
         """
         Args:
-            update_interval: 更新間隔（秒）デフォルトは60秒
+            ai_trade_interval: AI取引の間隔（秒）デフォルトは120秒（2分）
+            price_update_interval: 株価更新の間隔（秒）デフォルトは300秒（5分）
         """
-        self.update_interval = update_interval
+        self.ai_trade_interval = ai_trade_interval
+        self.price_update_interval = price_update_interval
         self.running = False
         self.thread = None
         self.last_dividend_date = None  # 最後に配当金を支払った日付
+        self.last_ai_trade_time = 0  # 最後にAI取引を実行した時刻
+        self.last_price_update_time = 0  # 最後に株価更新を実行した時刻
         self._lock = threading.Lock()  # スレッド起動の排他制御
 
     def start(self):
@@ -40,7 +44,7 @@ class StockBackgroundUpdater:
             self.running = True
             self.thread = threading.Thread(target=self._update_loop, daemon=True)
             self.thread.start()
-            print(f"[株価更新] バックグラウンド更新を開始しました（間隔: {self.update_interval}秒）")
+            print(f"[株価更新] バックグラウンド更新を開始しました（AI取引: {self.ai_trade_interval}秒, 株価更新: {self.price_update_interval}秒）")
 
     def stop(self):
         """バックグラウンド更新を停止"""
@@ -50,19 +54,26 @@ class StockBackgroundUpdater:
         print("[株価更新] バックグラウンド更新を停止しました")
 
     def _update_loop(self):
-        """更新ループ"""
+        """更新ループ（最小間隔30秒でチェック）"""
+        check_interval = 30  # 30秒ごとにチェック
+
         while self.running:
             try:
-                start_time = time.time()
+                current_time = time.time()
                 now = datetime.now()
 
-                # AIトレーダーの取引を実行
-                print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] AI取引開始")
-                stock_api.execute_ai_trading()
+                # AI取引の実行判定（2分ごと）
+                if current_time - self.last_ai_trade_time >= self.ai_trade_interval:
+                    print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] AI取引開始")
+                    stock_api.execute_ai_trading()
+                    self.last_ai_trade_time = current_time
 
-                # 株価更新
-                print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] 株価更新開始")
-                stock_api.update_all_prices()
+                # 株価更新の実行判定（5分ごと）
+                if current_time - self.last_price_update_time >= self.price_update_interval:
+                    print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] 株価更新開始")
+                    stock_api.update_all_prices()
+                    self.last_price_update_time = current_time
+                    print(f"[株価更新] 更新完了")
 
                 # 配当金支払い（1日1回、午前8時前後）
                 current_date = now.date()
@@ -74,17 +85,13 @@ class StockBackgroundUpdater:
                     stock_api.pay_dividends()
                     self.last_dividend_date = current_date
 
-                elapsed_time = time.time() - start_time
-                print(f"[株価更新] 更新完了（処理時間: {elapsed_time:.2f}秒）")
-
-                # 次の更新まで待機
-                sleep_time = max(0, self.update_interval - elapsed_time)
-                time.sleep(sleep_time)
+                # 次のチェックまで待機
+                time.sleep(check_interval)
 
             except Exception as e:
                 print(f"[株価更新] エラーが発生しました: {e}")
                 # エラーが発生しても継続
-                time.sleep(self.update_interval)
+                time.sleep(check_interval)
 
     def force_update(self):
         """即座に更新を実行（手動トリガー用）"""
@@ -97,8 +104,8 @@ class StockBackgroundUpdater:
             print(f"[株価更新] 手動更新エラー: {e}")
 
 
-# グローバルインスタンス
-background_updater = StockBackgroundUpdater(update_interval=60)
+# グローバルインスタンス（AI取引: 2分, 株価更新: 5分）
+background_updater = StockBackgroundUpdater(ai_trade_interval=120, price_update_interval=300)
 
 
 def start_background_updater():
