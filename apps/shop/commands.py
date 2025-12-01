@@ -43,7 +43,7 @@ def handle_chip_redeem_command(user_id: str, text: str, db):
             text="💵 チップ換金\n\n"
                  "使用方法: ?チップ換金 <枚数>\n"
                  "例: ?チップ換金 100\n\n"
-                 "換金率: 1チップ = 12 JPY\n"
+                 "換金率: 1チップ = ¥12\n"
                  "※登録済みの支払い口座に振り込まれます"
         )
 
@@ -62,7 +62,7 @@ def handle_chip_redeem_command(user_id: str, text: str, db):
         return TextSendMessage(
             text=f"✅ チップ換金完了\n\n"
                  f"換金枚数: {result['amount_received']}枚\n"
-                 f"振込額: {result['amount_received']} JPY\n"
+                 f"振込額: ¥{result['amount_received']:,}\n"
                  f"残りのチップ: {result['new_balance']}枚\n\n"
                  f"※登録済みの口座に振り込まれました"
         )
@@ -166,7 +166,33 @@ def handle_shop_postback(user_id: str, data: dict, db, message_text: Optional[st
         except Exception as e:
             return TextSendMessage(text=f"❌ エラーが発生しました: {str(e)}")
 
-    # 支払い口座登録開始
+    # 支払い口座選択（複数口座がある場合）
+    elif action == 'select_shop_payment_account':
+        account_id = int(data.get('account_id'))
+
+        # account_idを使って直接登録
+        result = shop_service.register_payment_account_by_id(user_id, account_id)
+
+        if result['success']:
+            return TextSendMessage(text=f"✅ {result['message']}\n\nショップでお買い物をお楽しみください！")
+        else:
+            error_msg = result.get('error', '登録に失敗しました')
+            return TextSendMessage(text=f"❌ {error_msg}")
+
+    # 支払い口座登録確認（1つの口座のみの場合）
+    elif action == 'confirm_shop_payment_account':
+        account_id = int(data.get('account_id'))
+
+        # account_idを使って直接登録
+        result = shop_service.register_payment_account_by_id(user_id, account_id)
+
+        if result['success']:
+            return TextSendMessage(text=f"✅ {result['message']}\n\nショップでお買い物をお楽しみください！")
+        else:
+            error_msg = result.get('error', '登録に失敗しました')
+            return TextSendMessage(text=f"❌ {error_msg}")
+
+    # 支払い口座登録開始（旧方式: 手動入力）
     elif action == 'register_payment_account':
         shop_session_manager.start_session(user_id, {
             'type': 'payment_registration',

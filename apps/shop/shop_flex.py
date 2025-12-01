@@ -171,7 +171,7 @@ def get_category_items_flex(category_name: str, items: List[Dict]) -> FlexSendMe
             "contents": [
                 {
                     "type": "text",
-                    "text": f"{item['price']} JPY",
+                    "text": f"¥{item['price']:,}",
                     "size": "lg",
                     "weight": "bold",
                     "color": "#4CAF50",
