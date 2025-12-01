@@ -7,6 +7,7 @@ import threading
 import time
 from datetime import datetime, time as dt_time
 from apps.stock.api import stock_api
+from apps.utilities.timezone_utils import now_jst
 
 
 class StockBackgroundUpdater:
@@ -60,7 +61,7 @@ class StockBackgroundUpdater:
         while self.running:
             try:
                 current_time = time.time()
-                now = datetime.now()
+                now = now_jst()
 
                 # AI取引の実行判定（2分ごと）
                 if current_time - self.last_ai_trade_time >= self.ai_trade_interval:

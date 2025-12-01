@@ -8,6 +8,7 @@ from typing import List, Dict, Optional
 from decimal import Decimal
 from datetime import datetime, timedelta
 from enum import Enum
+from apps.utilities.timezone_utils import now_jst
 from apps.stock.models import (
     SessionLocal,
     StockSymbol,
@@ -107,9 +108,9 @@ class PriceService:
                 )
                 db.add(history)
 
-                # 現在価格更新
+                # 価格を更新
                 stock.current_price = new_price
-                stock.updated_at = datetime.now()
+                stock.updated_at = now_jst()
 
             db.commit()
             print(f"[株価更新] {len(stocks)}銘柄の価格を更新しました")
@@ -239,7 +240,7 @@ class PriceService:
                         new_total = float(holding.average_price) * holding.quantity + cost
                         holding.quantity += quantity
                         holding.average_price = Decimal(str(new_total / holding.quantity))
-                        holding.updated_at = datetime.now()
+                        holding.updated_at = now_jst()
                     else:
                         holding = AITraderHolding(
                             trader_id=trader.trader_id,
@@ -274,7 +275,7 @@ class PriceService:
                         db.delete(holding)
                     else:
                         holding.quantity -= quantity
-                        holding.updated_at = datetime.now()
+                        holding.updated_at = now_jst()
 
                     # 取引履歴
                     tx = AITraderTransaction(

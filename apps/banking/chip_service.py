@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 import datetime
 from typing import Optional, Dict, List
+from apps.utilities.timezone_utils import now_jst
 
 from apps.banking.main_bank_system import (
     SessionLocal,
@@ -134,7 +135,7 @@ def purchase_chips(user_id: str, amount: int, account_number: str, branch_code: 
                 db.flush()
 
             chip_acc.balance += Decimal(str(amount))
-            chip_acc.updated_at = datetime.datetime.utcnow()
+            chip_acc.updated_at = now_jst()
 
             # 取引履歴を記録
             tx = ChipTransaction(
@@ -200,10 +201,10 @@ def transfer_chips(from_user_id: str, to_user_id: str, amount: int) -> Dict:
 
             # 転送
             from_acc.balance -= amt
-            from_acc.updated_at = datetime.datetime.utcnow()
+            from_acc.updated_at = now_jst()
 
             to_acc.balance += amt
-            to_acc.updated_at = datetime.datetime.utcnow()
+            to_acc.updated_at = now_jst()
 
             # 履歴記録
             tx_out = ChipTransaction(
@@ -275,7 +276,7 @@ def batch_lock_chips(locks: List[Dict]) -> Dict:
                         continue
 
                     chip_acc.locked_balance += amt
-                    chip_acc.updated_at = datetime.datetime.utcnow()
+                    chip_acc.updated_at = now_jst()
 
                     tx = ChipTransaction(
                         user_id=user_id,
@@ -351,7 +352,7 @@ def distribute_chips(distributions: Dict, game_session_id: str) -> Dict:
 
                 # 賞金付与
                 chip_acc.balance += payout_amt
-                chip_acc.updated_at = datetime.datetime.utcnow()
+                chip_acc.updated_at = now_jst()
 
                 # 履歴記録
                 if payout_amt > 0:
@@ -453,7 +454,7 @@ def redeem_chips(user_id: str, amount: int) -> Dict:
 
         # チップを減らす
         chip_acc.balance -= amt
-        chip_acc.updated_at = datetime.datetime.utcnow()
+        chip_acc.updated_at = now_jst()
 
         # 取引履歴を記録
         tx = ChipTransaction(
@@ -486,7 +487,7 @@ def redeem_chips(user_id: str, amount: int) -> Dict:
                         select(MinigameChip).filter_by(user_id=user_id).with_for_update()
                     ).scalars().first()
                     chip_acc2.balance += amt
-                    chip_acc2.updated_at = datetime.datetime.utcnow()
+                    chip_acc2.updated_at = now_jst()
 
                     tx_refund = ChipTransaction(
                         user_id=user_id,

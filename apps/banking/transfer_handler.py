@@ -12,6 +12,7 @@ from apps.banking.transfer_flex import (
 )
 import datetime
 from decimal import Decimal, InvalidOperation
+from apps.utilities.timezone_utils import now_jst
 
 
 def handle_transfer_command(event, user_id, sessions):
@@ -408,7 +409,7 @@ def _execute_transfer(event, pin_code, user_id, sessions, transfer_data):
                 break
 
         # 実行日時をフォーマット
-        executed_at = datetime.datetime.now().strftime('%Y/%m/%d %H:%M')
+        executed_at = now_jst().strftime('%Y/%m/%d %H:%M')
 
         # 金額をフォーマット
         try:

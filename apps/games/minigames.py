@@ -14,6 +14,7 @@ from typing import Dict, List
 from datetime import datetime
 from enum import Enum
 from linebot.models import TextSendMessage, FlexSendMessage
+from apps.utilities.timezone_utils import now_jst
 from apps.banking.api import banking_api
 from apps.banking.chip_service import (
     get_chip_balance,
@@ -728,7 +729,7 @@ def start_game_session(group_id: str, line_bot_api, timeout_seconds: int = 30, r
         return "ゲームは現在開始できる状態ではありません。"
 
     session.state = GameState.IN_PROGRESS
-    session.start_time = datetime.now()
+    session.start_time = now_jst()
     session.deadline = session.start_time + timedelta(seconds=timeout_seconds)
 
     # 参加費をチップから一括ロック（バッチ処理）

@@ -4,6 +4,7 @@
 from decimal import Decimal
 from sqlalchemy import select
 from typing import List, Dict, Optional
+from apps.utilities.timezone_utils import now_jst
 import datetime
 import json
 
@@ -173,14 +174,14 @@ def register_payment_account(user_id: str, full_name: str, branch_code: str,
                 # 更新
                 existing.account_id = account.account_id
                 existing.is_active = True
-                existing.registered_at = datetime.datetime.now()
+                existing.registered_at = now_jst()
                 message = 'ショップ支払い用口座を更新しました'
             else:
                 # 新規登録
                 payment_acc = ShopPaymentAccount(
                     user_id=user_id,
                     account_id=account.account_id,
-                    registered_at=datetime.datetime.now(),
+                    registered_at=now_jst(),
                     is_active=True
                 )
                 db.add(payment_acc)

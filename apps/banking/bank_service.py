@@ -31,6 +31,7 @@ from apps.banking.main_bank_system import (
     MinigameAccount,
 )
 import config
+from apps.utilities.timezone_utils import now_jst
 
 
 # Argon2ハッシャーのインスタンス
@@ -263,7 +264,7 @@ def transfer_funds(from_account_number: str, to_account_number: str, amount, cur
                 type='transfer',
                 status='completed',
                 description=description,  # 摘要を追加
-                executed_at=datetime.datetime.utcnow(),
+                executed_at=now_jst(),
             )
             db.add(tx)
             db.flush()  # tx.transaction_id を得るため
@@ -538,8 +539,8 @@ def reply_account_creation(event, account_info: dict, account_data: dict):
         acct_type = account_info.get('account_type') if account_info else None
         type_display = account_type_display.get(acct_type, '普通')
 
-        # 発行年月の取得
-        now = datetime.datetime.now()
+        # 発行年月の取得（日本時間）
+        now = now_jst()
         issue_date = f"{now.year % 100:02d}年/{now.month:02d}月"
 
         text = (
@@ -597,7 +598,7 @@ def withdraw_from_user(user_id: str, amount, currency: str = 'JPY'):
                 currency=currency,
                 type='withdrawal',
                 status='completed',
-                executed_at=datetime.datetime.utcnow(),
+                executed_at=now_jst(),
             )
             db.add(tx)
             db.flush()
@@ -703,7 +704,7 @@ def withdraw_by_account_number(account_number: str, branch_code: str, amount, cu
                 currency=currency,
                 type='withdrawal',
                 status='completed',
-                executed_at=datetime.datetime.utcnow(),
+                executed_at=now_jst(),
             )
             db.add(tx)
             db.flush()
@@ -763,7 +764,7 @@ def deposit_to_user(user_id: str, amount, currency: str = 'JPY'):
                 currency=currency,
                 type='deposit',
                 status='completed',
-                executed_at=datetime.datetime.utcnow(),
+                executed_at=now_jst(),
             )
             db.add(tx)
             db.flush()
@@ -848,7 +849,7 @@ def deposit_by_account_number(account_number: str, branch_code: str, amount, cur
                 currency=currency,
                 type='deposit',
                 status='completed',
-                executed_at=datetime.datetime.utcnow(),
+                executed_at=now_jst(),
             )
             db.add(tx)
             db.flush()
@@ -1006,7 +1007,7 @@ def register_minigame_account(user_id: str, full_name: str, branch_code: str, ac
                 # 既存のミニゲーム口座を更新
                 existing.account_id = account.account_id
                 existing.is_active = True
-                existing.registered_at = datetime.datetime.now()
+                existing.registered_at = now_jst()
                 db.flush()
 
                 return {
@@ -1028,7 +1029,7 @@ def register_minigame_account(user_id: str, full_name: str, branch_code: str, ac
             minigame_acc = MinigameAccount(
                 user_id=user_id,
                 account_id=account.account_id,
-                registered_at=datetime.datetime.now(),
+                registered_at=now_jst(),
                 is_active=True
             )
             db.add(minigame_acc)
@@ -1075,9 +1076,9 @@ def get_minigame_account(user_id: str):
             select(Account).filter_by(account_id=minigame_acc.account_id)
         ).scalars().first()
 
-        # 最終使用日時を更新
+        # 最終使用日時を更新（日本時間）
         try:
-            minigame_acc.last_used_at = datetime.datetime.now()
+            minigame_acc.last_used_at = now_jst()
             db.commit()
         except Exception:
             db.rollback()
@@ -1251,7 +1252,7 @@ def batch_withdraw(withdrawals: list) -> dict:
                     currency='JPY',
                     type='withdrawal',
                     status='completed',
-                    executed_at=datetime.datetime.utcnow(),
+                    executed_at=now_jst(),
                 )
                 db.add(tx)
                 db.flush()
@@ -1349,7 +1350,7 @@ def batch_deposit(deposits: list) -> dict:
                     currency='JPY',
                     type='deposit',
                     status='completed',
-                    executed_at=datetime.datetime.utcnow(),
+                    executed_at=now_jst(),
                 )
                 db.add(tx)
                 db.flush()

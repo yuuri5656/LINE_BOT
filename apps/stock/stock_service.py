@@ -16,6 +16,7 @@ from apps.stock.models import (
 )
 from apps.banking.main_bank_system import Account
 from apps.banking.api import banking_api
+from apps.utilities.timezone_utils import now_jst
 
 # 準備預金口座（株式決済用）
 RESERVE_ACCOUNT_NUMBER = '7777777'
@@ -264,7 +265,7 @@ class StockService:
                 holding.quantity = new_quantity
                 holding.average_price = Decimal(str(new_average_price))
                 holding.total_cost = Decimal(str(new_total_cost))
-                holding.updated_at = datetime.now()
+                holding.updated_at = now_jst()
             else:
                 # 新規保有株作成
                 holding = UserStockHolding(
@@ -292,7 +293,7 @@ class StockService:
             db.add(transaction)
 
             # 最終取引日時更新
-            stock_account.last_traded_at = datetime.now()
+            stock_account.last_traded_at = now_jst()
 
             db.commit()
 
@@ -373,7 +374,7 @@ class StockService:
                 sell_ratio = quantity / holding.quantity
                 holding.quantity -= quantity
                 holding.total_cost = Decimal(str(float(holding.total_cost) * (1 - sell_ratio)))
-                holding.updated_at = datetime.now()
+                holding.updated_at = now_jst()
 
             # 取引履歴記録
             transaction = StockTransaction(
@@ -390,7 +391,7 @@ class StockService:
             db.add(transaction)
 
             # 最終取引日時更新
-            stock_account.last_traded_at = datetime.now()
+            stock_account.last_traded_at = now_jst()
 
             db.commit()
 
