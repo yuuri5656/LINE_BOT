@@ -61,7 +61,7 @@ def handle_stock_list(event, user_id):
         return
 
     # カルーセル表示
-    carousel = stock_flex.get_stock_list_carousel(stocks, page=0, per_page=5)
+    carousel = stock_flex.get_stock_list_carousel(stocks, page=0, per_page=10)
     line_bot_api.reply_message(event.reply_token, carousel)
 
 

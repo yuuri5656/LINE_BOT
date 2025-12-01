@@ -176,9 +176,8 @@ CREATE TRIGGER update_ai_holdings_updated_at
 BEFORE UPDATE ON ai_trader_holdings
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_stock_accounts_updated_at
-BEFORE UPDATE ON stock_accounts
-FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- stock_accountsにはupdated_atカラムがないため、トリガーは設定しない
+-- (last_traded_atは手動で更新)
 
 -- 初期銘柄データ挿入（10銘柄）
 INSERT INTO stock_symbols (symbol_code, name, sector, initial_price, current_price, volatility, dividend_yield, market_cap, description) VALUES
