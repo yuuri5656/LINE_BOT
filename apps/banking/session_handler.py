@@ -68,44 +68,27 @@ def bank_reception(event, text, user_id, display_name, sessions):
         )
         return
 
-    # ミニゲーム口座登録処理（個別チャットのみ）
-    if text == "?ミニゲーム口座登録" or (isinstance(state, dict) and state.get("minigame_registration")):
+    # ミニゲーム口座登録処理（個別チャットのみ）- 口座選択方式に変更
+    if text == "?ミニゲーム口座登録":
         if event.source.type != 'user':
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ミニゲーム口座登録は個別チャット(1対1トーク)でのみ利用可能です。"))
             return
 
-        # キャンセル処理（どのステップでも優先して判定）
-        if text.strip().lower() in ["?キャンセル", "?cancel"]:
-            sessions.pop(user_id, None)
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ミニゲーム用口座の登録をキャンセルしました。"))
+        # 銀行口座を取得
+        bank_accounts = banking_api.get_accounts_by_user(user_id)
+
+        if not bank_accounts or len(bank_accounts) == 0:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="銀行口座が見つかりません。先に「?口座開設」で銀行口座を作成してください。")
+            )
             return
 
-        # セッション管理: ミニゲーム口座登録フロー
-        if text == "?ミニゲーム口座登録":
-            # 現在の口座情報を取得
-            minigame_info = bank_service.get_minigame_account_info(user_id)
-
-            messages = []
-            messages.append("【ミニゲーム口座登録】\n\n")
-            messages.append("お持ちの口座をミニゲーム専用口座として登録します。\n")
-
-            if minigame_info:
-                messages.append(f"現在登録中のミニゲーム口座:\n支店番号: {minigame_info.get('branch_code')}\n口座番号: {minigame_info.get('account_number')}\n残高: {minigame_info.get('balance')} {minigame_info.get('currency')}\n\n")
-                messages.append("別の口座に切り替える場合は、本人確認のため以下の情報を順番に入力してください。\n\n")
-            else:
-                messages.append("ミニゲーム用口座が未登録です。\n")
-                messages.append("本人確認のため、以下の情報を順番に入力してください。\n\n")
-
-            messages.append("まず、登録したい口座の支店番号（3桁）を入力してください。\n")
-            messages.append("例: 001\n\n")
-            messages.append("※「?口座情報」マンドで確認できます。\n")
-            messages.append("※キャンセルする場合は「?キャンセル」と入力してください。")
-
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="".join(messages)))
-
-            # セッションに状態を保存（ステップ1: 支店番号入力）
-            sessions[user_id] = {"minigame_registration": True, "step": 1}
-            return
+        # 口座選択FlexMessageを表示
+        from apps.banking.bank_service import get_minigame_account_registration_flex
+        registration_flex = get_minigame_account_registration_flex(bank_accounts)
+        line_bot_api.reply_message(event.reply_token, registration_flex)
+        return
 
         elif isinstance(state, dict) and state.get("minigame_registration"):
             current_step = state.get("step", 1)

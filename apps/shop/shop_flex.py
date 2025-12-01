@@ -245,32 +245,19 @@ def get_category_items_flex(category_name: str, items: List[Dict]) -> FlexSendMe
     )
 
 
-def get_payment_account_registration_flex() -> FlexSendMessage:
-    """ショップ支払い用口座登録案内"""
-    return FlexSendMessage(
-        alt_text="ショップ支払い用口座の登録",
-        contents={
+def get_payment_account_registration_flex(accounts: list) -> FlexSendMessage:
+    """ショップ支払い用口座登録 - 口座選択方式"""
+    if len(accounts) == 1:
+        # 口座が1つの場合
+        account = accounts[0]
+        bubble = {
             "type": "bubble",
-            "hero": {
+            "size": "mega",
+            "header": {
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                    {
-                        "type": "text",
-                        "text": "💳",
-                        "size": "xxl",
-                        "align": "center",
-                        "color": "#FFFFFF"
-                    },
-                    {
-                        "type": "text",
-                        "text": "支払い用口座の登録",
-                        "size": "lg",
-                        "align": "center",
-                        "weight": "bold",
-                        "color": "#FFFFFF",
-                        "margin": "md"
-                    }
+                    {"type": "text", "text": "💳 支払い用口座登録", "weight": "bold", "size": "xl", "color": "#FFFFFF"}
                 ],
                 "backgroundColor": "#4CAF50",
                 "paddingAll": "20px"
@@ -279,38 +266,20 @@ def get_payment_account_registration_flex() -> FlexSendMessage:
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
+                    {"type": "text", "text": "以下の銀行口座をショップ支払い用に登録します", "wrap": True, "color": "#666666", "size": "sm"},
+                    {"type": "separator", "margin": "lg"},
                     {
-                        "type": "text",
-                        "text": "ショップでの購入には、支払い用口座の登録が必要です。",
-                        "wrap": True,
-                        "color": "#666666",
-                        "size": "sm"
-                    },
-                    {
-                        "type": "separator",
-                        "margin": "lg"
-                    },
-                    {
-                        "type": "text",
-                        "text": "登録手順",
-                        "weight": "bold",
-                        "margin": "lg"
-                    },
-                    {
-                        "type": "text",
-                        "text": "1. 支店番号（3桁）\n2. 口座番号（7桁）\n3. 氏名（半角カナ）\n4. 暗証番号（4桁）",
-                        "size": "xs",
-                        "color": "#999999",
-                        "margin": "md",
-                        "wrap": True
-                    },
-                    {
-                        "type": "text",
-                        "text": "※既にお持ちの銀行口座を登録してください",
-                        "size": "xxs",
-                        "color": "#FF6B6B",
-                        "margin": "md",
-                        "wrap": True
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            _create_shop_info_row("名義", account.get('full_name', 'N/A')),
+                            _create_shop_info_row("種別", account.get('type', 'N/A')),
+                            _create_shop_info_row("支店", f"{account['branch_code']} - {account['branch_name']}"),
+                            _create_shop_info_row("口座番号", account['account_number']),
+                            _create_shop_info_row("残高", f"¥{float(account['balance']):,.0f}"),
+                        ],
+                        "margin": "lg",
+                        "spacing": "md"
                     }
                 ],
                 "paddingAll": "20px"
@@ -323,8 +292,8 @@ def get_payment_account_registration_flex() -> FlexSendMessage:
                         "type": "button",
                         "action": {
                             "type": "postback",
-                            "label": "口座を登録する",
-                            "data": "action=register_payment_account"
+                            "label": "この口座を登録",
+                            "data": f"action=confirm_shop_payment_account&account_id={account['account_id']}"
                         },
                         "style": "primary",
                         "color": "#4CAF50"
@@ -333,7 +302,67 @@ def get_payment_account_registration_flex() -> FlexSendMessage:
                 "paddingAll": "15px"
             }
         }
-    )
+    else:
+        # 口座が複数の場合
+        account_boxes = []
+        for i, acc in enumerate(accounts):
+            if i > 0:
+                account_boxes.append({"type": "separator", "margin": "lg"})
+            account_boxes.append({
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": f"📌 {acc.get('full_name', 'N/A')}", "size": "md", "weight": "bold", "color": "#4CAF50"},
+                    {"type": "text", "text": f"種別: {acc.get('type', 'N/A')}", "size": "xs", "color": "#666666", "margin": "sm"},
+                    {"type": "text", "text": f"{acc['branch_code']}-{acc['account_number']}", "size": "sm", "weight": "bold", "margin": "sm"},
+                    {"type": "text", "text": f"残高: ¥{float(acc['balance']):,.0f}", "size": "xs", "color": "#666666"},
+                    {"type": "text", "text": "👆 タップして選択", "size": "xxs", "color": "#999999", "align": "center", "margin": "sm"}
+                ],
+                "margin": "lg",
+                "paddingAll": "15px",
+                "backgroundColor": "#F5F5F5",
+                "cornerRadius": "md",
+                "action": {
+                    "type": "postback",
+                    "data": f"action=select_shop_payment_account&account_id={acc['account_id']}"
+                }
+            })
+
+        bubble = {
+            "type": "bubble",
+            "size": "mega",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": "💳 口座選択", "weight": "bold", "size": "xl", "color": "#FFFFFF"}
+                ],
+                "backgroundColor": "#4CAF50",
+                "paddingAll": "20px"
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": "ショップ支払い用の口座を選択してください", "wrap": True, "color": "#666666", "size": "sm"}
+                ] + account_boxes,
+                "paddingAll": "20px"
+            }
+        }
+
+    return FlexSendMessage(alt_text="支払い用口座登録", contents=bubble)
+
+
+def _create_shop_info_row(label: str, value: str) -> dict:
+    """情報行を作成（ヘルパー関数）"""
+    return {
+        "type": "box",
+        "layout": "baseline",
+        "contents": [
+            {"type": "text", "text": label, "size": "sm", "color": "#666666", "flex": 3},
+            {"type": "text", "text": value, "size": "sm", "flex": 7, "align": "end", "wrap": True}
+        ]
+    }
 
 
 def get_purchase_success_flex(item_name: str, chips_received: int, new_balance: int) -> FlexSendMessage:

@@ -8,6 +8,7 @@ from apps.help_flex import get_detail_account_flex, get_detail_janken_flex, get_
 
 # 各機能のコマンドハンドラーをインポート
 from apps.banking import commands as banking_commands
+from apps.banking.api import banking_api
 from apps.games import commands as game_commands
 from apps.utilities import commands as utility_commands
 from apps.shop import commands as shop_commands
@@ -55,7 +56,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
                 game_commands.handle_game_cancel(event, user_id, group_id)
             return
         # ショップのpostbackアクション
-        elif data.startswith("action=shop_") or data.startswith("action=register_payment_account"):
+        elif data.startswith("action=shop_") or data.startswith("action=confirm_shop_payment_account") or data.startswith("action=select_shop_payment_account"):
             from apps.banking.main_bank_system import get_db
             db = next(get_db())
             try:
@@ -68,6 +69,41 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
                     line_bot_api.reply_message(event.reply_token, response)
             finally:
                 db.close()
+            return
+        # ミニゲーム用口座のpostbackアクション
+        elif data.startswith("action=confirm_minigame_account") or data.startswith("action=select_minigame_account"):
+            import urllib.parse
+            parsed_data = dict(urllib.parse.parse_qsl(data))
+            account_id = int(parsed_data.get('account_id', 0))
+
+            if account_id <= 0:
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="❌ 無効な口座IDです。"))
+                return
+
+            # 口座情報を取得
+            account = banking_api.get_account_by_id(account_id)
+            if not account or account.get('user_id') != user_id:
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="❌ 口座が見つかりません、または他のユーザーの口座です。"))
+                return
+
+            # ミニゲーム用口座として登録
+            from apps.banking import bank_service
+            result = bank_service.register_minigame_account_by_id(user_id, account_id)
+
+            if result['success']:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(
+                        text=f"✅ ミニゲーム用口座を登録しました！\n\n"
+                             f"支店番号: {account['branch_code']}\n"
+                             f"口座番号: {account['account_number']}\n"
+                             f"名義: {account['full_name']}\n\n"
+                             f"ミニゲームをお楽しみください！"
+                    )
+                )
+            else:
+                error_msg = result.get('error', '不明なエラー')
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"❌ 登録に失敗しました: {error_msg}"))
             return
         # 株式のpostbackアクション
         elif data.startswith("action=stock_") or data.startswith("action=confirm_stock_") or data.startswith("action=buy_stock") or data.startswith("action=sell_stock") or data.startswith("action=confirm_buy") or data.startswith("action=confirm_sell") or data.startswith("action=cancel_trade") or data.startswith("action=my_holdings") or data.startswith("action=market_news") or data.startswith("action=select_stock_account"):

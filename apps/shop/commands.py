@@ -140,8 +140,14 @@ def handle_shop_postback(user_id: str, data: dict, db, message_text: Optional[st
         payment_info = shop_service.get_payment_account_info(user_id)
 
         if not payment_info:
-            # 未登録の場合、登録案内を表示
-            return shop_flex.get_payment_account_registration_flex()
+            # 未登録の場合、口座選択画面を表示
+            from apps.banking.api import banking_api
+            bank_accounts = banking_api.get_accounts_by_user(user_id)
+
+            if not bank_accounts:
+                return TextSendMessage(text="銀行口座が見つかりません。先に「?口座開設」で銀行口座を作成してください。")
+
+            return shop_flex.get_payment_account_registration_flex(bank_accounts)
 
         # 購入実行
         try:

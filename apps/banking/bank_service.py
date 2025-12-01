@@ -32,6 +32,7 @@ from apps.banking.main_bank_system import (
 )
 import config
 from apps.utilities.timezone_utils import now_jst
+from linebot.models import FlexSendMessage
 
 
 # Argon2ハッシャーのインスタンス
@@ -1045,6 +1046,184 @@ def register_minigame_account(user_id: str, full_name: str, branch_code: str, ac
     except Exception as e:
         db.rollback()
         print(f"[BankService] register_minigame_account error: {e}")
+        return {'success': False, 'error': f'登録中にエラーが発生しました: {str(e)}'}
+    finally:
+        db.close()
+
+
+def get_minigame_account_registration_flex(accounts: list) -> FlexSendMessage:
+    """ミニゲーム用口座登録 - 口座選択FlexMessage"""
+    if len(accounts) == 1:
+        # 口座が1つの場合
+        account = accounts[0]
+        bubble = {
+            "type": "bubble",
+            "size": "mega",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": "🎮 ミニゲーム用口座登録", "weight": "bold", "size": "xl", "color": "#FFFFFF"}
+                ],
+                "backgroundColor": "#FF9800",
+                "paddingAll": "20px"
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": "以下の銀行口座をミニゲーム専用口座として登録します", "wrap": True, "color": "#666666", "size": "sm"},
+                    {"type": "separator", "margin": "lg"},
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            _create_minigame_info_row("名義", account.get('full_name', 'N/A')),
+                            _create_minigame_info_row("種別", account.get('type', 'N/A')),
+                            _create_minigame_info_row("支店", f"{account['branch_code']} - {account['branch_name']}"),
+                            _create_minigame_info_row("口座番号", account['account_number']),
+                            _create_minigame_info_row("残高", f"¥{float(account['balance']):,.0f}"),
+                        ],
+                        "margin": "lg",
+                        "spacing": "md"
+                    }
+                ],
+                "paddingAll": "20px"
+            },
+            "footer": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "button",
+                        "action": {
+                            "type": "postback",
+                            "label": "この口座を登録",
+                            "data": f"action=confirm_minigame_account&account_id={account['account_id']}"
+                        },
+                        "style": "primary",
+                        "color": "#FF9800"
+                    }
+                ],
+                "paddingAll": "15px"
+            }
+        }
+    else:
+        # 口座が複数の場合
+        account_boxes = []
+        for i, acc in enumerate(accounts):
+            if i > 0:
+                account_boxes.append({"type": "separator", "margin": "lg"})
+            account_boxes.append({
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": f"📌 {acc.get('full_name', 'N/A')}", "size": "md", "weight": "bold", "color": "#FF9800"},
+                    {"type": "text", "text": f"種別: {acc.get('type', 'N/A')}", "size": "xs", "color": "#666666", "margin": "sm"},
+                    {"type": "text", "text": f"{acc['branch_code']}-{acc['account_number']}", "size": "sm", "weight": "bold", "margin": "sm"},
+                    {"type": "text", "text": f"残高: ¥{float(acc['balance']):,.0f}", "size": "xs", "color": "#666666"},
+                    {"type": "text", "text": "👆 タップして選択", "size": "xxs", "color": "#999999", "align": "center", "margin": "sm"}
+                ],
+                "margin": "lg",
+                "paddingAll": "15px",
+                "backgroundColor": "#F5F5F5",
+                "cornerRadius": "md",
+                "action": {
+                    "type": "postback",
+                    "data": f"action=select_minigame_account&account_id={acc['account_id']}"
+                }
+            })
+
+        bubble = {
+            "type": "bubble",
+            "size": "mega",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": "🎮 口座選択", "weight": "bold", "size": "xl", "color": "#FFFFFF"}
+                ],
+                "backgroundColor": "#FF9800",
+                "paddingAll": "20px"
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": "ミニゲーム専用の口座を選択してください", "wrap": True, "color": "#666666", "size": "sm"}
+                ] + account_boxes,
+                "paddingAll": "20px"
+            }
+        }
+
+    return FlexSendMessage(alt_text="ミニゲーム用口座登録", contents=bubble)
+
+
+def _create_minigame_info_row(label: str, value: str) -> dict:
+    """情報行を作成（ヘルパー関数）"""
+    return {
+        "type": "box",
+        "layout": "baseline",
+        "contents": [
+            {"type": "text", "text": label, "size": "sm", "color": "#666666", "flex": 3},
+            {"type": "text", "text": value, "size": "sm", "flex": 7, "align": "end", "wrap": True}
+        ]
+    }
+
+
+def register_minigame_account_by_id(user_id: str, account_id: int):
+    """
+    account_idで直接ミニゲーム用口座を登録（株式口座と同じ方式）
+    """
+    db = SessionLocal()
+    try:
+        with db.begin():
+            # 口座の存在確認とユーザーIDチェック
+            account = db.execute(
+                select(Account).filter_by(account_id=account_id)
+            ).scalars().first()
+
+            if not account:
+                return {'success': False, 'error': '口座が見つかりません'}
+
+            if account.user_id != user_id:
+                return {'success': False, 'error': 'この口座はあなたの口座ではありません'}
+
+            # 既存登録をチェック
+            existing = db.execute(
+                select(MinigameAccount).filter_by(user_id=user_id)
+            ).scalars().first()
+
+            if existing:
+                # 更新
+                existing.account_id = account.account_id
+                existing.is_active = True
+                existing.registered_at = now_jst()
+                message = 'ミニゲーム用口座を更新しました。'
+                updated = True
+            else:
+                # 新規登録
+                minigame_acc = MinigameAccount(
+                    user_id=user_id,
+                    account_id=account.account_id,
+                    registered_at=now_jst(),
+                    is_active=True
+                )
+                db.add(minigame_acc)
+                message = 'ミニゲーム用口座を登録しました。'
+                updated = False
+
+            db.flush()
+
+            return {
+                'success': True,
+                'message': message,
+                'updated': updated
+            }
+
+    except Exception as e:
+        db.rollback()
+        print(f"[BankService] register_minigame_account_by_id error: {e}")
         return {'success': False, 'error': f'登録中にエラーが発生しました: {str(e)}'}
     finally:
         db.close()

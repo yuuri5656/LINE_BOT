@@ -198,6 +198,57 @@ def register_payment_account(user_id: str, full_name: str, branch_code: str,
         db.close()
 
 
+def register_payment_account_by_id(user_id: str, account_id: int) -> Dict:
+    """
+    account_idで直接ショップ支払い用口座を登録（株式口座と同じ方式）
+    """
+    db = SessionLocal()
+    try:
+        with db.begin():
+            # 口座の存在確認とユーザーIDチェック
+            account = db.execute(
+                select(Account).filter_by(account_id=account_id)
+            ).scalars().first()
+
+            if not account:
+                return {'success': False, 'error': '口座が見つかりません'}
+
+            if account.user_id != user_id:
+                return {'success': False, 'error': 'この口座はあなたの口座ではありません'}
+
+            # 既存登録をチェック
+            existing = db.execute(
+                select(ShopPaymentAccount).filter_by(user_id=user_id)
+            ).scalars().first()
+
+            if existing:
+                # 更新
+                existing.account_id = account.account_id
+                existing.is_active = True
+                existing.registered_at = now_jst()
+                message = 'ショップ支払い用口座を更新しました'
+            else:
+                # 新規登録
+                payment_acc = ShopPaymentAccount(
+                    user_id=user_id,
+                    account_id=account.account_id,
+                    registered_at=now_jst(),
+                    is_active=True
+                )
+                db.add(payment_acc)
+                message = 'ショップ支払い用口座を登録しました'
+
+            db.flush()
+
+        return {'success': True, 'message': message}
+
+    except Exception as e:
+        db.rollback()
+        return {'success': False, 'error': str(e)}
+    finally:
+        db.close()
+
+
 def get_payment_account_info(user_id: str) -> Optional[Dict]:
     """ショップ支払い用口座情報を取得"""
     db = SessionLocal()

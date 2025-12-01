@@ -275,12 +275,15 @@ def handle_confirm_stock_account(event, account_id: int, user_id: str):
 
     if result:
         if result.get('exists'):
-            message = "株式口座は既に登録されています。"
+            # 既に登録済みの場合はダッシュボードを表示
+            dashboard = stock_flex.get_stock_dashboard(user_id, has_account=True)
+            stock_api.end_session(user_id)
+            line_bot_api.reply_message(event.reply_token, dashboard)
         else:
-            message = "✅ 株式口座の登録が完了しました！\n\n「?株」でダッシュボードを表示できます。"
-
-        stock_api.end_session(user_id)
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=message))
+            # 新規登録完了後、自動的にダッシュボードを表示
+            stock_api.end_session(user_id)
+            dashboard = stock_flex.get_stock_dashboard(user_id, has_account=True)
+            line_bot_api.reply_message(event.reply_token, dashboard)
     else:
         line_bot_api.reply_message(
             event.reply_token,
