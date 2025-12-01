@@ -637,7 +637,7 @@ def withdraw_from_user(user_id: str, amount, currency: str = 'JPY'):
         db.close()
 
 
-def withdraw_by_account_number(account_number: str, branch_code: str, amount, currency: str = 'JPY'):
+def withdraw_by_account_number(account_number: str, branch_code: str, amount, currency: str = 'JPY', description: str = None, other_account_info: str = None):
     """
     口座番号と支店コードから引き落とす。残高不足や口座未存在時は例外を投げる。
     transactionsテーブルとtransaction_entriesテーブルに記録される。
@@ -647,6 +647,8 @@ def withdraw_by_account_number(account_number: str, branch_code: str, amount, cu
         branch_code: 支店コード
         amount: 引き落とし額
         currency: 通貨コード(デフォルトはJPY)
+        description: 摘要（任意）
+        other_account_info: 相手口座情報（任意）
 
     Returns:
         True if successful
@@ -705,6 +707,8 @@ def withdraw_by_account_number(account_number: str, branch_code: str, amount, cu
                 type='withdrawal',
                 status='completed',
                 executed_at=now_jst(),
+                description=description,
+                other_account_number=other_account_info,
             )
             db.add(tx)
             db.flush()
@@ -786,7 +790,7 @@ def deposit_to_user(user_id: str, amount, currency: str = 'JPY'):
         db.close()
 
 
-def deposit_by_account_number(account_number: str, branch_code: str, amount, currency: str = 'JPY'):
+def deposit_by_account_number(account_number: str, branch_code: str, amount, currency: str = 'JPY', description: str = None, other_account_info: str = None):
     """
     口座番号と支店コードで入金する。口座が存在しない場合は例外を投げる。
     transactionsテーブルとtransaction_entriesテーブルに記録される。
@@ -796,6 +800,8 @@ def deposit_by_account_number(account_number: str, branch_code: str, amount, cur
         branch_code: 支店コード
         amount: 入金額
         currency: 通貨コード(デフォルトはJPY)
+        description: 摘要（任意）
+        other_account_info: 相手口座情報（任意）
 
     Returns:
         True if successful
@@ -850,6 +856,8 @@ def deposit_by_account_number(account_number: str, branch_code: str, amount, cur
                 type='deposit',
                 status='completed',
                 executed_at=now_jst(),
+                description=description,
+                other_account_number=other_account_info,
             )
             db.add(tx)
             db.flush()

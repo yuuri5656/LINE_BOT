@@ -99,23 +99,34 @@ def purchase_chips(user_id: str, amount: int, account_number: str, branch_code: 
     from apps.shop.shop_service import get_shop_operations_account
 
     db = SessionLocal()
-    price = Decimal(str(amount))*12  # 1チップ = 12 JPY
+    price = Decimal(str(amount))  # チップの枚数がそのまま価格（1チップ = 1円ではなく、商品価格による）
 
     try:
-        # 口座から引き落とし
+        # ショップ運営口座情報を取得
+        shop_account = get_shop_operations_account()
+
+        # 口座から引き落とし（摘要と相手口座を記録）
         try:
-            withdraw_by_account_number(account_number, branch_code, price, 'JPY')
+            withdraw_by_account_number(
+                account_number,
+                branch_code,
+                price,
+                'JPY',
+                description=f'チップ購入 {amount}枚',
+                other_account_info=f"{shop_account['full_name']} {shop_account['branch_num']}-{shop_account['account_number']}"
+            )
         except Exception as e:
             return {'success': False, 'error': f'口座からの引き落としに失敗しました: {str(e)}'}
 
         # ショップ運営口座に売上を入金
         try:
-            shop_account = get_shop_operations_account()
             deposit_by_account_number(
                 shop_account['account_number'],
                 shop_account['branch_num'],
                 price,
-                'JPY'
+                'JPY',
+                description=f'チップ販売',
+                other_account_info=f"{branch_code}-{account_number}"
             )
         except Exception as e:
             # 売上入金失敗時は引き落としを戻す処理が必要だが、
@@ -472,11 +483,15 @@ def redeem_chips(user_id: str, amount: int) -> Dict:
         # 銀行口座に入金（1チップ = 12円で換金）
         redeem_amount = amt * Decimal('12')
         try:
+            from apps.shop.shop_service import get_shop_operations_account
+            shop_account = get_shop_operations_account()
             deposit_by_account_number(
                 account.account_number,
                 branch.code,
                 redeem_amount,
-                'JPY'
+                'JPY',
+                description=f'チップ換金 {amount}枚',
+                other_account_info=f"{shop_account['full_name']} {shop_account['branch_num']}-{shop_account['account_number']}"
             )
         except Exception as e:
             # 入金失敗時はチップをロールバック（別トランザクションなので手動処理）

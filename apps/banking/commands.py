@@ -120,6 +120,11 @@ def _display_transaction_history(event, account_number, branch_code):
         for tx in page:
             dt = tx.get('executed_at')
             try:
+                # UTC → JST変換（aware datetimeの場合）
+                if dt and hasattr(dt, 'tzinfo') and dt.tzinfo is not None:
+                    import pytz
+                    jst = pytz.timezone('Asia/Tokyo')
+                    dt = dt.astimezone(jst)
                 dt_str = dt.strftime('%Y/%m/%d %H:%M') if dt else '-'
             except Exception:
                 dt_str = str(dt) if dt else '-'
