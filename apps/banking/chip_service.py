@@ -99,7 +99,7 @@ def purchase_chips(user_id: str, amount: int, account_number: str, branch_code: 
     from apps.shop.shop_service import get_shop_operations_account
 
     db = SessionLocal()
-    price = Decimal(str(amount))  # チップの枚数がそのまま価格（1チップ = 1円ではなく、商品価格による）
+    price = Decimal(str(amount)) * Decimal('12')  # 1チップ = 12円
 
     try:
         # ショップ運営口座情報を取得

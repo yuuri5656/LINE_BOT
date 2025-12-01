@@ -255,6 +255,10 @@ def transfer_funds(from_account_number: str, to_account_number: str, amount, cur
             if from_acc.balance < amount:
                 raise ValueError("Insufficient funds")
 
+            # 相手口座情報を取得
+            to_branch_code = getattr(to_acc.branch, 'code', '') if to_acc.branch else ''
+            other_account_info = f"{to_branch_code}-{to_acc.account_number}" if to_branch_code else to_acc.account_number
+
             # トランザクションレコード作成
             tx = Transaction(
                 from_account_id=from_acc.account_id,
@@ -264,6 +268,7 @@ def transfer_funds(from_account_number: str, to_account_number: str, amount, cur
                 type='transfer',
                 status='completed',
                 description=description,  # 摘要を追加
+                other_account_number=other_account_info,  # 相手口座を追加
                 executed_at=now_jst(),
             )
             db.add(tx)
@@ -453,14 +458,17 @@ def get_account_transactions_by_account(account_number: str, branch_code: str, l
         for t in txs:
             try:
                 direction = '出金' if t.from_account_id == acc.account_id else '入金'
-                other_acc_num = None
-                try:
-                    if t.from_account_id == acc.account_id:
-                        other_acc_num = getattr(t.to_account, 'account_number', None)
-                    else:
-                        other_acc_num = getattr(t.from_account, 'account_number', None)
-                except Exception:
-                    other_acc_num = None
+
+                # 相手口座番号を取得（優先順位: other_account_number > リレーション）
+                other_acc_num = getattr(t, 'other_account_number', None)
+                if not other_acc_num:
+                    try:
+                        if t.from_account_id == acc.account_id:
+                            other_acc_num = getattr(t.to_account, 'account_number', None)
+                        else:
+                            other_acc_num = getattr(t.from_account, 'account_number', None)
+                    except Exception:
+                        other_acc_num = None
 
                 dt = t.executed_at if getattr(t, 'executed_at', None) else getattr(t, 'created_at', None)
 
@@ -769,6 +777,8 @@ def deposit_to_user(user_id: str, amount, currency: str = 'JPY'):
                 type='deposit',
                 status='completed',
                 executed_at=now_jst(),
+                description=description,
+                other_account_number=other_account_info,
             )
             db.add(tx)
             db.flush()

@@ -195,6 +195,7 @@ class Transaction(Base):
     type = Column(transaction_type_enum, nullable=False)
     status = Column(transaction_status_enum, nullable=False, server_default=text("'pending'::transaction_status"))
     description = Column(String, nullable=True)  # 摘要
+    other_account_number = Column(String, nullable=True)  # 相手口座番号
     executed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=text('now()'))
 
