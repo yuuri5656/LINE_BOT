@@ -389,17 +389,17 @@ def get_holdings_carousel(holdings: List[Dict]) -> FlexSendMessage:
                         "layout": "baseline",
                         "contents": [
                             {"type": "text", "text": "評価損益", "size": "sm", "color": "#666666", "flex": 3, "weight": "bold"},
-                            {
-                                "type": "box",
-                                "layout": "vertical",
-                                "contents": [
-                                    {"type": "text", "text": f"{profit_sign}¥{holding['profit_loss']:,.0f}", "size": "md", "weight": "bold", "color": profit_color, "align": "end"},
-                                    {"type": "text", "text": f"({profit_sign}{holding['profit_loss_rate']:,.1f}%)", "size": "sm", "color": profit_color, "align": "end"}
-                                ],
-                                "flex": 5
-                            }
+                            {"type": "text", "text": f"{profit_sign}¥{holding['profit_loss']:,.0f}", "size": "md", "flex": 5, "align": "end", "weight": "bold", "color": profit_color}
                         ],
                         "margin": "md"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "baseline",
+                        "contents": [
+                            {"type": "text", "text": " ", "size": "sm", "color": "#666666", "flex": 3},
+                            {"type": "text", "text": f"({profit_sign}{holding['profit_loss_rate']:,.1f}%)", "size": "sm", "flex": 5, "align": "end", "color": profit_color}
+                        ]
                     }
                 ],
                 "paddingAll": "20px"
