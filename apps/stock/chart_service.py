@@ -219,6 +219,7 @@ class ChartService:
 
             # クリーンアップ
             plt.close(fig)
+            plt.close('all')  # 念のため全figureをクローズ
             buf.close()
 
             # 画像アップロード（ImgBBまたはImgur）
@@ -227,6 +228,7 @@ class ChartService:
 
         except Exception as e:
             print(f"チャート生成エラー: {e}")
+            plt.close('all')  # エラー時もクリーンアップ
             return None
 
     @staticmethod
@@ -282,6 +284,7 @@ class ChartService:
 
             # クリーンアップ
             plt.close(fig)
+            plt.close('all')  # 念のため全figureをクローズ
             buf.close()
 
             # 画像アップロード（ImgBBまたはImgur）
@@ -290,6 +293,7 @@ class ChartService:
 
         except Exception as e:
             print(f"ポートフォリオチャート生成エラー: {e}")
+            plt.close('all')  # エラー時もクリーンアップ
             return None
 
     @staticmethod
@@ -360,6 +364,7 @@ class ChartService:
 
             # クリーンアップ
             plt.close(fig)
+            plt.close('all')  # 念のため全figureをクローズ
             buf.close()
 
             # 画像アップロード（ImgBBまたはImgur）
@@ -368,6 +373,7 @@ class ChartService:
 
         except Exception as e:
             print(f"損益比較チャート生成エラー: {e}")
+            plt.close('all')  # エラー時もクリーンアップ
             return None
 
 

@@ -21,17 +21,26 @@ class StockBackgroundUpdater:
         self.running = False
         self.thread = None
         self.last_dividend_date = None  # 最後に配当金を支払った日付
+        self._lock = threading.Lock()  # スレッド起動の排他制御
 
     def start(self):
         """バックグラウンド更新を開始"""
-        if self.running:
-            print("[株価更新] 既に実行中です")
-            return
+        with self._lock:
+            # 既存スレッドが生きている場合はスキップ
+            if self.thread is not None and self.thread.is_alive():
+                print("[株価更新] 既に実行中です（スレッド生存確認済み）")
+                return
 
-        self.running = True
-        self.thread = threading.Thread(target=self._update_loop, daemon=True)
-        self.thread.start()
-        print(f"[株価更新] バックグラウンド更新を開始しました（間隔: {self.update_interval}秒）")
+            # 既存スレッドをクリーンアップ
+            if self.thread is not None:
+                print("[株価更新] 古いスレッドを検出、クリーンアップします")
+                self.running = False
+                self.thread = None
+
+            self.running = True
+            self.thread = threading.Thread(target=self._update_loop, daemon=True)
+            self.thread.start()
+            print(f"[株価更新] バックグラウンド更新を開始しました（間隔: {self.update_interval}秒）")
 
     def stop(self):
         """バックグラウンド更新を停止"""
