@@ -91,68 +91,15 @@ def bank_reception(event, text, user_id, display_name, sessions):
         )
         return
 
-        elif isinstance(state, dict) and state.get("minigame_registration"):
-            # ミニゲーム口座機能は廃止されたため、セッションをクリア
-            sessions.pop(user_id, None)
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text="ミニゲーム口座機能は廃止されました。\n現在はチップシステムをご利用ください。\n\nコマンド: ?ショップ")
-            )
-            return
-
-            # 以下のコードは実行されません（廃止済み）
-            if False:
-                full_name = text.strip()
-                import re
-                has_zen_kana = re.search(r'[ァ-ンヴー]', full_name)
-                has_han_kana = re.search(r'[ｦ-ﾟ]', full_name)
-                if has_zen_kana:
-                    try:
-                        import jaconv
-                        full_name = jaconv.z2h(full_name, kana=True, digit=False, ascii=False)
-                    except ImportError:
-                        line_bot_api.reply_message(
-                            event.reply_token,
-                            TextSendMessage(text="全角カタカナが含まれていましたが、半角カナへの変換に失敗しました。jaconvライブラリをインストールしてください。\n例: pip install jaconv")
-                        )
-                        return
-
-                # カタカナチェック（半角カナまたは全角カナのみ許可）
-                is_katakana = re.match(r'^[ｦ-ﾟ\s]+$', full_name)
-                if not is_katakana or len(full_name.split(" ")) < 2:
-                    line_bot_api.reply_message(
-                        event.reply_token,
-                        TextSendMessage(text="フルネームは半角カナで、苗字と名前の間にスペースを入れて入力してください。\n例: ﾎﾝﾀﾞ ﾊﾙｷ")
-                    )
-                    return
-
-                sessions[user_id]["full_name"] = full_name
-                sessions[user_id]["step"] = 4
-
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text=f"氏名: {full_name}\n\n最後に、口座開設時に設定した4桁の暗証番号を入力してください。")
-                )
-                return
-
-            # ステップ4: 暗証番号入力と登録処理
-            elif current_step == 4:
-                pin_code = text.strip()
-
-                if not pin_code.isdigit() or len(pin_code) != 4:
-                    line_bot_api.reply_message(
-                        event.reply_token,
-                        TextSendMessage(text="暗証番号は4桁の数字で入力してください。")
-                    )
-                    return
-
-                # ミニゲーム口座機能は廃止されました
-                sessions.pop(user_id, None)
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text="ミニゲーム口座機能は廃止されました。\n現在はチップシステムをご利用ください。\n\nコマンド: ?ショップ")
-                )
-                return
+    # ミニゲーム口座登録セッション処理（廃止済み）
+    if isinstance(state, dict) and state.get("minigame_registration"):
+        # ミニゲーム口座機能は廃止されたため、セッションをクリア
+        sessions.pop(user_id, None)
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="ミニゲーム口座機能は廃止されました。\n現在はチップシステムをご利用ください。\n\nコマンド: ?ショップ")
+        )
+        return
 
     # キャンセルコマンドの優先チェック（全ステップ共通）
     if text.strip() == "?キャンセル" and isinstance(state, dict) and state.get("step"):
