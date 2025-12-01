@@ -236,37 +236,6 @@ class TransactionEntry(Base):
         return f"<TransactionEntry(entry_id={self.entry_id}, transaction_id={self.transaction_id}, account_id={self.account_id}, amount={self.amount})>"
 
 
-class MinigameAccount(Base):
-    """minigame_accounts テーブルの ORM 定義
-
-    ユーザーがミニゲームで使用する口座を登録・管理するためのテーブル。
-    1ユーザーにつき1つのミニゲーム口座のみ登録可能。
-
-    対応する DB カラム:
-        minigame_account_id serial PK
-        user_id varchar(255) NOT NULL UNIQUE
-        account_id integer FK -> accounts.account_id ON DELETE CASCADE
-        registered_at timestamp DEFAULT now()
-        last_used_at timestamp
-        is_active boolean DEFAULT true
-    """
-
-    __tablename__ = 'minigame_accounts'
-
-    minigame_account_id = Column(Integer, primary_key=True)
-    user_id = Column(String(255), unique=True, nullable=False)
-    account_id = Column(BigInteger, ForeignKey('accounts.account_id', ondelete='CASCADE'), unique=True, nullable=False)
-    registered_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
-    last_used_at = Column(DateTime, nullable=True)
-    is_active = Column(Integer, server_default=text('true'))  # PostgreSQL boolean
-
-    # リレーション
-    account = relationship('Account')
-
-    def __repr__(self):
-        return f"<MinigameAccount(minigame_account_id={self.minigame_account_id}, user_id={self.user_id}, account_id={self.account_id}, is_active={self.is_active})>"
-
-
 class MinigameChip(Base):
     """minigame_chips テーブルの ORM 定義
 

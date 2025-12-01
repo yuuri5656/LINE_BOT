@@ -84,74 +84,33 @@ def bank_reception(event, text, user_id, display_name, sessions):
             )
             return
 
-        # 口座選択FlexMessageを表示
-        from apps.banking.bank_service import get_minigame_account_registration_flex
-        registration_flex = get_minigame_account_registration_flex(bank_accounts)
-        line_bot_api.reply_message(event.reply_token, registration_flex)
+        # ミニゲーム口座機能は廃止されました
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="ミニゲーム口座機能は廃止されました。\n現在はチップシステムをご利用ください。\n\nコマンド: ?ショップ")
+        )
         return
 
         elif isinstance(state, dict) and state.get("minigame_registration"):
-            current_step = state.get("step", 1)
+            # ミニゲーム口座機能は廃止されたため、セッションをクリア
+            sessions.pop(user_id, None)
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="ミニゲーム口座機能は廃止されました。\n現在はチップシステムをご利用ください。\n\nコマンド: ?ショップ")
+            )
+            return
 
-            # ステップ1: 支店番号入力
-            if current_step == 1:
-                branch_code = text.strip()
-
-                if not branch_code.isdigit() or len(branch_code) != 3:
-                    line_bot_api.reply_message(
-                        event.reply_token,
-                        TextSendMessage(text="支店番号は3桁の数字で入力してください。\n例: 001")
-                    )
-                    return
-
-                sessions[user_id]["branch_code"] = branch_code
-                sessions[user_id]["step"] = 2
-
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text=f"支店番号: {branch_code}\n\n次に、登録したい口座の口座番号（7桁）を入力してください。\n\n※「?口座情報」コマンドで確認できます。")
-                )
-                return
-
-            # ステップ2: 口座番号入力
-            elif current_step == 2:
-                account_number = text.strip()
-
-                if not account_number.isdigit() or len(account_number) != 7:
-                    line_bot_api.reply_message(
-                        event.reply_token,
-                        TextSendMessage(text="口座番号は7桁の数字で入力してください。")
-                    )
-                    return
-
-                sessions[user_id]["account_number"] = account_number
-                sessions[user_id]["step"] = 3
-
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text=f"口座番号: {account_number}\n\n次に、口座開設時に登録したフルネームをカタカナで入力してください。\n例: ホンダ ハルキ")
-                )
-                return
-
-            # ステップ3: 氏名入力
-            elif current_step == 3:
-
+            # 以下のコードは実行されません（廃止済み）
+            if False:
                 full_name = text.strip()
                 import re
-
-                # 全角カタカナが含まれているかチェック
                 has_zen_kana = re.search(r'[ァ-ンヴー]', full_name)
-                # 半角カタカナが含まれているかチェック
                 has_han_kana = re.search(r'[ｦ-ﾟ]', full_name)
-
-                # 全角カタカナが含まれていた場合は半角カナに変換
                 if has_zen_kana:
-                    # 半角カナ変換（unicodedata.normalizeは直接変換できないため、外部ライブラリ使用推奨だが、ここでは簡易変換）
                     try:
                         import jaconv
                         full_name = jaconv.z2h(full_name, kana=True, digit=False, ascii=False)
                     except ImportError:
-                        # jaconvがない場合は警告
                         line_bot_api.reply_message(
                             event.reply_token,
                             TextSendMessage(text="全角カタカナが含まれていましたが、半角カナへの変換に失敗しました。jaconvライブラリをインストールしてください。\n例: pip install jaconv")
@@ -187,30 +146,12 @@ def bank_reception(event, text, user_id, display_name, sessions):
                     )
                     return
 
-                # 登録処理を実行（生年月日なしバージョン）
-                full_name = sessions[user_id].get("full_name")
-                branch_code = sessions[user_id].get("branch_code")
-                account_number = sessions[user_id].get("account_number")
-
-                result = bank_service.register_minigame_account(
-                    user_id=user_id,
-                    full_name=full_name,
-                    branch_code=branch_code,
-                    account_number=account_number,
-                    pin_code=pin_code,
-                )
-
-                # セッションをクリア
+                # ミニゲーム口座機能は廃止されました
                 sessions.pop(user_id, None)
-
-                if result.get('success'):
-                    update_text = "更新" if result.get('updated') else "登録"
-                    message = f"✅ ミニゲーム用口座を{update_text}しました！\n\n支店番号: {branch_code}\n口座番号: {account_number}\n\nこの口座でミニゲームに参加できます。\n※この口座は通常の入出金も引き続き利用できます。"
-                else:
-                    error_msg = result.get('error', '不明なエラーが発生しました。')
-                    message = f"❌ 登録に失敗しました。\n\n{error_msg}\n\n入力した情報が正しいか確認してください。\n・口座開設時に登録した氏名と暗証番号\n・登録したい口座の支店番号と口座番号\n\n'?口座情報'で口座番号を確認できます。"
-
-                line_bot_api.reply_message(event.reply_token, TextSendMessage(text=message))
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text="ミニゲーム口座機能は廃止されました。\n現在はチップシステムをご利用ください。\n\nコマンド: ?ショップ")
+                )
                 return
 
     # キャンセルコマンドの優先チェック（全ステップ共通）
