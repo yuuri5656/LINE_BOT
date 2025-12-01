@@ -181,6 +181,12 @@ class ChartService:
             if not history or len(history) < 2:
                 return None
 
+            # データ間引き（400ポイント以下に削減）
+            max_points = 400
+            if len(history) > max_points:
+                step = len(history) // max_points
+                history = history[::step]  # step間隔でデータを間引く
+
             # データ準備
             timestamps = [h['timestamp'] for h in history]
             prices = [h['price'] for h in history]
@@ -188,8 +194,9 @@ class ChartService:
             # グラフ作成
             fig, ax = plt.subplots(figsize=(10, 6))
 
-            # 折れ線グラフ
-            ax.plot(timestamps, prices, linewidth=2, color='#2196F3', marker='o', markersize=4)
+            # 折れ線グラフ（マーカーは削減してパフォーマンス向上）
+            marker_size = 0 if len(timestamps) > 100 else 4
+            ax.plot(timestamps, prices, linewidth=2, color='#2196F3', marker='o' if marker_size > 0 else None, markersize=marker_size)
 
             # グリッド
             ax.grid(True, alpha=0.3, linestyle='--')

@@ -83,8 +83,8 @@ def handle_stock_detail(event, symbol_code: str, user_id: str):
     # 詳細FlexMessage
     detail_flex = stock_flex.get_stock_detail_flex(stock, has_holding)
 
-    # チャート画像生成（Imgur統合）
-    chart_url = stock_api.generate_stock_chart(symbol_code, days=30)
+    # チャート画像生成（1週間分: 2016ポイント → 自動間引きで約400ポイントに削減）
+    chart_url = stock_api.generate_stock_chart(symbol_code, days=2016)
 
     messages = [detail_flex]
 
