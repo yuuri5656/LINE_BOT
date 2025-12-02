@@ -11,6 +11,10 @@ import urllib.parse
 
 def handle_stock_command(event, user_id):
     """?株 コマンド - ダッシュボード表示"""
+    # ローディングアニメーション表示
+    from core.api import show_loading_animation
+    show_loading_animation(user_id, loading_seconds=5)
+
     # 株式口座の有無を確認
     stock_account = stock_api.get_stock_account(user_id)
 
@@ -51,6 +55,10 @@ def handle_account_registration(event, user_id):
 
 def handle_stock_list(event, user_id):
     """銘柄一覧表示"""
+    # ローディングアニメーション表示
+    from core.api import show_loading_animation
+    show_loading_animation(user_id, loading_seconds=5)
+
     stocks = stock_api.get_all_stocks()
 
     if not stocks:
@@ -67,6 +75,10 @@ def handle_stock_list(event, user_id):
 
 def handle_stock_detail(event, symbol_code: str, user_id: str):
     """銘柄詳細表示"""
+    # ローディングアニメーション表示（チャート生成に時間がかかるため）
+    from core.api import show_loading_animation
+    show_loading_animation(user_id, loading_seconds=10)
+
     stock = stock_api.get_stock_by_code(symbol_code)
 
     if not stock:
@@ -100,6 +112,10 @@ def handle_stock_detail(event, symbol_code: str, user_id: str):
     line_bot_api.reply_message(event.reply_token, messages)
 def handle_my_holdings(event, user_id: str):
     """保有株一覧表示"""
+    # ローディングアニメーション表示
+    from core.api import show_loading_animation
+    show_loading_animation(user_id, loading_seconds=5)
+
     holdings = stock_api.get_user_holdings(user_id)
 
     if not holdings or len(holdings) == 0:
@@ -145,6 +161,10 @@ def handle_buy_stock_start(event, symbol_code: str, user_id: str):
         )
         return
 
+    # ローディングアニメーション表示
+    from core.api import show_loading_animation
+    show_loading_animation(user_id, loading_seconds=5)
+
     # 銘柄確認
     stock = stock_api.get_stock_by_code(symbol_code)
     if not stock:
@@ -172,6 +192,10 @@ def handle_sell_stock_start(event, symbol_code: str, user_id: str):
             TextSendMessage(text="株式の売却は個別チャットでのみ可能です。")
         )
         return
+
+    # ローディングアニメーション表示
+    from core.api import show_loading_animation
+    show_loading_animation(user_id, loading_seconds=5)
 
     # 保有株確認
     holdings = stock_api.get_user_holdings(user_id)

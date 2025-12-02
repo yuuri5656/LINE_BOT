@@ -18,6 +18,10 @@ def handle_account_info(event, user_id):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="個別チャットでのみ利用可能です。塩爺に直接メッセージを送ってください。"))
         return
 
+    # ローディングアニメーション表示
+    from core.api import show_loading_animation
+    show_loading_animation(user_id, loading_seconds=5)
+
     from apps.help_flex import get_account_flex_bubble
     accounts = banking_api.get_accounts_by_user(user_id)
 
@@ -45,6 +49,10 @@ def handle_passbook(event, user_id):
     if event.source.type != 'user':
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="個別チャットでのみ利用可能です。塩爺に直接メッセージを送ってください。"))
         return
+
+    # ローディングアニメーション表示
+    from core.api import show_loading_animation
+    show_loading_animation(user_id, loading_seconds=5)
 
     # ユーザーに紐づく全口座を取得
     accounts = banking_api.get_accounts_by_user(user_id)
@@ -220,6 +228,11 @@ def handle_session_input(event, text, user_id, display_name, sessions):
 
 def handle_transfer(event, user_id, sessions):
     """振り込みコマンド"""
+    # 個人チャットの場合のみローディングアニメーション表示
+    if event.source.type == 'user':
+        from core.api import show_loading_animation
+        show_loading_animation(user_id, loading_seconds=5)
+
     from apps.banking.transfer_handler import handle_transfer_command
     handle_transfer_command(event, user_id, sessions)
 
