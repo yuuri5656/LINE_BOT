@@ -149,7 +149,7 @@ def _display_transaction_history(event, account_number, branch_code):
                 "type": "box",
                 "layout": "vertical",
                 "margin": "md",
-                "spacing": "sm",
+                "spacing": "xs",
                 "contents": [
                     {"type": "text", "text": dt_str, "size": "sm", "color": "#999999"},
                     {"type": "text", "text": f"{tx.get('direction')} {tx.get('amount')} {tx.get('currency')}",
