@@ -4,7 +4,7 @@ session_handlerから顧客情報を受け取り、アカウント作成を実�
 """
 from core.api import line_bot_api
 from linebot.models import TextSendMessage
-from apps.banking.bank_service import create_account_optimized, reply_account_creation
+from apps.banking.bank_service import create_account_optimized, reply_account_creation, transfer_initial_funds
 
 
 def create_account(event, account_info, sessions, user_id):
@@ -13,6 +13,18 @@ def create_account(event, account_info, sessions, user_id):
         # operator_id を sessions や account_info から取り出せる場合は渡す
         operator_id = account_info.get('operator_id') or sessions.get('operator_id') if sessions else None
         new_account = create_account_optimized(event, account_info, sessions, operator_id=operator_id)
+
+        # 新規口座開設時に初期費用5000円を振り込み
+        if new_account and new_account.get('account_number'):
+            try:
+                transfer_initial_funds(
+                    new_account.get('account_number'),
+                    account_info.get('branch_num', '001'),
+                    user_id
+                )
+            except Exception as e:
+                print(f"[Account Creation] Initial funds transfer failed: {e}")
+                # 初期費用の振込に失敗しても口座開設は完了させる
 
         # reply message content and sending handled centrally in bank_service
         try:

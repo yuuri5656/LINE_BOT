@@ -9,6 +9,11 @@ MINIGAME_FEE_ACCOUNT = {
     "account_type": "当座",
     "issue_date": "25年/11月"
 }
+
+# 準備預金口座（初期費用・株式決済用）
+RESERVE_ACCOUNT_NUMBER = '7777777'
+RESERVE_BRANCH_CODE = '001'
+
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from core.api import line_bot_api
@@ -206,6 +211,54 @@ def create_account_optimized(event, account_info: dict, sessions: dict, operator
     except Exception as e:
         db.rollback()
         print(f"[BankService] create_account_optimized error: {e}")
+        raise
+    finally:
+        db.close()
+
+
+def transfer_initial_funds(to_account_number: str, to_branch_code: str, user_id: str):
+    """
+    新規口座開設時に準備預金口座から初期費用5000円を振り込む
+
+    Args:
+        to_account_number: 振込先口座番号
+        to_branch_code: 振込先支店コード
+        user_id: ユーザーID（既存口座チェック用）
+
+    Raises:
+        ValueError: 既存口座がある場合や振込処理に失敗した場合
+    """
+    db = SessionLocal()
+    try:
+        # ユーザーの既存口座をチェック（この口座以外にactiveな口座があるか）
+        existing_accounts = db.execute(
+            select(Account).filter_by(user_id=user_id, status='active')
+        ).scalars().all()
+
+        # 今開設した口座を除いて、他にアクティブな口座があるか確認
+        other_active_accounts = [
+            acc for acc in existing_accounts
+            if acc.account_number != to_account_number
+        ]
+
+        if other_active_accounts:
+            # 既存口座がある場合は初期費用を振り込まない
+            print(f"[BankService] User {user_id} has existing accounts, skipping initial funds transfer")
+            return
+
+        # 準備預金口座から新規口座へ5000円振り込み
+        transfer_funds(
+            from_account_number=RESERVE_ACCOUNT_NUMBER,
+            to_account_number=to_account_number,
+            amount=Decimal('5000'),
+            currency='JPY',
+            description='初期費用'
+        )
+
+        print(f"[BankService] Initial funds 5000 JPY transferred to {to_account_number} for user {user_id}")
+
+    except Exception as e:
+        print(f"[BankService] transfer_initial_funds failed: {e}")
         raise
     finally:
         db.close()
