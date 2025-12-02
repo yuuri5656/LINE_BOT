@@ -22,10 +22,12 @@ def get_salary_account_info(user_id: str) -> Optional[Dict]:
         query = text("""
             SELECT wsa.salary_account_id, wsa.user_id, wsa.account_id,
                    wsa.registered_at, wsa.last_work_at, wsa.is_active,
-                   a.account_number, a.branch_code, a.branch_name,
-                   a.full_name, a.balance, a.currency
+                   a.account_number, b.code as branch_code, b.name as branch_name,
+                   c.full_name, a.balance, a.currency
             FROM work_salary_accounts wsa
             JOIN accounts a ON wsa.account_id = a.account_id
+            JOIN customers c ON a.customer_id = c.customer_id
+            LEFT JOIN branches b ON a.branch_id = b.branch_id
             WHERE wsa.user_id = :user_id AND wsa.is_active = TRUE
             LIMIT 1
         """)
@@ -67,9 +69,11 @@ def register_salary_account_by_id(user_id: str, account_id: int) -> Dict:
 
         # 口座が存在するか確認
         account_query = text("""
-            SELECT account_id, full_name, branch_code, account_number
-            FROM accounts
-            WHERE account_id = :account_id AND user_id = :user_id AND status = 'active'
+            SELECT a.account_id, c.full_name, b.code as branch_code, a.account_number
+            FROM accounts a
+            JOIN customers c ON a.customer_id = c.customer_id
+            LEFT JOIN branches b ON a.branch_id = b.branch_id
+            WHERE a.account_id = :account_id AND a.user_id = :user_id AND a.status = 'active'
         """)
         account = db.execute(account_query, {"account_id": account_id, "user_id": user_id}).fetchone()
 
@@ -230,9 +234,10 @@ def get_work_history(user_id: str, limit: int = 20) -> list:
     try:
         query = text("""
             SELECT wh.work_id, wh.salary_amount, wh.worked_at, wh.description,
-                   a.account_number, a.branch_code, a.branch_name
+                   a.account_number, b.code as branch_code, b.name as branch_name
             FROM work_history wh
             JOIN accounts a ON wh.account_id = a.account_id
+            LEFT JOIN branches b ON a.branch_id = b.branch_id
             WHERE wh.user_id = :user_id
             ORDER BY wh.worked_at DESC
             LIMIT :limit
