@@ -5,6 +5,7 @@ from typing import Optional, Dict
 from decimal import Decimal
 import random
 from datetime import datetime, timedelta
+from sqlalchemy import text
 from apps.banking.main_bank_system import get_db
 from apps.banking.api import banking_api
 
@@ -18,17 +19,17 @@ def get_salary_account_info(user_id: str) -> Optional[Dict]:
     """
     db = next(get_db())
     try:
-        query = """
+        query = text("""
             SELECT wsa.salary_account_id, wsa.user_id, wsa.account_id,
                    wsa.registered_at, wsa.last_work_at, wsa.is_active,
                    a.account_number, a.branch_code, a.branch_name,
                    a.full_name, a.balance, a.currency
             FROM work_salary_accounts wsa
             JOIN accounts a ON wsa.account_id = a.account_id
-            WHERE wsa.user_id = %s AND wsa.is_active = TRUE
+            WHERE wsa.user_id = :user_id AND wsa.is_active = TRUE
             LIMIT 1
-        """
-        result = db.execute(query, (user_id,)).fetchone()
+        """)
+        result = db.execute(query, {"user_id": user_id}).fetchone()
 
         if result:
             return {
@@ -65,23 +66,23 @@ def register_salary_account_by_id(user_id: str, account_id: int) -> Dict:
             return {'success': False, 'message': '既に給与振込口座が登録されています'}
 
         # 口座が存在するか確認
-        account_query = """
+        account_query = text("""
             SELECT account_id, full_name, branch_code, account_number
             FROM accounts
-            WHERE account_id = %s AND user_id = %s AND status = 'active'
-        """
-        account = db.execute(account_query, (account_id, user_id)).fetchone()
+            WHERE account_id = :account_id AND user_id = :user_id AND status = 'active'
+        """)
+        account = db.execute(account_query, {"account_id": account_id, "user_id": user_id}).fetchone()
 
         if not account:
             return {'success': False, 'message': '指定された口座が見つかりません'}
 
         # 給与振込口座を登録
-        insert_query = """
+        insert_query = text("""
             INSERT INTO work_salary_accounts (user_id, account_id, registered_at, is_active)
-            VALUES (%s, %s, CURRENT_TIMESTAMP, TRUE)
+            VALUES (:user_id, :account_id, CURRENT_TIMESTAMP, TRUE)
             RETURNING salary_account_id
-        """
-        result = db.execute(insert_query, (user_id, account_id)).fetchone()
+        """)
+        result = db.execute(insert_query, {"user_id": user_id, "account_id": account_id}).fetchone()
         db.commit()
 
         return {
@@ -181,19 +182,19 @@ def do_work(user_id: str) -> Dict:
             }
 
         # 最終労働時刻を更新
-        update_query = """
+        update_query = text("""
             UPDATE work_salary_accounts
             SET last_work_at = CURRENT_TIMESTAMP
-            WHERE user_id = %s
-        """
-        db.execute(update_query, (user_id,))
+            WHERE user_id = :user_id
+        """)
+        db.execute(update_query, {"user_id": user_id})
 
         # 労働履歴を記録
-        history_query = """
+        history_query = text("""
             INSERT INTO work_history (user_id, salary_amount, account_id, worked_at, description)
-            VALUES (%s, %s, %s, CURRENT_TIMESTAMP, '労働報酬')
-        """
-        db.execute(history_query, (user_id, salary, account_id))
+            VALUES (:user_id, :salary, :account_id, CURRENT_TIMESTAMP, '労働報酬')
+        """)
+        db.execute(history_query, {"user_id": user_id, "salary": salary, "account_id": account_id})
         db.commit()
 
         # 入金後の残高を取得
@@ -227,16 +228,16 @@ def get_work_history(user_id: str, limit: int = 20) -> list:
     """
     db = next(get_db())
     try:
-        query = """
+        query = text("""
             SELECT wh.work_id, wh.salary_amount, wh.worked_at, wh.description,
                    a.account_number, a.branch_code, a.branch_name
             FROM work_history wh
             JOIN accounts a ON wh.account_id = a.account_id
-            WHERE wh.user_id = %s
+            WHERE wh.user_id = :user_id
             ORDER BY wh.worked_at DESC
-            LIMIT %s
-        """
-        results = db.execute(query, (user_id, limit)).fetchall()
+            LIMIT :limit
+        """)
+        results = db.execute(query, {"user_id": user_id, "limit": limit}).fetchall()
 
         history = []
         for row in results:
