@@ -379,7 +379,10 @@ def get_help_flex():
                         {"type": "text", "text": "逆ポーランド記法で計算します", "size": "sm", "color": "#666666", "wrap": True},
                         {"type": "separator", "margin": "md"},
                         {"type": "text", "text": "?setname [名前]", "weight": "bold", "size": "md", "color": "#9370DB", "margin": "md"},
-                        {"type": "text", "text": "表示名を設定します", "size": "sm", "color": "#666666", "wrap": True}
+                        {"type": "text", "text": "表示名を設定します", "size": "sm", "color": "#666666", "wrap": True},
+                        {"type": "separator", "margin": "md"},
+                        {"type": "text", "text": "?労働", "weight": "bold", "size": "md", "color": "#9370DB", "margin": "md"},
+                        {"type": "text", "text": "15分に1回、800円～1800円の報酬を獲得します", "size": "sm", "color": "#666666", "wrap": True}
                     ],
                     "spacing": "sm",
                     "paddingAll": "20px"
@@ -935,6 +938,23 @@ def get_detail_utility_flex():
                 {
                     "type": "text",
                     "text": "表示名を変更します。（例：?setname 太郎）",
+                    "size": "md",
+                    "color": "#333333",
+                    "wrap": True,
+                    "margin": "sm"
+                },
+                {"type": "separator", "color": "#9370DB", "margin": "md"},
+                {
+                    "type": "text",
+                    "text": "?労働",
+                    "weight": "bold",
+                    "size": "lg",
+                    "color": "#9370DB",
+                    "margin": "md"
+                },
+                {
+                    "type": "text",
+                    "text": "会社で労働して報酬を得ます。15分に1回実行可能で、800円～1800円のランダムな報酬が給与振込口座に振り込まれます。初回は給与振込口座の登録が必要です。",
                     "size": "md",
                     "color": "#333333",
                     "wrap": True,

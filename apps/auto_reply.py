@@ -13,6 +13,7 @@ from apps.games import commands as game_commands
 from apps.utilities import commands as utility_commands
 from apps.shop import commands as shop_commands
 from apps.stock import commands as stock_commands
+from apps.work import commands as work_commands
 
 
 def auto_reply(event, text, user_id, group_id, display_name, sessions):
@@ -78,6 +79,12 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             import urllib.parse
             parsed_data = dict(urllib.parse.parse_qsl(data))
             stock_commands.handle_stock_postback(event, parsed_data, user_id)
+            return
+        # 労働システムのpostbackアクション
+        elif data.startswith("action=select_work_salary_account") or data.startswith("action=confirm_work_salary_account"):
+            import urllib.parse
+            parsed_data = dict(urllib.parse.parse_qsl(data))
+            work_commands.handle_work_postback(event, parsed_data, user_id)
             return
 
     state = sessions.get(user_id)
@@ -245,6 +252,10 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
 
     if text.startswith("?setname"):
         utility_commands.handle_setname(event, user_id, text)
+        return
+
+    if text == "?労働":
+        work_commands.handle_work_command(event, user_id)
         return
 
     # お遊びコマンド

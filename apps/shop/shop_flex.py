@@ -261,6 +261,10 @@ def get_payment_account_registration_flex(accounts: list) -> FlexSendMessage:
                 "layout": "vertical",
                 "contents": [
                     {"type": "text", "text": "以下の銀行口座をショップ支払い用に登録します", "wrap": True, "color": "#666666", "size": "sm"},
+                    {"type": "box", "layout": "vertical", "contents": [
+                        {"type": "text", "text": "⚠️ 注意", "weight": "bold", "size": "xs", "color": "#FF5722"},
+                        {"type": "text", "text": "一度登録すると後から変更できません", "size": "xxs", "color": "#FF5722", "wrap": True}
+                    ], "backgroundColor": "#FFEBEE", "paddingAll": "8px", "cornerRadius": "md", "margin": "md"},
                     {"type": "separator", "margin": "lg"},
                     {
                         "type": "box",
@@ -338,7 +342,11 @@ def get_payment_account_registration_flex(accounts: list) -> FlexSendMessage:
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                    {"type": "text", "text": "ショップ支払い用の口座を選択してください", "wrap": True, "color": "#666666", "size": "sm"}
+                    {"type": "text", "text": "ショップ支払い用の口座を選択してください", "wrap": True, "color": "#666666", "size": "sm"},
+                    {"type": "box", "layout": "vertical", "contents": [
+                        {"type": "text", "text": "⚠️ 注意", "weight": "bold", "size": "xs", "color": "#FF5722"},
+                        {"type": "text", "text": "一度登録すると後から変更できません", "size": "xxs", "color": "#FF5722", "wrap": True}
+                    ], "backgroundColor": "#FFEBEE", "paddingAll": "8px", "cornerRadius": "md", "margin": "md"}
                 ] + account_boxes,
                 "paddingAll": "20px"
             }
