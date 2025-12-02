@@ -203,6 +203,11 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         utility_commands.handle_help(event)
         return
 
+    if text == "?アップデート":
+        from apps.help_flex import get_update_announcement_flex
+        line_bot_api.reply_message(event.reply_token, get_update_announcement_flex())
+        return
+
     if text == "?口座情報":
         banking_commands.handle_account_info(event, user_id)
         return

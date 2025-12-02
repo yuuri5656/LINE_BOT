@@ -967,3 +967,266 @@ def get_detail_utility_flex():
         }
     }
     return FlexSendMessage(alt_text="ユーティリティ詳細ヘルプ", contents=detail)
+
+def get_update_announcement_flex():
+    """大型アップデート情報をFlexMessageで返す"""
+    announcement = {
+        "type": "carousel",
+        "contents": [
+            {
+                "type": "bubble",
+                "hero": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {
+                            "type": "text",
+                            "text": "🎉 大型アップデート",
+                            "weight": "bold",
+                            "size": "xxl",
+                            "color": "#ffffff",
+                            "align": "center"
+                        },
+                        {
+                            "type": "text",
+                            "text": "2025年12月 リリース",
+                            "size": "sm",
+                            "color": "#ffffff",
+                            "align": "center",
+                            "margin": "md"
+                        }
+                    ],
+                    "backgroundColor": "#FF6B6B",
+                    "paddingAll": "20px"
+                },
+                "body": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {
+                            "type": "text",
+                            "text": "主要な新機能",
+                            "weight": "bold",
+                            "size": "xl",
+                            "color": "#333333"
+                        },
+                        {"type": "separator", "margin": "lg", "color": "#FF6B6B"},
+                        {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": "📈 株式システム",
+                                    "weight": "bold",
+                                    "size": "lg",
+                                    "color": "#DC143C",
+                                    "margin": "lg"
+                                },
+                                {
+                                    "type": "text",
+                                    "text": "• リアルタイム株価更新\n• チャート表示機能\n• 保有株式管理",
+                                    "size": "sm",
+                                    "color": "#666666",
+                                    "wrap": True,
+                                    "margin": "md"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": "💼 労働システム",
+                                    "weight": "bold",
+                                    "size": "lg",
+                                    "color": "#9370DB",
+                                    "margin": "lg"
+                                },
+                                {
+                                    "type": "text",
+                                    "text": "• 15分ごとに労働可能\n• 給与自動振込\n• 800～1800円の報酬",
+                                    "size": "sm",
+                                    "color": "#666666",
+                                    "wrap": True,
+                                    "margin": "md"
+                                }
+                            ]
+                        }
+                    ],
+                    "spacing": "md",
+                    "paddingAll": "20px"
+                },
+                "footer": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {"type": "text", "text": "ページ 1/2", "size": "xs", "color": "#999999", "align": "center"}
+                    ],
+                    "paddingAll": "10px"
+                }
+            },
+            {
+                "type": "bubble",
+                "hero": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {
+                            "type": "text",
+                            "text": "✨ システム改善",
+                            "weight": "bold",
+                            "size": "xxl",
+                            "color": "#ffffff",
+                            "align": "center"
+                        }
+                    ],
+                    "backgroundColor": "#4ECDC4",
+                    "paddingAll": "20px"
+                },
+                "body": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {
+                            "type": "text",
+                            "text": "改善内容",
+                            "weight": "bold",
+                            "size": "xl",
+                            "color": "#333333"
+                        },
+                        {"type": "separator", "margin": "lg", "color": "#4ECDC4"},
+                        {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": "🎨 UI/UX改善",
+                                    "weight": "bold",
+                                    "size": "lg",
+                                    "color": "#1E90FF",
+                                    "margin": "lg"
+                                },
+                                {
+                                    "type": "text",
+                                    "text": "• Flex Messageの全面刷新\n• 視覚的で分かりやすいデザイン\n• ボタン操作の追加",
+                                    "size": "sm",
+                                    "color": "#666666",
+                                    "wrap": True,
+                                    "margin": "md"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": "⏰ 日時処理の統一",
+                                    "weight": "bold",
+                                    "size": "lg",
+                                    "color": "#32CD32",
+                                    "margin": "lg"
+                                },
+                                {
+                                    "type": "text",
+                                    "text": "• 全システムで日本時間(JST)に統一\n• 表示形式の統一化",
+                                    "size": "sm",
+                                    "color": "#666666",
+                                    "wrap": True,
+                                    "margin": "md"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": "🐛 バグ修正",
+                                    "weight": "bold",
+                                    "size": "lg",
+                                    "color": "#FF8C00",
+                                    "margin": "lg"
+                                },
+                                {
+                                    "type": "text",
+                                    "text": "• セッション管理の改善\n• エラーハンドリングの強化\n• その他多数のバグ修正",
+                                    "size": "sm",
+                                    "color": "#666666",
+                                    "wrap": True,
+                                    "margin": "md"
+                                }
+                            ]
+                        }
+                    ],
+                    "spacing": "md",
+                    "paddingAll": "20px"
+                },
+                "footer": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {"type": "text", "text": "ページ 2/2", "size": "xs", "color": "#999999", "align": "center"},
+                        {"type": "separator", "margin": "md"},
+                        {
+                            "type": "text",
+                            "text": "💡 詳細は各ヘルプをご確認ください",
+                            "size": "sm",
+                            "color": "#333333",
+                            "align": "center",
+                            "margin": "md",
+                            "wrap": True,
+                            "weight": "bold"
+                        },
+                        {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "button",
+                                    "action": {
+                                        "type": "message",
+                                        "label": "?ヘルプ - 全機能",
+                                        "text": "?ヘルプ"
+                                    },
+                                    "style": "primary",
+                                    "color": "#1E90FF",
+                                    "margin": "md"
+                                },
+                                {
+                                    "type": "button",
+                                    "action": {
+                                        "type": "postback",
+                                        "label": "株式システムの詳細",
+                                        "data": "help_detail_stock"
+                                    },
+                                    "style": "primary",
+                                    "color": "#DC143C",
+                                    "margin": "sm"
+                                },
+                                {
+                                    "type": "button",
+                                    "action": {
+                                        "type": "postback",
+                                        "label": "ユーティリティの詳細",
+                                        "data": "help_detail_utility"
+                                    },
+                                    "style": "primary",
+                                    "color": "#9370DB",
+                                    "margin": "sm"
+                                }
+                            ]
+                        }
+                    ],
+                    "paddingAll": "15px"
+                }
+            }
+        ]
+    }
+    return FlexSendMessage(alt_text="大型アップデート情報", contents=announcement)
