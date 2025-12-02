@@ -113,7 +113,7 @@ def purchase_chips(user_id: str, amount: int, account_number: str, branch_code: 
                 price,
                 'JPY',
                 description=f'チップ購入 {amount}枚',
-                other_account_info=f"{shop_account['full_name']} {shop_account['branch_num']}-{shop_account['account_number']}"
+                other_account_info=f"{shop_account['branch_num']}-{shop_account['account_number']}"
             )
         except Exception as e:
             return {'success': False, 'error': f'口座からの引き落としに失敗しました: {str(e)}'}
@@ -491,7 +491,7 @@ def redeem_chips(user_id: str, amount: int) -> Dict:
                 redeem_amount,
                 'JPY',
                 description=f'チップ換金 {amount}枚',
-                other_account_info=f"{shop_account['full_name']} {shop_account['branch_num']}-{shop_account['account_number']}"
+                other_account_info=f"{shop_account['branch_num']}-{shop_account['account_number']}"
             )
         except Exception as e:
             # 入金失敗時はチップをロールバック（別トランザクションなので手動処理）

@@ -77,7 +77,7 @@ def handle_stock_detail(event, symbol_code: str, user_id: str):
     """銘柄詳細表示"""
     # ローディングアニメーション表示（チャート生成に時間がかかるため）
     from core.api import show_loading_animation
-    show_loading_animation(user_id, loading_seconds=10)
+    show_loading_animation(user_id, loading_seconds=30)
 
     stock = stock_api.get_stock_by_code(symbol_code)
 

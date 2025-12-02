@@ -317,7 +317,7 @@ def get_help_flex():
                     "layout": "vertical",
                     "contents": [
                         {"type": "text", "text": "?株", "weight": "bold", "size": "md", "color": "#DC143C", "margin": "md"},
-                        {"type": "text", "text": "株式ダッシュボードを表示します（個別チャットのみ）", "size": "sm", "color": "#666666", "wrap": True},
+                        {"type": "text", "text": "株式ダッシュボードを表示します", "size": "sm", "color": "#666666", "wrap": True},
                         {"type": "separator", "margin": "md"},
                         {"type": "text", "text": "銘柄一覧", "weight": "bold", "size": "md", "color": "#DC143C", "margin": "md"},
                         {"type": "text", "text": "取引可能な銘柄の一覧を表示します", "size": "sm", "color": "#666666", "wrap": True},
