@@ -1148,6 +1148,50 @@ def get_update_announcement_flex():
                             "contents": [
                                 {
                                     "type": "text",
+                                    "text": "💰 新規特典",
+                                    "weight": "bold",
+                                    "size": "lg",
+                                    "color": "#FFD700",
+                                    "margin": "lg"
+                                },
+                                {
+                                    "type": "text",
+                                    "text": "• 初回口座開設時に5000円を自動付与\n• 準備預金から初期費用として振込",
+                                    "size": "sm",
+                                    "color": "#666666",
+                                    "wrap": True,
+                                    "margin": "md"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": "🔄 リセット実施",
+                                    "weight": "bold",
+                                    "size": "lg",
+                                    "color": "#FF6B6B",
+                                    "margin": "lg"
+                                },
+                                {
+                                    "type": "text",
+                                    "text": "• 全ユーザーの個人口座残高をリセット\n• チップ残高もリセット\n• 新機能に伴う調整",
+                                    "size": "sm",
+                                    "color": "#666666",
+                                    "wrap": True,
+                                    "margin": "md"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "text",
                                     "text": "🐛 バグ修正",
                                     "weight": "bold",
                                     "size": "lg",
