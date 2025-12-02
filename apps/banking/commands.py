@@ -119,15 +119,33 @@ def _display_transaction_history(event, account_number, branch_code):
         items = []
         for tx in page:
             dt = tx.get('executed_at')
-            try:
-                # UTC → JST変換（aware datetimeの場合）
-                if dt and hasattr(dt, 'tzinfo') and dt.tzinfo is not None:
+            dt_str = '-'
+
+            if dt:
+                try:
+                    from datetime import datetime
                     import pytz
+
+                    # datetime型に変換
+                    if isinstance(dt, str):
+                        # 文字列の場合はパース
+                        dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+
+                    # タイムゾーン情報がない場合はUTCとして扱う
+                    if dt.tzinfo is None:
+                        utc = pytz.UTC
+                        dt = utc.localize(dt)
+
+                    # JSTに変換
                     jst = pytz.timezone('Asia/Tokyo')
-                    dt = dt.astimezone(jst)
-                dt_str = dt.strftime('%Y/%m/%d %H:%M') if dt else '-'
-            except Exception:
-                dt_str = str(dt) if dt else '-'
+                    dt_jst = dt.astimezone(jst)
+
+                    # YY-MM-DD フォーマットで表示
+                    dt_str = dt_jst.strftime('%y-%m-%d')
+                except Exception as e:
+                    # エラー時はデバッグ情報を出力
+                    print(f"[通帳] 日時変換エラー: {e}, 元の値: {dt}")
+                    dt_str = '-'
 
             items.append({
                 "type": "box",

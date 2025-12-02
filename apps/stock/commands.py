@@ -242,6 +242,15 @@ def handle_trade_quantity_input(event, user_id: str, message_text: str):
 
 def handle_confirm_trade(event, trade_type: str, symbol_code: str, quantity: int, user_id: str):
     """取引確定処理"""
+    # セッションが存在するか確認（重複実行防止）
+    session = stock_api.get_session(user_id)
+    if not session or session.get('step') != 'confirm':
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="⚠️ この取引は既に処理済み、またはキャンセルされています。")
+        )
+        return
+
     if trade_type == 'buy':
         success, message, result = stock_api.buy_stock(user_id, symbol_code, quantity)
     else:

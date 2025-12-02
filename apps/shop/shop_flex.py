@@ -122,33 +122,39 @@ def get_category_items_flex(category_name: str, items: List[Dict]) -> FlexSendMe
         if 'chip_amount' in attrs:
             chip_amount = attrs.get('chip_amount', 0)
             bonus_chip = attrs.get('bonus_chip', 0)
+            total_chips = chip_amount + bonus_chip
 
-            chip_info = {
+            # 合計チップ数（大きく表示）
+            total_chip_info = {
                 "type": "box",
                 "layout": "baseline",
                 "contents": [
                     {
                         "type": "text",
-                        "text": f"💰 {chip_amount}枚",
-                        "size": "sm",
+                        "text": f"💰 {total_chips}枚受取",
+                        "size": "lg",
                         "color": "#111111",
+                        "weight": "bold",
                         "flex": 0
                     }
                 ],
                 "margin": "sm"
             }
-            item_box["contents"].append(chip_info)
+            item_box["contents"].append(total_chip_info)
 
+            # 内訳（小さく表示）
+            breakdown_text = f"基本{chip_amount}枚"
             if bonus_chip > 0:
-                bonus_info = {
-                    "type": "text",
-                    "text": f"🎁 ボーナス +{bonus_chip}枚",
-                    "size": "xs",
-                    "color": "#FF6B6B",
-                    "weight": "bold",
-                    "margin": "xs"
-                }
-                item_box["contents"].append(bonus_info)
+                breakdown_text += f" + ボーナス{bonus_chip}枚"
+
+            breakdown_info = {
+                "type": "text",
+                "text": f"({breakdown_text})",
+                "size": "xs",
+                "color": "#999999",
+                "margin": "xs"
+            }
+            item_box["contents"].append(breakdown_info)
 
         # ブースターの場合（将来対応）
         if 'boost_rate' in attrs:
