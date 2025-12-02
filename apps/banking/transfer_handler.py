@@ -203,16 +203,15 @@ def _handle_account_number_input(event, text, user_id, sessions, transfer_data):
             sessions.pop(user_id, None)
             return
 
-        # 口座を取得
+        # 口座を取得（active/frozenのみ、closedは除外）
         account = db.execute(
             select(Account).filter_by(
                 account_number=text,
-                branch_id=branch.branch_id,
-                status='active'
+                branch_id=branch.branch_id
             )
         ).scalars().first()
 
-        if not account:
+        if not account or getattr(account, 'status', None) not in ('active', 'frozen'):
             line_bot_api.reply_message(
                 event.reply_token,
                 get_transfer_error_flex(
@@ -350,6 +349,15 @@ def _execute_transfer(event, pin_code, user_id, sessions, transfer_data):
             line_bot_api.reply_message(
                 event.reply_token,
                 get_transfer_error_flex("振込元口座が見つかりません。", 'error')
+            )
+            sessions.pop(user_id, None)
+            return
+
+        # ステータスチェック: activeまたはfrozenのみ有効
+        if from_account.status not in ('active', 'frozen'):
+            line_bot_api.reply_message(
+                event.reply_token,
+                get_transfer_error_flex("この口座は利用できません（閉鎖済みまたは無効）。", 'error')
             )
             sessions.pop(user_id, None)
             return

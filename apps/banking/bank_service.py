@@ -230,18 +230,18 @@ def transfer_initial_funds(to_account_number: str, to_branch_code: str, user_id:
     """
     db = SessionLocal()
     try:
-        # ユーザーの既存口座をチェック（この口座以外にactiveな口座があるか）
-        existing_accounts = db.execute(
-            select(Account).filter_by(user_id=user_id, status='active')
+        # ユーザーの既存口座をチェック（この口座以外に有効な口座があるか）
+        all_accounts = db.execute(
+            select(Account).filter_by(user_id=user_id)
         ).scalars().all()
+        # closedを除外してactive/frozenの口座のみを取得
+        existing_accounts = [acc for acc in all_accounts if getattr(acc, 'status', None) in ('active', 'frozen')]
 
-        # 今開設した口座を除いて、他にアクティブな口座があるか確認
+        # 今開設した口座を除いて、他に有効な口座があるか確認
         other_active_accounts = [
             acc for acc in existing_accounts
             if acc.account_number != to_account_number
-        ]
-
-        if other_active_accounts:
+        ]        if other_active_accounts:
             # 既存口座がある場合は初期費用を振り込まない
             print(f"[BankService] User {user_id} has existing accounts, skipping initial funds transfer")
             return
@@ -303,8 +303,8 @@ def transfer_funds(from_account_number: str, to_account_number: str, amount, cur
                 to_status = str(getattr(to_acc, 'status', '')).strip().lower()
             except Exception:
                 to_status = None
-            if from_status != 'active' or to_status != 'active':
-                raise ValueError(f"One of accounts is not active (from_status={repr(getattr(from_acc, 'status', None))} to_status={repr(getattr(to_acc, 'status', None))})")
+            if from_status not in ('active', 'frozen') or to_status not in ('active', 'frozen'):
+                raise ValueError(f"One of accounts is not active or frozen (from_status={repr(getattr(from_acc, 'status', None))} to_status={repr(getattr(to_acc, 'status', None))})")
             if from_acc.balance < amount:
                 raise ValueError("Insufficient funds")
 
@@ -358,7 +358,9 @@ def transfer_funds(from_account_number: str, to_account_number: str, amount, cur
 
 
 def get_active_account_by_user(user_id: str):
-    """ユーザーIDからアクティブな口座を取得するヘルパー。見つからなければ None を返す。"""
+    """ユーザーIDからアクティブな口座を取得するヘルパー。見つからなければ None を返す。
+    注: active または frozen の口座のみを返す（closed は除外）
+    """
     db = SessionLocal()
     try:
         # Avoid passing the literal enum value into the SQLAlchemy filter because
@@ -369,7 +371,8 @@ def get_active_account_by_user(user_id: str):
         if not acc:
             return None
         try:
-            return acc if getattr(acc, 'status', None) == 'active' else None
+            status = getattr(acc, 'status', None)
+            return acc if status in ('active', 'frozen') else None
         except Exception:
             return None
     finally:
@@ -377,11 +380,18 @@ def get_active_account_by_user(user_id: str):
 
 
 def get_account_info_by_user(user_id: str):
-    """ユーザーIDから口座の主要情報を辞書で返す。口座が無ければ None を返す。"""
+    """ユーザーIDから口座の主要情報を辞書で返す。口座が無ければ None を返す。
+    注: active または frozen の口座のみを返す（closed は除外）
+    """
     db = SessionLocal()
     try:
         acc = db.execute(select(Account).filter_by(user_id=user_id)).scalars().first()
         if not acc:
+            return None
+
+        # closedの口座は除外
+        status = getattr(acc, 'status', None)
+        if status == 'closed':
             return None
 
         # branch はリレーション経由で取得可能（セッション内）
@@ -406,7 +416,7 @@ def get_account_info_by_user(user_id: str):
             'type': getattr(acc, 'type', None),
             'branch_code': branch_code,
             'branch_name': branch_name,
-            'status': getattr(acc, 'status', None),
+            'status': status,
             'created_at': getattr(acc, 'created_at', None),
         }
         return info
@@ -415,13 +425,17 @@ def get_account_info_by_user(user_id: str):
 
 
 def get_accounts_by_user(user_id: str):
-    """ユーザーIDに紐づく全口座情報をリストで返す。"""
+    """ユーザーIDに紐づく全口座情報をリストで返す。
+    注: active または frozen の口座のみを返す（closed は除外）
+    """
     db = SessionLocal()
     try:
-        # user_idとstatus='active'で複数口座を取得
-        accounts = db.execute(
-            select(Account).filter_by(user_id=user_id, status='active')
+        # user_idで口座を取得し、active/frozenのみフィルタ
+        all_accounts = db.execute(
+            select(Account).filter_by(user_id=user_id)
         ).scalars().all()
+        # closedを除外
+        accounts = [acc for acc in all_accounts if getattr(acc, 'status', None) in ('active', 'frozen')]
         result = []
         for acc in accounts:
             branch_code = None
@@ -481,15 +495,18 @@ def get_account_transactions_by_account(account_number: str, branch_code: str, l
         if not branch:
             return []
 
-        # 口座を取得
+        # 口座を取得（active/frozenのみ、closedは除外）
         acc = db.execute(
             select(Account).filter_by(
                 account_number=account_number,
-                branch_id=branch.branch_id,
-                status='active'
+                branch_id=branch.branch_id
             )
         ).scalars().first()
         if not acc:
+            return []
+        # closedの口座は除外
+        status = getattr(acc, 'status', None)
+        if status == 'closed':
             return []
 
         # 口座関係のトランザクションを取得（from または to）でcompletedのみ
@@ -553,9 +570,13 @@ def get_account_transactions_by_user(user_id: str, limit: int = 20):
     """
     db = SessionLocal()
     try:
-        # アクティブな口座を取得
-        acc = db.execute(select(Account).filter_by(user_id=user_id, status='active')).scalars().first()
+        # 口座を取得（active/frozenのみ、closedは除外）
+        acc = db.execute(select(Account).filter_by(user_id=user_id)).scalars().first()
         if not acc:
+            return []
+        # closedの口座は除外
+        status = getattr(acc, 'status', None)
+        if status == 'closed':
             return []
 
         # 支店情報を取得
@@ -749,8 +770,8 @@ def withdraw_by_account_number(account_number: str, branch_code: str, amount, cu
                 acc_status = str(getattr(acc, 'status', '')).strip().lower()
             except Exception:
                 acc_status = None
-            if acc_status != 'active':
-                raise ValueError(f"Account not active (status={repr(getattr(acc, 'status', None))})")
+            if acc_status not in ('active', 'frozen'):
+                raise ValueError(f"Account not active or frozen (status={repr(getattr(acc, 'status', None))})")
 
             # 残高チェック
             if acc.balance < amt:
@@ -815,8 +836,8 @@ def deposit_to_user(user_id: str, amount, currency: str = 'JPY'):
                 acc_status = str(getattr(acc, 'status', '')).strip().lower()
             except Exception:
                 acc_status = None
-            if acc_status != 'active':
-                raise ValueError(f"Account not active (status={repr(getattr(acc, 'status', None))})")
+            if acc_status not in ('active', 'frozen'):
+                raise ValueError(f"Account not active or frozen (status={repr(getattr(acc, 'status', None))})")
 
             # 残高を更新
             acc.balance = acc.balance + amt
@@ -904,8 +925,8 @@ def deposit_by_account_number(account_number: str, branch_code: str, amount, cur
                 acc_status = str(getattr(acc, 'status', '')).strip().lower()
             except Exception:
                 acc_status = None
-            if acc_status != 'active':
-                raise ValueError(f"Account not active (status={repr(getattr(acc, 'status', None))})")
+            if acc_status not in ('active', 'frozen'):
+                raise ValueError(f"Account not active or frozen (status={repr(getattr(acc, 'status', None))})")
 
             # 残高を更新
             acc.balance = acc.balance + amt
@@ -979,12 +1000,12 @@ def authenticate_customer(full_name: str, pin_code: str, branch_code: str = None
         if not account:
             return False
 
-        # 口座がアクティブか確認
+        # 口座がアクティブまたはフローズンか確認（closedは拒否）
         try:
             acc_status = str(getattr(account, 'status', '')).strip().lower()
         except Exception:
             acc_status = None
-        if acc_status != 'active':
+        if acc_status not in ('active', 'frozen'):
             return False
 
         # accountsテーブルから、account_numberとbranch_idが合致するレコードのcustomer_idを取得
@@ -1068,8 +1089,8 @@ def batch_withdraw(withdrawals: list) -> dict:
                     raise ValueError(f"Account not found: {account_number}")
 
                 acc_status = str(getattr(acc, 'status', '')).strip().lower()
-                if acc_status != 'active':
-                    raise ValueError(f"Account not active: {account_number}")
+                if acc_status not in ('active', 'frozen'):
+                    raise ValueError(f"Account not active or frozen: {account_number}")
 
                 if acc.balance < amount:
                     raise ValueError(f"Insufficient funds: {account_number} (balance: {acc.balance}, required: {amount})")
@@ -1169,8 +1190,8 @@ def batch_deposit(deposits: list) -> dict:
                     raise ValueError(f"Account not found: {account_number}")
 
                 acc_status = str(getattr(acc, 'status', '')).strip().lower()
-                if acc_status != 'active':
-                    raise ValueError(f"Account not active: {account_number}")
+                if acc_status not in ('active', 'frozen'):
+                    raise ValueError(f"Account not active or frozen: {account_number}")
 
                 # 残高更新
                 acc.balance += amount

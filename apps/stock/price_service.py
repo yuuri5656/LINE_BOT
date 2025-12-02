@@ -337,6 +337,12 @@ class PriceService:
                         fail_count += 1
                         continue
 
+                    # ステータスチェック: activeまたはfrozenのみ有効
+                    if bank_account.status not in ('active', 'frozen'):
+                        print(f"[配当金] 連携銀行口座が利用できません (user_id={holding.user_id}, status={bank_account.status})")
+                        fail_count += 1
+                        continue
+
                     # 準備預金口座から振込（配当金）
                     from apps.stock.stock_service import RESERVE_ACCOUNT_NUMBER
                     description = f"配当金 {stock.symbol_code} {holding.quantity}株"

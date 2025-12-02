@@ -438,6 +438,13 @@ def redeem_chips(user_id: str, amount: int) -> Dict:
                 'error': '登録された口座が見つかりません。'
             }
 
+        # ステータスチェック: activeまたはfrozenのみ有効
+        if account.status not in ('active', 'frozen'):
+            return {
+                'success': False,
+                'error': '登録された口座が利用できません（閉鎖済みまたは無効）。'
+            }
+
         branch = db.execute(
             select(Branch).filter_by(branch_id=account.branch_id)
         ).scalars().first()

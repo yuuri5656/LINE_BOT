@@ -161,6 +161,10 @@ def register_payment_account(user_id: str, full_name: str, branch_code: str,
             if not account:
                 return {'success': False, 'error': '口座が見つかりません'}
 
+            # ステータスチェック: activeまたはfrozenのみ有効
+            if account.status not in ('active', 'frozen'):
+                return {'success': False, 'error': 'この口座は利用できません（閉鎖済みまたは無効）'}
+
             # 口座のユーザーIDチェック
             if account.user_id != user_id:
                 return {'success': False, 'error': 'この口座はあなたの口座ではありません'}
@@ -212,6 +216,10 @@ def register_payment_account_by_id(user_id: str, account_id: int) -> Dict:
 
             if not account:
                 return {'success': False, 'error': '口座が見つかりません'}
+
+            # ステータスチェック: activeまたはfrozenのみ有効
+            if account.status not in ('active', 'frozen'):
+                return {'success': False, 'error': 'この口座は利用できません（閉鎖済みまたは無効）'}
 
             if account.user_id != user_id:
                 return {'success': False, 'error': 'この口座はあなたの口座ではありません'}
@@ -265,6 +273,10 @@ def get_payment_account_info(user_id: str) -> Optional[Dict]:
         ).scalars().first()
 
         if not account:
+            return None
+
+        # ステータスチェック: activeまたはfrozenのみ有効
+        if account.status not in ('active', 'frozen'):
             return None
 
         branch_code = account.branch.code if account.branch else None

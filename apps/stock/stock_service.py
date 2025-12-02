@@ -51,6 +51,10 @@ class StockService:
             if not bank_account:
                 raise ValueError("指定された銀行口座が見つかりません")
 
+            # ステータスチェック: activeまたはfrozenのみ有効
+            if bank_account.status not in ('active', 'frozen'):
+                raise ValueError("指定された銀行口座は利用できません（閉鎖済みまたは無効）")
+
             # 新規作成
             new_account = StockAccount(
                 user_id=user_id,
@@ -277,6 +281,10 @@ class StockService:
             if not bank_account:
                 return False, "連携銀行口座が見つかりません", None
 
+            # ステータスチェック: activeまたはfrozenのみ有効
+            if bank_account.status not in ('active', 'frozen'):
+                return False, "連携銀行口座が利用できません（閉鎖済みまたは無効）", None
+
             if bank_account.balance < total_amount:
                 return False, f"残高不足です（必要: ¥{total_amount:,}、残高: ¥{bank_account.balance:,}）", None
 
@@ -394,6 +402,10 @@ class StockService:
             bank_account = db.query(Account).filter_by(account_id=stock_account.linked_bank_account_id).first()
             if not bank_account:
                 return False, "連携銀行口座が見つかりません", None
+
+            # ステータスチェック: activeまたはfrozenのみ有効
+            if bank_account.status not in ('active', 'frozen'):
+                return False, "連携銀行口座が利用できません（閉鎖済みまたは無効）", None
 
             # 準備預金口座から振込（株式売却代金）
             description = f"株式売却 {stock.symbol_code} {quantity}株"
