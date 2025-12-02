@@ -174,8 +174,15 @@ def do_work(user_id: str) -> Dict:
 
     db = next(get_db())
     try:
-        # 口座に入金
-        success = banking_api.deposit_by_account(account_number, branch_code, salary, 'JPY')
+        # 口座に入金（会社からの給与振込として記録）
+        success = banking_api.deposit_by_account(
+            account_number,
+            branch_code,
+            salary,
+            'JPY',
+            description='給与',
+            other_account_info='001-8450464'
+        )
 
         if not success:
             return {

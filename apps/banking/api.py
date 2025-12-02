@@ -132,7 +132,8 @@ class BankingAPI:
 
     @staticmethod
     def deposit_by_account(account_number: str, branch_code: str,
-                          amount: Any, currency: str = 'JPY') -> bool:
+                          amount: Any, currency: str = 'JPY',
+                          description: str = None, other_account_info: str = None) -> bool:
         """
         口座番号・支店コードで入金
 
@@ -141,12 +142,14 @@ class BankingAPI:
             branch_code: 支店コード
             amount: 入金額
             currency: 通貨コード
+            description: 摘要（任意）
+            other_account_info: 相手口座情報（任意）
 
         Returns:
             成功時True
         """
         service = _get_bank_service()
-        return service.deposit_by_account_number(account_number, branch_code, amount, currency)
+        return service.deposit_by_account_number(account_number, branch_code, amount, currency, description, other_account_info)
 
     # --- 取引履歴 ---
 
