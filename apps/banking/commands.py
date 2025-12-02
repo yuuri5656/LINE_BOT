@@ -123,8 +123,7 @@ def _display_transaction_history(event, account_number, branch_code):
 
             if dt:
                 try:
-                    from datetime import datetime
-                    import pytz
+                    from datetime import datetime, timezone, timedelta
 
                     # datetime型に変換
                     if isinstance(dt, str):
@@ -133,11 +132,10 @@ def _display_transaction_history(event, account_number, branch_code):
 
                     # タイムゾーン情報がない場合はUTCとして扱う
                     if dt.tzinfo is None:
-                        utc = pytz.UTC
-                        dt = utc.localize(dt)
+                        dt = dt.replace(tzinfo=timezone.utc)
 
-                    # JSTに変換
-                    jst = pytz.timezone('Asia/Tokyo')
+                    # JSTに変換（UTC+9時間）
+                    jst = timezone(timedelta(hours=9))
                     dt_jst = dt.astimezone(jst)
 
                     # YY-MM-DD フォーマットで表示
