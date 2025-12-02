@@ -201,8 +201,15 @@ def do_work(user_id: str) -> Dict:
         db.execute(history_query, {"user_id": user_id, "salary": salary, "account_id": account_id})
         db.commit()
 
-        # 入金後の残高を取得
-        balance_after = banking_api.get_balance_by_account(account_number, branch_code, 'JPY')
+        # 入金後の残高を取得（口座情報を再取得）
+        balance_query = text("""
+            SELECT balance FROM accounts
+            WHERE account_number = :account_number AND branch_id = (
+                SELECT branch_id FROM branches WHERE code = :branch_code
+            )
+        """)
+        balance_result = db.execute(balance_query, {"account_number": account_number, "branch_code": branch_code}).fetchone()
+        balance_after = balance_result[0] if balance_result else Decimal('0')
 
         return {
             'success': True,
