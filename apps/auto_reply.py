@@ -4,7 +4,7 @@
 """
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 from core.api import line_bot_api
-from apps.help_flex import get_detail_account_flex, get_detail_janken_flex, get_detail_shop_flex, get_detail_utility_flex
+from apps.help_flex import get_detail_account_flex, get_detail_janken_flex, get_detail_shop_flex, get_detail_stock_flex, get_detail_utility_flex
 
 # 各機能のコマンドハンドラーをインポート
 from apps.banking import commands as banking_commands
@@ -30,6 +30,9 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             return
         elif data == "help_detail_shop":
             line_bot_api.reply_message(event.reply_token, get_detail_shop_flex())
+            return
+        elif data == "help_detail_stock":
+            line_bot_api.reply_message(event.reply_token, get_detail_stock_flex())
             return
         elif data == "help_detail_utility":
             line_bot_api.reply_message(event.reply_token, get_detail_utility_flex())

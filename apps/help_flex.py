@@ -307,6 +307,56 @@ def get_help_flex():
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
+                        {"type": "text", "text": "株式システム", "weight": "bold", "size": "xl", "color": "#ffffff"}
+                    ],
+                    "backgroundColor": "#DC143C",
+                    "paddingAll": "20px"
+                },
+                "body": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {"type": "text", "text": "?株", "weight": "bold", "size": "md", "color": "#DC143C", "margin": "md"},
+                        {"type": "text", "text": "株式ダッシュボードを表示します（個別チャットのみ）", "size": "sm", "color": "#666666", "wrap": True},
+                        {"type": "separator", "margin": "md"},
+                        {"type": "text", "text": "銘柄一覧", "weight": "bold", "size": "md", "color": "#DC143C", "margin": "md"},
+                        {"type": "text", "text": "取引可能な銘柄の一覧を表示します", "size": "sm", "color": "#666666", "wrap": True},
+                        {"type": "separator", "margin": "md"},
+                        {"type": "text", "text": "銘柄詳細", "weight": "bold", "size": "md", "color": "#DC143C", "margin": "md"},
+                        {"type": "text", "text": "銘柄の詳細情報とチャートを表示（チャート生成に時間がかかります）", "size": "sm", "color": "#666666", "wrap": True},
+                        {"type": "separator", "margin": "md"},
+                        {"type": "text", "text": "保有株", "weight": "bold", "size": "md", "color": "#DC143C", "margin": "md"},
+                        {"type": "text", "text": "あなたの保有株式を表示します", "size": "sm", "color": "#666666", "wrap": True}
+                    ],
+                    "spacing": "sm",
+                    "paddingAll": "20px"
+                },
+                "footer": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {"type": "text", "text": "ページ 4/5", "size": "xs", "color": "#999999", "align": "center"},
+                        {
+                            "type": "button",
+                            "action": {
+                                "type": "postback",
+                                "label": "株式システムの詳細ヘルプ",
+                                "data": "help_detail_stock"
+                            },
+                            "style": "primary",
+                            "color": "#DC143C",
+                            "margin": "md"
+                        }
+                    ],
+                    "paddingAll": "10px"
+                }
+            },
+            {
+                "type": "bubble",
+                "hero": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
                         {"type": "text", "text": "ユーティリティ", "weight": "bold", "size": "xl", "color": "#ffffff"}
                     ],
                     "backgroundColor": "#9370DB",
@@ -338,7 +388,7 @@ def get_help_flex():
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
-                        {"type": "text", "text": "ページ 4/4", "size": "xs", "color": "#999999", "align": "center"},
+                        {"type": "text", "text": "ページ 5/5", "size": "xs", "color": "#999999", "align": "center"},
                         {
                             "type": "button",
                             "action": {
@@ -654,6 +704,136 @@ def get_detail_shop_flex():
         }
     }
     return FlexSendMessage(alt_text="ショップ機能詳細ヘルプ", contents=detail)
+
+def get_detail_stock_flex():
+    detail = {
+        "type": "bubble",
+        "header": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": "📈 株式システム 詳細ヘルプ",
+                    "weight": "bold",
+                    "size": "xl",
+                    "color": "#DC143C"
+                }
+            ]
+        },
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {"type": "separator", "color": "#DC143C"},
+                {
+                    "type": "text",
+                    "text": "?株（ダッシュボード）",
+                    "weight": "bold",
+                    "size": "lg",
+                    "color": "#DC143C",
+                    "margin": "md"
+                },
+                {
+                    "type": "text",
+                    "text": "株式ダッシュボードを表示します。初回は株式口座の登録フローが開始されます。登録には銀行口座が必要です。個別チャット（1:1）専用機能です。",
+                    "size": "md",
+                    "color": "#333333",
+                    "wrap": True,
+                    "margin": "sm"
+                },
+                {"type": "separator", "color": "#DC143C", "margin": "md"},
+                {
+                    "type": "text",
+                    "text": "銘柄一覧",
+                    "weight": "bold",
+                    "size": "lg",
+                    "color": "#DC143C",
+                    "margin": "md"
+                },
+                {
+                    "type": "text",
+                    "text": "取引可能な全銘柄の一覧をカルーセル形式で表示します。各銘柄の現在価格、前日比、変動率を確認できます。",
+                    "size": "md",
+                    "color": "#333333",
+                    "wrap": True,
+                    "margin": "sm"
+                },
+                {"type": "separator", "color": "#DC143C", "margin": "md"},
+                {
+                    "type": "text",
+                    "text": "銘柄詳細",
+                    "weight": "bold",
+                    "size": "lg",
+                    "color": "#DC143C",
+                    "margin": "md"
+                },
+                {
+                    "type": "text",
+                    "text": "選択した銘柄の詳細情報を表示します。株価チャート（価格推移グラフ）も自動生成されますが、チャート生成には10～15秒程度かかる場合があります。詳細画面から「購入」または「売却」ボタンで取引を開始できます。",
+                    "size": "md",
+                    "color": "#333333",
+                    "wrap": True,
+                    "margin": "sm"
+                },
+                {"type": "separator", "color": "#DC143C", "margin": "md"},
+                {
+                    "type": "text",
+                    "text": "保有株",
+                    "weight": "bold",
+                    "size": "lg",
+                    "color": "#DC143C",
+                    "margin": "md"
+                },
+                {
+                    "type": "text",
+                    "text": "現在保有している株式の一覧を表示します。銘柄ごとの株数、取得単価、現在価格、評価損益を確認できます。",
+                    "size": "md",
+                    "color": "#333333",
+                    "wrap": True,
+                    "margin": "sm"
+                },
+                {"type": "separator", "color": "#DC143C", "margin": "md"},
+                {
+                    "type": "text",
+                    "text": "購入・売却",
+                    "weight": "bold",
+                    "size": "lg",
+                    "color": "#DC143C",
+                    "margin": "md"
+                },
+                {
+                    "type": "text",
+                    "text": "銘柄詳細画面から購入または売却を選択し、株数を入力して取引を実行します。購入には銀行口座の残高が必要です。売却時は保有株数の範囲内で指定してください。",
+                    "size": "md",
+                    "color": "#333333",
+                    "wrap": True,
+                    "margin": "sm"
+                },
+                {"type": "separator", "color": "#DC143C", "margin": "md"},
+                {
+                    "type": "text",
+                    "text": "⚠️ 注意事項",
+                    "weight": "bold",
+                    "size": "md",
+                    "color": "#FF4500",
+                    "margin": "md"
+                },
+                {
+                    "type": "text",
+                    "text": "• 株式口座の登録には銀行口座が必要です\n• 個別チャット（1:1）専用機能です\n• チャート生成には時間がかかります\n• 株価は定期的に自動更新されます",
+                    "size": "sm",
+                    "color": "#666666",
+                    "wrap": True,
+                    "margin": "sm"
+                }
+            ],
+            "spacing": "md",
+            "paddingAll": "lg",
+            "backgroundColor": "#FFF0F0"
+        }
+    }
+    return FlexSendMessage(alt_text="株式システム詳細ヘルプ", contents=detail)
 
 def get_detail_utility_flex():
     detail = {
