@@ -82,7 +82,7 @@ def create_chip_account(user_id: str) -> Dict:
         db.close()
 
 
-def purchase_chips(user_id: str, amount: int, account_number: str, branch_code: str) -> Dict:
+def purchase_chips(user_id: str, amount: int, account_number: str, branch_code: str, price: Decimal) -> Dict:
     """
     ショップ支払い用口座からチップを購入
 
@@ -91,6 +91,7 @@ def purchase_chips(user_id: str, amount: int, account_number: str, branch_code: 
         amount: チップ枚数（ボーナス込み）
         account_number: 支払い口座番号
         branch_code: 支払い口座の支店コード
+        price: 商品価格（データベースから取得）
 
     Returns:
         {'success': bool, 'new_balance': int, 'error': str (optional)}
@@ -99,7 +100,6 @@ def purchase_chips(user_id: str, amount: int, account_number: str, branch_code: 
     from apps.shop.shop_service import get_shop_operations_account
 
     db = SessionLocal()
-    price = Decimal(str(amount)) * Decimal('12')  # 1チップ = 12円
 
     try:
         # ショップ運営口座情報を取得

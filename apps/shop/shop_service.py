@@ -330,7 +330,8 @@ def _purchase_chip_item(db, user_id: str, item, payment_info: Dict) -> Dict:
         user_id=user_id,
         amount=total_chips,
         account_number=payment_info['account_number'],
-        branch_code=payment_info['branch_code']
+        branch_code=payment_info['branch_code'],
+        price=item.price
     )
 
     if not result['success']:

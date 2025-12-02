@@ -89,29 +89,7 @@ def get_category_items_flex(category_name: str, items: List[Dict]) -> FlexSendMe
         item_box = {
             "type": "box",
             "layout": "vertical",
-            "contents": [
-                {
-                    "type": "box",
-                    "layout": "baseline",
-                    "contents": [
-                        {
-                            "type": "text",
-                            "text": item['name'],
-                            "weight": "bold",
-                            "size": "md",
-                            "flex": 0
-                        }
-                    ]
-                },
-                {
-                    "type": "text",
-                    "text": item['description'],
-                    "size": "xs",
-                    "color": "#999999",
-                    "margin": "sm",
-                    "wrap": True
-                }
-            ],
+            "contents": [],
             "margin": "lg"
         }
 
@@ -131,14 +109,13 @@ def get_category_items_flex(category_name: str, items: List[Dict]) -> FlexSendMe
                 "contents": [
                     {
                         "type": "text",
-                        "text": f"💰 {total_chips}枚受取",
-                        "size": "lg",
+                        "text": f"💰 {total_chips}チップ",
+                        "size": "xl",
                         "color": "#111111",
                         "weight": "bold",
                         "flex": 0
                     }
-                ],
-                "margin": "sm"
+                ]
             }
             item_box["contents"].append(total_chip_info)
 
@@ -156,6 +133,17 @@ def get_category_items_flex(category_name: str, items: List[Dict]) -> FlexSendMe
             }
             item_box["contents"].append(breakdown_info)
 
+        # 商品説明（サイズを大きく）
+        description_info = {
+            "type": "text",
+            "text": item['description'],
+            "size": "sm",
+            "color": "#666666",
+            "margin": "md",
+            "wrap": True
+        }
+        item_box["contents"].append(description_info)
+
         # ブースターの場合（将来対応）
         if 'boost_rate' in attrs:
             boost_rate = attrs.get('boost_rate', 0)
@@ -170,7 +158,7 @@ def get_category_items_flex(category_name: str, items: List[Dict]) -> FlexSendMe
             }
             item_box["contents"].append(boost_info)
 
-        # 価格とボタン
+        # 価格とボタン（価格を大きく）
         footer = {
             "type": "box",
             "layout": "horizontal",
@@ -178,7 +166,7 @@ def get_category_items_flex(category_name: str, items: List[Dict]) -> FlexSendMe
                 {
                     "type": "text",
                     "text": f"¥{item['price']:,}",
-                    "size": "lg",
+                    "size": "xl",
                     "weight": "bold",
                     "color": "#4CAF50",
                     "flex": 1
