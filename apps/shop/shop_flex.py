@@ -90,7 +90,7 @@ def get_category_items_flex(category_name: str, items: List[Dict]) -> FlexSendMe
             "type": "box",
             "layout": "vertical",
             "contents": [],
-            "margin": "lg"
+            "margin": "md"
         }
 
         # 属性から動的に情報を構築
