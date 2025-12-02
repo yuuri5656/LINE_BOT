@@ -5,7 +5,8 @@
 """
 from typing import Optional, List, Dict, Tuple
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timedelta
+from sqlalchemy import and_
 from apps.stock.models import (
     SessionLocal,
     StockSymbol,
@@ -107,14 +108,10 @@ class StockService:
             stocks = db.query(StockSymbol).filter_by(is_tradable=True).all()
             result = []
             for s in stocks:
-                # 前日終値取得（2番目に新しい価格履歴）
-                previous_prices = db.query(StockPriceHistory)\
-                    .filter_by(symbol_id=s.symbol_id)\
-                    .order_by(StockPriceHistory.timestamp.desc())\
-                    .limit(2).all()
-
-                previous_close = previous_prices[1].price if len(previous_prices) >= 2 else s.current_price
-                change_rate = ((s.current_price - previous_close) / previous_close * 100) if previous_close > 0 else 0
+                # 前営業日の終値・高値・安値を日付を参照して取得
+                previous_close, _, _ = StockService._get_previous_trading_day_stats(db, s.symbol_id)
+                previous_close = previous_close if previous_close is not None else s.current_price
+                change_rate = ((s.current_price - previous_close) / previous_close * 100) if previous_close and previous_close > 0 else 0
 
                 result.append({
                     'symbol_id': s.symbol_id,
@@ -143,20 +140,16 @@ class StockService:
             if not stock:
                 return None
 
-            # 価格履歴から前日終値と高安値を取得
+            # 価格履歴から前日（前営業日）の終値と高安値を日付参照で取得
             latest_history = db.query(StockPriceHistory)\
                 .filter_by(symbol_id=stock.symbol_id)\
                 .order_by(StockPriceHistory.timestamp.desc())\
                 .first()
 
-            previous_prices = db.query(StockPriceHistory)\
-                .filter_by(symbol_id=stock.symbol_id)\
-                .order_by(StockPriceHistory.timestamp.desc())\
-                .limit(2).all()
-
-            previous_close = previous_prices[1].price if len(previous_prices) >= 2 else stock.current_price
-            daily_high = latest_history.daily_high if latest_history else stock.current_price
-            daily_low = latest_history.daily_low if latest_history else stock.current_price
+            previous_close, daily_high, daily_low = StockService._get_previous_trading_day_stats(db, stock.symbol_id, reference_dt=latest_history.timestamp if latest_history else None)
+            previous_close = previous_close if previous_close is not None else stock.current_price
+            daily_high = daily_high if daily_high is not None else (latest_history.daily_high if latest_history else stock.current_price)
+            daily_low = daily_low if daily_low is not None else (latest_history.daily_low if latest_history else stock.current_price)
 
             return {
                 'symbol_id': stock.symbol_id,
@@ -174,6 +167,56 @@ class StockService:
             }
         finally:
             db.close()
+
+    @staticmethod
+    def _get_previous_trading_day_stats(db, symbol_id: int, reference_dt: Optional[datetime] = None) -> Tuple[Optional[int], Optional[int], Optional[int]]:
+        """
+        指定日時を基準に前営業日の終値（終値＝最終の price）、および前営業日の高値・安値を返す。
+
+        戻り値: (previous_close, daily_high, daily_low)
+        見つからない場合は (None, None, None)
+        """
+        from apps.stock.models import StockPriceHistory
+
+        # 基準日時が指定されない場合は現在時刻（JST）を使用
+        ref_dt = reference_dt or now_jst()
+        # 基準日（データがある最新日）を探す: 最新の履歴がある場合はその日時を基準にする
+        latest = db.query(StockPriceHistory).filter_by(symbol_id=symbol_id).order_by(StockPriceHistory.timestamp.desc()).first()
+        if latest:
+            ref_dt = latest.timestamp or ref_dt
+
+        ref_date = (ref_dt).date()
+
+        # 前営業日を遡って探す（最大7日まで）
+        for days_back in range(1, 8):
+            candidate_date = ref_date - timedelta(days=days_back)
+            start_dt = datetime.combine(candidate_date, datetime.min.time())
+            end_dt = datetime.combine(candidate_date + timedelta(days=1), datetime.min.time())
+
+            entries = db.query(StockPriceHistory).filter(
+                and_(StockPriceHistory.symbol_id == symbol_id,
+                     StockPriceHistory.timestamp >= start_dt,
+                     StockPriceHistory.timestamp < end_dt)
+            ).order_by(StockPriceHistory.timestamp.asc()).all()
+
+            if not entries:
+                # この日付に取引がない（週末や祝日など） -> 次の日付へ
+                continue
+
+            # 前日終値はその日の最終エントリの price
+            last_entry = entries[-1]
+            previous_close = last_entry.price
+
+            # 日中の高値・安値を集計（もし daily_high/low が None の場合は price を使う）
+            highs = [e.daily_high if e.daily_high is not None else e.price for e in entries]
+            lows = [e.daily_low if e.daily_low is not None else e.price for e in entries]
+            daily_high = max(highs) if highs else None
+            daily_low = min(lows) if lows else None
+
+            return previous_close, daily_high, daily_low
+
+        # 見つからなければ None を返す
+        return None, None, None
 
     @staticmethod
     def get_user_holdings(user_id: str) -> List[Dict]:
