@@ -241,7 +241,9 @@ def transfer_initial_funds(to_account_number: str, to_branch_code: str, user_id:
         other_active_accounts = [
             acc for acc in existing_accounts
             if acc.account_number != to_account_number
-        ]        if other_active_accounts:
+        ]
+
+        if other_active_accounts:
             # 既存口座がある場合は初期費用を振り込まない
             print(f"[BankService] User {user_id} has existing accounts, skipping initial funds transfer")
             return
