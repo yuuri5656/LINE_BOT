@@ -24,8 +24,9 @@ class StockBackgroundUpdater:
         self.running = False
         self.thread = None
         self.last_dividend_date = None  # 最後に配当金を支払った日付
-        self.last_ai_trade_time = 0  # 最後にAI取引を実行した時刻
-        self.last_price_update_time = 0  # 最後に株価更新を実行した時刻
+        # 起動時に現在時刻を設定することで、即座に実行されるのを防ぐ
+        self.last_ai_trade_time = time.time()  # 最後にAI取引を実行した時刻
+        self.last_price_update_time = time.time()  # 最後に株価更新を実行した時刻
         self._lock = threading.Lock()  # スレッド起動の排他制御
 
     def start(self):
