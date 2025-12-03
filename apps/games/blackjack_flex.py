@@ -74,8 +74,7 @@ def get_betting_screen(current_bet: int, chip_balance: int, game_type: str = "bl
                         }
                     ],
                     "backgroundColor": "#1B3A5F",
-                    "paddingAll": "12px",
-                    "cornerRadius": "5px 5px 0px 0px"
+                    "paddingAll": "12px"
                 }
             ],
             "backgroundColor": "#0A1929",
