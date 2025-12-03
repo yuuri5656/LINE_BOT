@@ -86,6 +86,31 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             parsed_data = dict(urllib.parse.parse_qsl(data))
             work_commands.handle_work_postback(event, parsed_data, user_id)
             return
+        # 個別ゲームのpostbackアクション
+        elif data.startswith("action=select_game"):
+            import urllib.parse
+            parsed_data = dict(urllib.parse.parse_qsl(data))
+            game_commands.handle_game_selection(event, user_id, parsed_data)
+            return
+        elif data.startswith("action=add_bet"):
+            import urllib.parse
+            parsed_data = dict(urllib.parse.parse_qsl(data))
+            game_commands.handle_add_bet(event, user_id, parsed_data)
+            return
+        elif data.startswith("action=reset_bet"):
+            import urllib.parse
+            parsed_data = dict(urllib.parse.parse_qsl(data))
+            game_commands.handle_reset_bet(event, user_id, parsed_data)
+            return
+        elif data.startswith("action=confirm_bet"):
+            import urllib.parse
+            parsed_data = dict(urllib.parse.parse_qsl(data))
+            game_commands.handle_confirm_bet(event, user_id, parsed_data)
+            return
+        elif data in ["action=hit", "action=stand", "action=double"]:
+            action = data.split('=')[1]
+            game_commands.handle_blackjack_action(event, user_id, action)
+            return
 
     state = sessions.get(user_id)
 
@@ -144,6 +169,10 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             line_bot_api.reply_message(event.reply_token, response)
         finally:
             db.close()
+        return
+
+    if text == "?ゲーム":
+        game_commands.handle_game_menu(event, user_id)
         return
 
     # === 銀行機能（個別チャット） ===
