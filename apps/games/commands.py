@@ -570,13 +570,12 @@ def _finish_blackjack_game(event, user_id: str, session: Dict, is_doubled: bool 
         )
 
         # チップ配分
+        # payoutは総額(ベット額+利益)を含むため、そのまま配分
         payout = result['payout']
-        net_payout = payout - bet_amount  # 純利益
-
         distribute_chips({
             user_id: {
                 'locked': bet_amount,
-                'payout': net_payout
+                'payout': payout
             }
         }, game_session_id)
 

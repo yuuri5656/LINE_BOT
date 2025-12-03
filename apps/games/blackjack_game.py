@@ -5,29 +5,72 @@ import random
 from typing import List, Dict, Tuple
 
 
-# カードの絵文字マッピング
-CARD_EMOJIS = {
+# カードの画像URLマッピング（chicodeza.comのトランプイラスト）
+CARD_IMAGES = {
     'spades': {
-        'A': '🂡', '2': '🂢', '3': '🂣', '4': '🂤', '5': '🂥',
-        '6': '🂦', '7': '🂧', '8': '🂨', '9': '🂩', '10': '🂪',
-        'J': '🂫', 'Q': '🂭', 'K': '🂮'
-    },
-    'hearts': {
-        'A': '🂱', '2': '🂲', '3': '🂳', '4': '🂴', '5': '🂵',
-        '6': '🂶', '7': '🂷', '8': '🂸', '9': '🂹', '10': '🂺',
-        'J': '🂻', 'Q': '🂽', 'K': '🂾'
-    },
-    'diamonds': {
-        'A': '🃁', '2': '🃂', '3': '🃃', '4': '🃄', '5': '🃅',
-        '6': '🃆', '7': '🃇', '8': '🃈', '9': '🃉', '10': '🃊',
-        'J': '🃋', 'Q': '🃍', 'K': '🃎'
+        'A': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust1.png',
+        '2': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust2.png',
+        '3': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust3.png',
+        '4': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust4.png',
+        '5': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust5.png',
+        '6': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust6.png',
+        '7': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust7.png',
+        '8': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust8.png',
+        '9': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust9.png',
+        '10': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust10.png',
+        'J': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust11.png',
+        'Q': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust12.png',
+        'K': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust13.png'
     },
     'clubs': {
-        'A': '🃑', '2': '🃒', '3': '🃓', '4': '🃔', '5': '🃕',
-        '6': '🃖', '7': '🃗', '8': '🃘', '9': '🃙', '10': '🃚',
-        'J': '🃛', 'Q': '🃝', 'K': '🃞'
+        'A': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust14.png',
+        '2': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust15.png',
+        '3': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust16.png',
+        '4': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust17.png',
+        '5': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust18.png',
+        '6': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust19.png',
+        '7': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust20.png',
+        '8': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust21.png',
+        '9': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust22.png',
+        '10': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust23.png',
+        'J': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust24.png',
+        'Q': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust25.png',
+        'K': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust26.png'
+    },
+    'diamonds': {
+        'A': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust27.png',
+        '2': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust28.png',
+        '3': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust29.png',
+        '4': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust30.png',
+        '5': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust31.png',
+        '6': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust32.png',
+        '7': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust33.png',
+        '8': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust34.png',
+        '9': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust35.png',
+        '10': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust36.png',
+        'J': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust37.png',
+        'Q': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust38.png',
+        'K': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust39.png'
+    },
+    'hearts': {
+        'A': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust40.png',
+        '2': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust41.png',
+        '3': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust42.png',
+        '4': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust43.png',
+        '5': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust44.png',
+        '6': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust45.png',
+        '7': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust46.png',
+        '8': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust47.png',
+        '9': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust48.png',
+        '10': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust49.png',
+        'J': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust50.png',
+        'Q': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust51.png',
+        'K': 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust52.png'
     }
 }
+
+# 裏面の画像URL
+CARD_BACK_IMAGE = 'https://chicodeza.com/wordpress/wp-content/uploads/torannpu-illust54.png'
 
 
 def create_deck() -> List[Dict]:
@@ -55,7 +98,7 @@ def create_deck() -> List[Dict]:
                 'suit': suit,
                 'rank': rank,
                 'value': value,
-                'emoji': CARD_EMOJIS[suit][rank]
+                'image_url': CARD_IMAGES[suit][rank]
             }
             deck.append(card)
 

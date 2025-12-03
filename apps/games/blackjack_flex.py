@@ -313,7 +313,7 @@ def get_game_screen(player_hand: List[Dict], dealer_hand: List[Dict],
     ゲーム画面（プレイ中）
 
     Args:
-        player_hand: プレイヤーの手札 [{'rank': 'A', 'suit': 'spades', 'emoji': '🂡'}]
+        player_hand: プレイヤーの手札 [{'rank': 'A', 'suit': 'spades', 'image_url': 'https://...'}]
         dealer_hand: ディーラーの手札
         player_total: プレイヤーの合計値
         dealer_showing: ディーラーの表示カード合計
@@ -324,16 +324,52 @@ def get_game_screen(player_hand: List[Dict], dealer_hand: List[Dict],
     Returns:
         FlexSendMessage: ゲーム画面
     """
-    # ディーラーのカード表示
-    dealer_cards = []
+    from apps.games.blackjack_game import CARD_BACK_IMAGE
+
+    # ディーラーのカード画像ボックス作成
+    dealer_card_boxes = []
     for i, card in enumerate(dealer_hand):
         if i == 1 and hide_dealer_second:
-            dealer_cards.append("🂠")  # 伏せカード
+            image_url = CARD_BACK_IMAGE  # 伏せカード
         else:
-            dealer_cards.append(card.get('emoji', '🂠'))
+            image_url = card.get('image_url', CARD_BACK_IMAGE)
 
-    # プレイヤーのカード表示
-    player_cards = [card.get('emoji', '🂠') for card in player_hand]
+        dealer_card_boxes.append({
+            "type": "box",
+            "layout": "vertical",
+            "contents": [{
+                "type": "image",
+                "url": image_url,
+                "size": "full",
+                "aspectMode": "cover",
+                "aspectRatio": "2:3"
+            }],
+            "cornerRadius": "8px",
+            "width": "60px",
+            "height": "90px",
+            "margin": "sm" if i > 0 else "none"
+        })
+
+    # プレイヤーのカード画像ボックス作成
+    player_card_boxes = []
+    for i, card in enumerate(player_hand):
+        image_url = card.get('image_url', CARD_BACK_IMAGE)
+
+        player_card_boxes.append({
+            "type": "box",
+            "layout": "vertical",
+            "contents": [{
+                "type": "image",
+                "url": image_url,
+                "size": "full",
+                "aspectMode": "cover",
+                "aspectRatio": "2:3"
+            }],
+            "cornerRadius": "8px",
+            "width": "60px",
+            "height": "90px",
+            "margin": "sm" if i > 0 else "none"
+        })
 
     bubble = {
         "type": "bubble",
@@ -400,11 +436,11 @@ def get_game_screen(player_hand: List[Dict], dealer_hand: List[Dict],
                             "align": "center"
                         },
                         {
-                            "type": "text",
-                            "text": " ".join(dealer_cards),
-                            "size": "xl",
-                            "align": "center",
-                            "margin": "sm"
+                            "type": "box",
+                            "layout": "horizontal",
+                            "contents": dealer_card_boxes,
+                            "margin": "md",
+                            "justifyContent": "center"
                         },
                         {
                             "type": "text",
@@ -412,12 +448,12 @@ def get_game_screen(player_hand: List[Dict], dealer_hand: List[Dict],
                             "size": "sm",
                             "color": "#FFFFFF",
                             "align": "center",
-                            "margin": "sm"
+                            "margin": "md"
                         }
                     ],
                     "backgroundColor": "#1B3A5F",
                     "cornerRadius": "8px",
-                    "paddingAll": "15px",
+                    "paddingAll": "20px",
                     "margin": "lg",
                     "borderWidth": "1px",
                     "borderColor": "#2E5A8A"
@@ -441,11 +477,11 @@ def get_game_screen(player_hand: List[Dict], dealer_hand: List[Dict],
                             "align": "center"
                         },
                         {
-                            "type": "text",
-                            "text": " ".join(player_cards),
-                            "size": "xl",
-                            "align": "center",
-                            "margin": "sm"
+                            "type": "box",
+                            "layout": "horizontal",
+                            "contents": player_card_boxes,
+                            "margin": "md",
+                            "justifyContent": "center"
                         },
                         {
                             "type": "text",
@@ -454,12 +490,12 @@ def get_game_screen(player_hand: List[Dict], dealer_hand: List[Dict],
                             "color": "#FFD700",
                             "weight": "bold",
                             "align": "center",
-                            "margin": "sm"
+                            "margin": "md"
                         }
                     ],
                     "backgroundColor": "#1B3A5F",
                     "cornerRadius": "8px",
-                    "paddingAll": "15px",
+                    "paddingAll": "20px",
                     "margin": "lg",
                     "borderWidth": "1px",
                     "borderColor": "#2E5A8A"
@@ -623,9 +659,47 @@ def get_result_screen(player_hand: List[Dict], dealer_hand: List[Dict],
 
     config = result_config.get(result, result_config['lose'])
 
-    # カード表示
-    dealer_cards = " ".join([card.get('emoji', '🂠') for card in dealer_hand])
-    player_cards = " ".join([card.get('emoji', '🂠') for card in player_hand])
+    from apps.games.blackjack_game import CARD_BACK_IMAGE
+
+    # ディーラーのカード画像ボックス作成
+    dealer_card_boxes = []
+    for i, card in enumerate(dealer_hand):
+        image_url = card.get('image_url', CARD_BACK_IMAGE)
+        dealer_card_boxes.append({
+            "type": "box",
+            "layout": "vertical",
+            "contents": [{
+                "type": "image",
+                "url": image_url,
+                "size": "full",
+                "aspectMode": "cover",
+                "aspectRatio": "2:3"
+            }],
+            "cornerRadius": "8px",
+            "width": "60px",
+            "height": "90px",
+            "margin": "sm" if i > 0 else "none"
+        })
+
+    # プレイヤーのカード画像ボックス作成
+    player_card_boxes = []
+    for i, card in enumerate(player_hand):
+        image_url = card.get('image_url', CARD_BACK_IMAGE)
+        player_card_boxes.append({
+            "type": "box",
+            "layout": "vertical",
+            "contents": [{
+                "type": "image",
+                "url": image_url,
+                "size": "full",
+                "aspectMode": "cover",
+                "aspectRatio": "2:3"
+            }],
+            "cornerRadius": "8px",
+            "width": "60px",
+            "height": "90px",
+            "margin": "sm" if i > 0 else "none"
+        })
 
     # 収支計算
     net_gain = payout - bet_amount
@@ -668,11 +742,11 @@ def get_result_screen(player_hand: List[Dict], dealer_hand: List[Dict],
                             "align": "center"
                         },
                         {
-                            "type": "text",
-                            "text": dealer_cards,
-                            "size": "lg",
-                            "align": "center",
-                            "margin": "sm"
+                            "type": "box",
+                            "layout": "horizontal",
+                            "contents": dealer_card_boxes,
+                            "margin": "md",
+                            "justifyContent": "center"
                         },
                         {
                             "type": "text",
@@ -680,12 +754,12 @@ def get_result_screen(player_hand: List[Dict], dealer_hand: List[Dict],
                             "size": "sm",
                             "color": "#FFFFFF",
                             "align": "center",
-                            "margin": "xs"
+                            "margin": "md"
                         }
                     ],
                     "backgroundColor": "#1A5F7A",
                     "cornerRadius": "10px",
-                    "paddingAll": "15px"
+                    "paddingAll": "20px"
                 },
                 # プレイヤーの手札
                 {
@@ -700,11 +774,11 @@ def get_result_screen(player_hand: List[Dict], dealer_hand: List[Dict],
                             "align": "center"
                         },
                         {
-                            "type": "text",
-                            "text": player_cards,
-                            "size": "lg",
-                            "align": "center",
-                            "margin": "sm"
+                            "type": "box",
+                            "layout": "horizontal",
+                            "contents": player_card_boxes,
+                            "margin": "md",
+                            "justifyContent": "center"
                         },
                         {
                             "type": "text",
@@ -713,12 +787,12 @@ def get_result_screen(player_hand: List[Dict], dealer_hand: List[Dict],
                             "color": "#FFD700",
                             "weight": "bold",
                             "align": "center",
-                            "margin": "xs"
+                            "margin": "md"
                         }
                     ],
                     "backgroundColor": "#1A5F7A",
                     "cornerRadius": "10px",
-                    "paddingAll": "15px",
+                    "paddingAll": "20px",
                     "margin": "lg"
                 },
                 {
