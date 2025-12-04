@@ -115,8 +115,10 @@ class PriceService:
             db.commit()
             print(f"[株価更新] {len(stocks)}銘柄の価格を更新しました")
         except Exception as e:
+            import traceback
             db.rollback()
             print(f"株価更新エラー: {e}")
+            print(f"エラー詳細:\n{traceback.format_exc()}")
         finally:
             db.close()
 
@@ -183,8 +185,10 @@ class PriceService:
             db.commit()
             print(f"[AI取引] {len(traders)}体のトレーダーが取引を実行しました")
         except Exception as e:
+            import traceback
             db.rollback()
             print(f"AI取引エラー: {e}")
+            print(f"エラー詳細:\n{traceback.format_exc()}")
         finally:
             db.close()
 
@@ -386,8 +390,10 @@ class PriceService:
             print(f"[配当金支払い] 完了 - 成功: {success_count}件, 失敗: {fail_count}件, 合計: ¥{total_paid:,.0f}")
 
         except Exception as e:
+            import traceback
             db.rollback()
             print(f"[配当金支払い] システムエラー: {e}")
+            print(f"エラー詳細:\n{traceback.format_exc()}")
         finally:
             db.close()
             bank_db.close()

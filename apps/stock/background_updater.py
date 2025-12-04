@@ -66,16 +66,30 @@ class StockBackgroundUpdater:
 
                 # AI取引の実行判定（2分ごと）
                 if current_time - self.last_ai_trade_time >= self.ai_trade_interval:
-                    print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] AI取引開始")
-                    stock_api.execute_ai_trading()
-                    self.last_ai_trade_time = current_time
+                    try:
+                        print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] AI取引開始")
+                        stock_api.execute_ai_trading()
+                        self.last_ai_trade_time = current_time
+                    except Exception as ai_error:
+                        import traceback
+                        print(f"[AI取引エラー] {ai_error}")
+                        print(f"エラー詳細:\n{traceback.format_exc()}")
+                        # エラーでも次回実行できるように時刻を更新
+                        self.last_ai_trade_time = current_time
 
                 # 株価更新の実行判定（5分ごと）
                 if current_time - self.last_price_update_time >= self.price_update_interval:
-                    print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] 株価更新開始")
-                    stock_api.update_all_prices()
-                    self.last_price_update_time = current_time
-                    print(f"[株価更新] 更新完了")
+                    try:
+                        print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] 株価更新開始")
+                        stock_api.update_all_prices()
+                        self.last_price_update_time = current_time
+                        print(f"[株価更新] 更新完了")
+                    except Exception as price_error:
+                        import traceback
+                        print(f"[株価更新エラー] {price_error}")
+                        print(f"エラー詳細:\n{traceback.format_exc()}")
+                        # エラーでも次回実行できるように時刻を更新
+                        self.last_price_update_time = current_time
 
                 # 配当金支払い（1日1回、午前8時前後）
                 current_date = now.date()
@@ -83,15 +97,24 @@ class StockBackgroundUpdater:
 
                 # 午前7時〜9時の間で、まだ今日支払っていない場合
                 if 7 <= current_hour < 9 and self.last_dividend_date != current_date:
-                    print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] 配当金支払い開始")
-                    stock_api.pay_dividends()
-                    self.last_dividend_date = current_date
+                    try:
+                        print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] 配当金支払い開始")
+                        stock_api.pay_dividends()
+                        self.last_dividend_date = current_date
+                    except Exception as dividend_error:
+                        import traceback
+                        print(f"[配当金支払いエラー] {dividend_error}")
+                        print(f"エラー詳細:\n{traceback.format_exc()}")
+                        # エラーでも今日の処理は完了扱いにする
+                        self.last_dividend_date = current_date
 
                 # 次のチェックまで待機
                 time.sleep(check_interval)
 
             except Exception as e:
-                print(f"[株価更新] エラーが発生しました: {e}")
+                import traceback
+                print(f"[株価更新] 予期しないエラーが発生しました: {e}")
+                print(f"エラー詳細:\n{traceback.format_exc()}")
                 # エラーが発生しても継続
                 time.sleep(check_interval)
 
