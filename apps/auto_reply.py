@@ -48,7 +48,13 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             return
         # ショップホーム
         elif data == "action=shop_home":
-            shop_commands.handle_shop(event, user_id)
+            from apps.banking.main_bank_system import get_db
+            db = next(get_db())
+            try:
+                response = shop_commands.handle_shop_command(user_id, db)
+                line_bot_api.reply_message(event.reply_token, response)
+            finally:
+                db.close()
             return
         # チップ残高
         elif data == "action=chip_balance":
@@ -86,7 +92,13 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             return
         # チップ一覧（ショップFlexMessage）
         elif data == "action=chip_list":
-            shop_commands.handle_shop(event, user_id)
+            from apps.banking.main_bank_system import get_db
+            db = next(get_db())
+            try:
+                response = shop_commands.handle_shop_command(user_id, db)
+                line_bot_api.reply_message(event.reply_token, response)
+            finally:
+                db.close()
             return
         # 株式ダッシュボード
         elif data == "action=stock_home":
