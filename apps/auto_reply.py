@@ -14,6 +14,7 @@ from apps.utilities import commands as utility_commands
 from apps.shop import commands as shop_commands
 from apps.stock import commands as stock_commands
 from apps.work import commands as work_commands
+from apps.rich_menu import menu_manager
 
 
 def auto_reply(event, text, user_id, group_id, display_name, sessions):
@@ -23,6 +24,82 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
     # Postbackイベントで詳細ヘルプを返す
     if hasattr(event, 'postback') and event.postback and hasattr(event.postback, 'data'):
         data = event.postback.data
+        
+        # リッチメニューページ切り替え
+        if data.startswith("action=richmenu_page"):
+            import urllib.parse
+            parsed_data = dict(urllib.parse.parse_qsl(data))
+            page = parsed_data.get("page", "1-1")  # 例: "1-1", "2-2"
+            menu_manager.switch_user_menu(user_id, page)
+            return
+        
+        # リッチメニューからの各種アクション
+        # 口座開設
+        elif data == "action=account_create":
+            banking_commands.handle_account_creation(event, user_id, sessions)
+            return
+        # 通帳
+        elif data == "action=passbook":
+            banking_commands.handle_passbook(event, user_id)
+            return
+        # 振り込み
+        elif data == "action=transfer":
+            banking_commands.handle_transfer_start(event, user_id, sessions)
+            return
+        # ショップホーム
+        elif data == "action=shop_home":
+            shop_commands.handle_shop(event, user_id)
+            return
+        # チップ残高
+        elif data == "action=chip_balance":
+            from apps.banking.main_bank_system import get_db
+            db = next(get_db())
+            try:
+                response = shop_commands.handle_chip_balance_command(user_id, db)
+                line_bot_api.reply_message(event.reply_token, response)
+            finally:
+                db.close()
+            return
+        # チップ換金（リッチメニュー用）
+        elif data == "action=chip_exchange":
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="チップ換金は「?チップ換金 <枚数>」コマンドで行ってください。\n例: ?チップ換金 10")
+            )
+            return
+        # チップ一覧（ショップFlexMessage）
+        elif data == "action=chip_list":
+            shop_commands.handle_shop(event, user_id)
+            return
+        # 株式ダッシュボード
+        elif data == "action=stock_home":
+            stock_commands.handle_stock_command(event, user_id)
+            return
+        # 銘柄一覧
+        elif data == "action=stock_list":
+            stock_commands.handle_stock_list(event, user_id)
+            return
+        # ゲームメニュー
+        elif data == "action=game_home":
+            game_commands.handle_game_menu(event, user_id)
+            return
+        # おみくじ
+        elif data == "action=omikuji":
+            utility_commands.handle_omikuji(event, user_id)
+            return
+        # 明日の時間割
+        elif data == "action=timetable":
+            utility_commands.handle_timetable(event)
+            return
+        # 労働
+        elif data == "action=work_home":
+            work_commands.handle_work(event, user_id, display_name)
+            return
+        elif data == "action=help_home":
+            utility_commands.handle_help(event)
+            return
+        
+        # 既存のヘルプ詳細
         if data == "help_detail_account":
             line_bot_api.reply_message(event.reply_token, get_detail_account_flex())
             return
@@ -137,6 +214,22 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
 
     if text in ["?ヘルプ", "?help"]:
         utility_commands.handle_help(event)
+        return
+
+    # リッチメニュー管理コマンド
+    if text == "?メニュー作成":
+        from apps.rich_menu import commands as richmenu_commands
+        richmenu_commands.handle_menu_create(event)
+        return
+    
+    if text == "?メニュー削除":
+        from apps.rich_menu import commands as richmenu_commands
+        richmenu_commands.handle_menu_delete(event)
+        return
+    
+    if text == "?メニュー状態":
+        from apps.rich_menu import commands as richmenu_commands
+        richmenu_commands.handle_menu_status(event)
         return
 
     if text == "?口座情報":
