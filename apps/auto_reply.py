@@ -114,7 +114,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             return
         # おみくじ
         elif data == "action=omikuji":
-            utility_commands.handle_omikuji(event, user_id)
+            utility_commands.handle_omikuji(event, user_id, display_name, "?おみくじ")
             return
         # 明日の時間割
         elif data == "action=timetable":
