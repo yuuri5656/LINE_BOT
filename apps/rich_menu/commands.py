@@ -22,19 +22,43 @@ def handle_menu_create(event):
         # 新しいメニューを作成
         menu_ids = create_rich_menus()
         
-        # デフォルトメニューを設定（ページ1-1）
-        set_default_rich_menu(page="1-1")
+        # 作成結果を確認
+        created_menus = {k: v for k, v in menu_ids.items() if v is not None}
+        failed_menus = {k: v for k, v in menu_ids.items() if v is None}
         
-        message = TextSendMessage(
-            text=f"✅ リッチメニューを作成しました\n\n"
-                 f"📄 ページ1-1: {menu_ids['page1-1'][:8]}...\n"
-                 f"📄 ページ1-2: {menu_ids['page1-2'][:8]}...\n"
-                 f"📄 ページ1-3: {menu_ids['page1-3'][:8]}...\n"
-                 f"📄 ページ2-1: {menu_ids['page2-1'][:8]}...\n"
-                 f"📄 ページ2-2: {menu_ids['page2-2'][:8]}...\n"
-                 f"📄 ページ2-3: {menu_ids['page2-3'][:8]}...\n\n"
-                 f"メニューが表示されない場合は、トーク画面を再読み込みしてください。"
-        )
+        if not created_menus:
+            error_message = TextSendMessage(
+                text=f"❌ メニューを作成できませんでした\n\n"
+                     f"以下の画像ファイルが apps/rich_menu/images/ に存在するか確認してください:\n"
+                     f"・rich_menu_page_1-1_account.png\n"
+                     f"・rich_menu_page_1-2_shop.png\n"
+                     f"・rich_menu_page_1-3_stock.png\n"
+                     f"・rich_menu_page_2-1_game.png\n"
+                     f"・rich_menu_page_2-2_utility.png\n"
+                     f"・rich_menu_page_2-3_help.png"
+            )
+            line_bot_api.reply_message(event.reply_token, error_message)
+            return
+        
+        # デフォルトメニューを設定（ページ1-1が作成されていれば）
+        if menu_ids.get('page1-1'):
+            set_default_rich_menu(page="1-1")
+        
+        # 結果メッセージ作成
+        result_text = f"✅ リッチメニューを作成しました ({len(created_menus)}/6)\n\n"
+        
+        for page_key in ["page1-1", "page1-2", "page1-3", "page2-1", "page2-2", "page2-3"]:
+            if menu_ids[page_key]:
+                result_text += f"✅ {page_key}: {menu_ids[page_key][:8]}...\n"
+            else:
+                result_text += f"❌ {page_key}: 画像なし\n"
+        
+        if failed_menus:
+            result_text += f"\n⚠️ {len(failed_menus)}個のメニューは画像が見つからないためスキップされました"
+        else:
+            result_text += f"\n\nメニューが表示されない場合は、トーク画面を再読み込みしてください。"
+        
+        message = TextSendMessage(text=result_text)
         line_bot_api.reply_message(event.reply_token, message)
     except Exception as e:
         error_message = TextSendMessage(

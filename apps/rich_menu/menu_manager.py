@@ -62,16 +62,19 @@ def create_rich_menu(template: dict, image_path: str) -> str:
         areas=areas
     )
     
+    # 画像の存在チェック
+    if not os.path.exists(image_path):
+        print(f"[リッチメニュー] エラー: 画像が見つかりません: {image_path}")
+        print(f"[リッチメニュー] {template['name']} の作成をスキップします")
+        return None
+    
     # リッチメニューをLINEサーバーに作成
     rich_menu_id = line_bot_api.create_rich_menu(rich_menu=rich_menu)
     
     # 画像をアップロード
-    if os.path.exists(image_path):
-        with open(image_path, 'rb') as f:
-            line_bot_api.set_rich_menu_image(rich_menu_id, 'image/png', f)
-        print(f"[リッチメニュー] 画像をアップロードしました: {image_path}")
-    else:
-        print(f"[リッチメニュー] 警告: 画像が見つかりません: {image_path}")
+    with open(image_path, 'rb') as f:
+        line_bot_api.set_rich_menu_image(rich_menu_id, 'image/png', f)
+    print(f"[リッチメニュー] 画像をアップロードしました: {image_path}")
     
     print(f"[リッチメニュー] 作成完了: {template['name']} (ID: {rich_menu_id})")
     return rich_menu_id
@@ -99,9 +102,22 @@ def create_rich_menus(image_dir: str = "apps/rich_menu/images") -> dict:
         ("page2-3", "rich_menu_page_2-3_help.png")
     ]
     
+    created_count = 0
+    failed_pages = []
+    
     for page_key, image_filename in menu_configs:
         image_path = os.path.join(image_dir, image_filename)
-        RICHMENU_IDS[page_key] = create_rich_menu(templates[page_key], image_path)
+        menu_id = create_rich_menu(templates[page_key], image_path)
+        RICHMENU_IDS[page_key] = menu_id
+        
+        if menu_id:
+            created_count += 1
+        else:
+            failed_pages.append(page_key)
+    
+    print(f"[リッチメニュー] 作成結果: {created_count}/6 個のメニューを作成")
+    if failed_pages:
+        print(f"[リッチメニュー] 作成失敗: {', '.join(failed_pages)}")
     
     return RICHMENU_IDS
 
