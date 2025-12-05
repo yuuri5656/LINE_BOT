@@ -44,7 +44,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             return
         # 振り込み
         elif data == "action=transfer":
-            banking_commands.handle_transfer_start(event, user_id, sessions)
+            banking_commands.handle_transfer(event, "?振り込み", user_id, sessions)
             return
         # ショップホーム
         elif data == "action=shop_home":
