@@ -61,16 +61,7 @@ def handle_passbook(event, user_id):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="有効な口座が見つかりません。「?口座開設」 を入力して口座を作成してください。"))
         return
 
-    # 口座が1つの場合: 直接取引履歴を表示
-    if len(accounts) == 1:
-        account = accounts[0]
-        branch_code = account.get('branch_code')
-        account_number = account.get('account_number')
-
-        _display_transaction_history(event, account_number, branch_code)
-        return
-
-    # 口座が複数の場合: 口座選択UIを表示
+    # 口座情報画面に「この口座の通帳を見る」ボタンを追加して表示
     from apps.help_flex import get_account_flex_bubble
 
     bubbles = []
@@ -98,13 +89,20 @@ def handle_passbook(event, user_id):
         bubble["footer"] = footer
         bubbles.append(bubble)
 
-    flex_message = FlexSendMessage(
-        alt_text="通帳を表示する口座を選択してください",
-        contents={
-            "type": "carousel",
-            "contents": bubbles
-        }
-    )
+    # 口座が1つの場合はbubbleを、複数の場合はcarouselを表示
+    if len(bubbles) == 1:
+        flex_message = FlexSendMessage(
+            alt_text="口座情報",
+            contents=bubbles[0]
+        )
+    else:
+        flex_message = FlexSendMessage(
+            alt_text="通帳を表示する口座を選択してください",
+            contents={
+                "type": "carousel",
+                "contents": bubbles
+            }
+        )
     line_bot_api.reply_message(event.reply_token, flex_message)
 
 
