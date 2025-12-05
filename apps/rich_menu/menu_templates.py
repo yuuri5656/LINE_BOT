@@ -24,7 +24,7 @@ def get_page1_1_template():
              "action": {"type": "postback", "data": "action=help_detail_account", "displayText": "💡 口座関連のヘルプ"}},
             # ページ1-1へ遷移（無視）
             {"bounds": {"x": 50, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=1-1&subpage=1", "displayText": ""}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=1-1&subpage=1", "displayText": "💰 口座管理"}},
             # ページ1-2へ遷移
             {"bounds": {"x": 760, "y": 190, "width": 680, "height": 230},
              "action": {"type": "postback", "data": "action=richmenu_page&page=1-2&subpage=1", "displayText": "🛒 ショップ"}},
@@ -51,7 +51,7 @@ def get_page1_2_template():
     """ページ1-2: ショップ"""
     return {
         "size": {"width": 2500, "height": 1686},
-        "selected": False,
+        "selected": True,
         "name": "ショップメニュー",
         "chatBarText": "メニュー",
         "areas": [
@@ -63,7 +63,7 @@ def get_page1_2_template():
              "action": {"type": "postback", "data": "action=richmenu_page&page=1-1&subpage=1", "displayText": "💰 口座管理"}},
             # ページ1-2へ遷移（無視）
             {"bounds": {"x": 760, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=1-2&subpage=1", "displayText": ""}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=1-2&subpage=1", "displayText": "🛒 ショップ"}},
             # ページ1-3へ遷移
             {"bounds": {"x": 1470, "y": 190, "width": 680, "height": 230},
              "action": {"type": "postback", "data": "action=richmenu_page&page=1-3&subpage=1", "displayText": "📈 株式"}},
@@ -87,7 +87,7 @@ def get_page1_3_template():
     """ページ1-3: 株式システム"""
     return {
         "size": {"width": 2500, "height": 1686},
-        "selected": False,
+        "selected": True,
         "name": "株式システムメニュー",
         "chatBarText": "メニュー",
         "areas": [
@@ -102,7 +102,7 @@ def get_page1_3_template():
              "action": {"type": "postback", "data": "action=richmenu_page&page=1-2&subpage=1", "displayText": "🛒 ショップ"}},
             # ページ1-3へ遷移（無視）
             {"bounds": {"x": 1470, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=1-3&subpage=1", "displayText": ""}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=1-3&subpage=1", "displayText": "📈 株式"}},
             # ページ2-1へ遷移
             {"bounds": {"x": 2180, "y": 190, "width": 270, "height": 230},
              "action": {"type": "postback", "data": "action=richmenu_page&page=2-1&subpage=2", "displayText": "▶️ 次へ"}},
@@ -126,7 +126,7 @@ def get_page2_1_template():
     """ページ2-1: ゲーム"""
     return {
         "size": {"width": 2500, "height": 1686},
-        "selected": False,
+        "selected": True,
         "name": "ゲームメニュー",
         "chatBarText": "メニュー",
         "areas": [
@@ -138,7 +138,7 @@ def get_page2_1_template():
              "action": {"type": "postback", "data": "action=richmenu_page&page=1-3&subpage=1", "displayText": "◀️ 前へ"}},
             # ページ2-1へ遷移（無視）
             {"bounds": {"x": 350, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=2-1&subpage=2", "displayText": ""}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=2-1&subpage=2", "displayText": "🎮 ゲーム"}},
             # ページ2-2へ遷移
             {"bounds": {"x": 1060, "y": 190, "width": 680, "height": 230},
              "action": {"type": "postback", "data": "action=richmenu_page&page=2-2&subpage=2", "displayText": "🛠️ ユーティリティ"}},
@@ -162,7 +162,7 @@ def get_page2_2_template():
     """ページ2-2: ユーティリティ"""
     return {
         "size": {"width": 2500, "height": 1686},
-        "selected": False,
+        "selected": True,
         "name": "ユーティリティメニュー",
         "chatBarText": "メニュー",
         "areas": [
@@ -177,7 +177,7 @@ def get_page2_2_template():
              "action": {"type": "postback", "data": "action=richmenu_page&page=2-1&subpage=2", "displayText": "🎮 ゲーム"}},
             # ページ2-2へ遷移（無視）
             {"bounds": {"x": 1060, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=2-2&subpage=2", "displayText": ""}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=2-2&subpage=2", "displayText": "🛠️ ユーティリティ"}},
             # ページ2-3へ遷移
             {"bounds": {"x": 1770, "y": 190, "width": 680, "height": 230},
              "action": {"type": "postback", "data": "action=richmenu_page&page=2-3&subpage=2", "displayText": "❓ ヘルプ"}},
@@ -198,7 +198,7 @@ def get_page2_3_template():
     """ページ2-3: ヘルプ"""
     return {
         "size": {"width": 2500, "height": 1686},
-        "selected": False,
+        "selected": True,
         "name": "ヘルプメニュー",
         "chatBarText": "メニュー",
         "areas": [
@@ -216,7 +216,7 @@ def get_page2_3_template():
              "action": {"type": "postback", "data": "action=richmenu_page&page=2-2&subpage=2", "displayText": "🛠️ ユーティリティ"}},
             # ページ2-3へ遷移（無視）
             {"bounds": {"x": 1770, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=2-3&subpage=2", "displayText": ""}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=2-3&subpage=2", "displayText": "❓ ヘルプ"}},
             # ヘルプ
             {"bounds": {"x": 168, "y": 563, "width": 2160, "height": 295},
              "action": {"type": "postback", "data": "action=help_home", "displayText": "❓ ヘルプ"}},
