@@ -36,7 +36,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         # リッチメニューからの各種アクション
         # 口座開設
         elif data == "action=account_create":
-            banking_commands.handle_account_creation(event, user_id, sessions)
+            banking_commands.handle_account_opening(event, "?口座開設", user_id, display_name, sessions)
             return
         # 通帳
         elif data == "action=passbook":
@@ -122,7 +122,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             return
         # 労働
         elif data == "action=work_home":
-            work_commands.handle_work(event, user_id, display_name)
+            work_commands.handle_work_command(event, user_id)
             return
         elif data == "action=help_home":
             utility_commands.handle_help(event)
