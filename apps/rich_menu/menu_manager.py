@@ -45,10 +45,11 @@ def create_rich_menu(template: dict, image_path: str) -> str:
             width=area_def["bounds"]["width"],
             height=area_def["bounds"]["height"]
         )
-        action = PostbackAction(
-            data=area_def["action"]["data"],
-            display_text=area_def["action"].get("displayText", "")
-        )
+        # displayTextがある場合のみ設定（メッセージ送信を防ぐ）
+        action_params = {"data": area_def["action"]["data"]}
+        if "displayText" in area_def["action"] and area_def["action"]["displayText"]:
+            action_params["display_text"] = area_def["action"]["displayText"]
+        action = PostbackAction(**action_params)
         areas.append(RichMenuArea(bounds=bounds, action=action))
     
     rich_menu = RichMenu(

@@ -297,3 +297,34 @@ def handle_payment_registration_session(user_id: str, message_text: str, db):
             return TextSendMessage(text=f"❌ エラーが発生しました: {str(e)}")
 
     return None
+
+
+def get_user_chip_balance(user_id: str, db) -> int:
+    """チップ残高を取得（数値のみ）"""
+    from apps.banking.chip_service import get_chip_balance as get_balance
+    balance_info = get_balance(user_id)
+    return balance_info.get('balance', 0)
+
+
+def handle_chip_exchange_all(user_id: str, db) -> TextSendMessage:
+    """チップ全額換金処理"""
+    from apps.banking.chip_service import get_chip_balance as get_balance
+    balance_info = get_balance(user_id)
+    balance = balance_info.get('balance', 0)
+    
+    if balance <= 0:
+        return TextSendMessage(text="❌ 換金可能なチップがありません。")
+    
+    # 全額換金実行
+    result = redeem_chips(user_id, balance)
+    
+    if result['success']:
+        return TextSendMessage(
+            text=f"✅ チップ全額換金完了\n\n"
+                 f"換金枚数: {result['amount_received']}枚\n"
+                 f"振込額: ¥{result['amount_received']:,}\n"
+                 f"残りのチップ: {result['new_balance']}枚\n\n"
+                 f"※登録済みの口座に振り込まれました"
+        )
+    else:
+        return TextSendMessage(text=f"❌ 換金に失敗しました\n{result['error']}")

@@ -477,3 +477,93 @@ def get_purchase_success_flex(item_name: str, chips_received: int, new_balance: 
             }
         }
     )
+
+
+def get_chip_exchange_flex(current_chips: int) -> FlexSendMessage:
+    """チップ換金メニュー"""
+    return FlexSendMessage(
+        alt_text="チップ換金",
+        contents={
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "💵 チップ換金",
+                        "weight": "bold",
+                        "size": "xl",
+                        "color": "#FFFFFF"
+                    }
+                ],
+                "backgroundColor": "#FFA500",
+                "paddingAll": "20px"
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": f"現在のチップ残高: {current_chips}枚",
+                        "size": "lg",
+                        "weight": "bold",
+                        "color": "#333333",
+                        "margin": "md"
+                    },
+                    {
+                        "type": "separator",
+                        "margin": "lg"
+                    },
+                    {
+                        "type": "text",
+                        "text": "チップを銀行口座に換金できます。\nレート: 1チップ = 1円",
+                        "size": "sm",
+                        "color": "#666666",
+                        "wrap": True,
+                        "margin": "lg"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "button",
+                                "action": {
+                                    "type": "postback",
+                                    "label": "全額換金する",
+                                    "data": f"action=chip_exchange_all"
+                                },
+                                "style": "primary",
+                                "color": "#4CAF50",
+                                "height": "sm"
+                            },
+                            {
+                                "type": "button",
+                                "action": {
+                                    "type": "message",
+                                    "label": "任意の枚数を換金",
+                                    "text": "?チップ換金 "
+                                },
+                                "style": "secondary",
+                                "height": "sm",
+                                "margin": "md"
+                            }
+                        ],
+                        "margin": "xl"
+                    },
+                    {
+                        "type": "text",
+                        "text": "※任意の枚数を換金する場合は\n「?チップ換金 <枚数>」と送信してください",
+                        "size": "xs",
+                        "color": "#999999",
+                        "wrap": True,
+                        "margin": "md"
+                    }
+                ],
+                "paddingAll": "20px"
+            }
+        }
+    )

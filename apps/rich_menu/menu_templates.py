@@ -21,28 +21,28 @@ def get_page1_1_template():
         "areas": [
             # 詳細ヘルプ（口座関連）
             {"bounds": {"x": 350, "y": 0, "width": 1800, "height": 190},
-             "action": {"type": "postback", "data": "action=help_detail_account", "displayText": "💡 口座関連のヘルプ"}},
+             "action": {"type": "postback", "data": "action=help_detail_account"}},
             # ページ1-1へ遷移（無視）
             {"bounds": {"x": 50, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=1-1&subpage=1", "displayText": "💰 口座管理"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=1-1&subpage=1"}},
             # ページ1-2へ遷移
             {"bounds": {"x": 760, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=1-2&subpage=1", "displayText": "🛒 ショップ"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=1-2&subpage=1"}},
             # ページ1-3へ遷移
             {"bounds": {"x": 1470, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=1-3&subpage=1", "displayText": "📈 株式"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=1-3&subpage=1"}},
             # ページ2-1へ遷移
             {"bounds": {"x": 2180, "y": 190, "width": 270, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=2-1&subpage=2", "displayText": "▶️ 次へ"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=2-1&subpage=2"}},
             # 口座開設
             {"bounds": {"x": 168, "y": 563, "width": 2160, "height": 295},
-             "action": {"type": "postback", "data": "action=account_create", "displayText": "💰 口座開設"}},
+             "action": {"type": "postback", "data": "action=account_create"}},
             # 通帳
             {"bounds": {"x": 168, "y": 924, "width": 2160, "height": 295},
-             "action": {"type": "postback", "data": "action=passbook", "displayText": "📖 通帳"}},
+             "action": {"type": "postback", "data": "action=passbook"}},
             # 振り込み
             {"bounds": {"x": 168, "y": 1285, "width": 2160, "height": 295},
-             "action": {"type": "postback", "data": "action=transfer", "displayText": "💸 振り込み"}}
+             "action": {"type": "postback", "data": "action=transfer"}}
         ]
     }
 
@@ -57,28 +57,28 @@ def get_page1_2_template():
         "areas": [
             # 詳細ヘルプ（ショップ機能）
             {"bounds": {"x": 350, "y": 0, "width": 1800, "height": 190},
-             "action": {"type": "postback", "data": "action=help_detail_shop", "displayText": "💡 ショップのヘルプ"}},
+             "action": {"type": "postback", "data": "action=help_detail_shop"}},
             # ページ1-1へ遷移
             {"bounds": {"x": 50, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=1-1&subpage=1", "displayText": "💰 口座管理"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=1-1&subpage=1"}},
             # ページ1-2へ遷移（無視）
             {"bounds": {"x": 760, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=1-2&subpage=1", "displayText": "🛒 ショップ"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=1-2&subpage=1"}},
             # ページ1-3へ遷移
             {"bounds": {"x": 1470, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=1-3&subpage=1", "displayText": "📈 株式"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=1-3&subpage=1"}},
             # ページ2-1へ遷移
             {"bounds": {"x": 2180, "y": 190, "width": 270, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=2-1&subpage=2", "displayText": "▶️ 次へ"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=2-1&subpage=2"}},
             # ショップ
             {"bounds": {"x": 168, "y": 563, "width": 2160, "height": 295},
-             "action": {"type": "postback", "data": "action=shop_home", "displayText": "🛒 ショップ"}},
+             "action": {"type": "postback", "data": "action=shop_home"}},
             # チップ残高
             {"bounds": {"x": 168, "y": 924, "width": 2160, "height": 295},
-             "action": {"type": "postback", "data": "action=chip_balance", "displayText": "💎 チップ残高"}},
+             "action": {"type": "postback", "data": "action=chip_balance"}},
             # チップ換金
             {"bounds": {"x": 168, "y": 1285, "width": 2160, "height": 295},
-             "action": {"type": "postback", "data": "action=chip_exchange", "displayText": "💵 チップ換金"}}
+             "action": {"type": "postback", "data": "action=chip_exchange"}}
         ]
     }
 
@@ -93,31 +93,31 @@ def get_page1_3_template():
         "areas": [
             # 詳細ヘルプ（株式システム）
             {"bounds": {"x": 350, "y": 0, "width": 1800, "height": 190},
-             "action": {"type": "postback", "data": "action=help_detail_stock", "displayText": "💡 株式のヘルプ"}},
+             "action": {"type": "postback", "data": "action=help_detail_stock"}},
             # ページ1-1へ遷移
             {"bounds": {"x": 50, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=1-1&subpage=1", "displayText": "💰 口座管理"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=1-1&subpage=1"}},
             # ページ1-2へ遷移
             {"bounds": {"x": 760, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=1-2&subpage=1", "displayText": "🛒 ショップ"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=1-2&subpage=1"}},
             # ページ1-3へ遷移（無視）
             {"bounds": {"x": 1470, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=1-3&subpage=1", "displayText": "📈 株式"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=1-3&subpage=1"}},
             # ページ2-1へ遷移
             {"bounds": {"x": 2180, "y": 190, "width": 270, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=2-1&subpage=2", "displayText": "▶️ 次へ"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=2-1&subpage=2"}},
             # 株式ダッシュボード
             {"bounds": {"x": 115, "y": 624, "width": 1100, "height": 400},
-             "action": {"type": "postback", "data": "action=stock_home", "displayText": "📊 株式ダッシュボード"}},
+             "action": {"type": "postback", "data": "action=stock_home"}},
             # 銘柄一覧
             {"bounds": {"x": 1285, "y": 624, "width": 1100, "height": 400},
-             "action": {"type": "postback", "data": "action=stock_list", "displayText": "📋 銘柄一覧"}},
+             "action": {"type": "postback", "data": "action=stock_list"}},
             # 保有株一覧
             {"bounds": {"x": 115, "y": 1150, "width": 1100, "height": 400},
-             "action": {"type": "postback", "data": "action=my_holdings", "displayText": "📈 保有株一覧"}},
+             "action": {"type": "postback", "data": "action=my_holdings"}},
             # 市場ニュース
             {"bounds": {"x": 1285, "y": 1150, "width": 1100, "height": 400},
-             "action": {"type": "postback", "data": "action=market_news", "displayText": "📰 市場ニュース"}}
+             "action": {"type": "postback", "data": "action=market_news"}}
         ]
     }
 
@@ -132,28 +132,28 @@ def get_page2_1_template():
         "areas": [
             # 詳細ヘルプ（ゲーム）
             {"bounds": {"x": 350, "y": 0, "width": 1800, "height": 190},
-             "action": {"type": "postback", "data": "action=help_detail_game", "displayText": "💡 ゲームのヘルプ"}},
+             "action": {"type": "postback", "data": "action=help_detail_game"}},
             # ページ1-3へ遷移（前ページへ）
             {"bounds": {"x": 50, "y": 190, "width": 270, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=1-3&subpage=1", "displayText": "◀️ 前へ"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=1-3&subpage=1"}},
             # ページ2-1へ遷移（無視）
             {"bounds": {"x": 350, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=2-1&subpage=2", "displayText": "🎮 ゲーム"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=2-1&subpage=2"}},
             # ページ2-2へ遷移
             {"bounds": {"x": 1060, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=2-2&subpage=2", "displayText": "🛠️ ユーティリティ"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=2-2&subpage=2"}},
             # ページ2-3へ遷移
             {"bounds": {"x": 1770, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=2-3&subpage=2", "displayText": "❓ ヘルプ"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=2-3&subpage=2"}},
             # ゲームメニュー
             {"bounds": {"x": 168, "y": 563, "width": 2160, "height": 295},
-             "action": {"type": "postback", "data": "action=game_home", "displayText": "🎮 ゲームメニュー"}},
+             "action": {"type": "postback", "data": "action=game_home"}},
             # チップ一覧（ショップ）
             {"bounds": {"x": 168, "y": 924, "width": 2160, "height": 295},
-             "action": {"type": "postback", "data": "action=chip_list", "displayText": "💎 チップ一覧"}},
+             "action": {"type": "postback", "data": "action=chip_list"}},
             # チップ換金
             {"bounds": {"x": 168, "y": 1285, "width": 2160, "height": 295},
-             "action": {"type": "postback", "data": "action=chip_exchange", "displayText": "💵 チップ換金"}}
+             "action": {"type": "postback", "data": "action=chip_exchange"}}
         ]
     }
 
@@ -168,28 +168,28 @@ def get_page2_2_template():
         "areas": [
             # 詳細ヘルプ（ユーティリティ）
             {"bounds": {"x": 350, "y": 0, "width": 1800, "height": 190},
-             "action": {"type": "postback", "data": "action=help_detail_utility", "displayText": "💡 ユーティリティのヘルプ"}},
+             "action": {"type": "postback", "data": "action=help_detail_utility"}},
             # ページ1-3へ遷移（前ページへ）
             {"bounds": {"x": 50, "y": 190, "width": 270, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=1-3&subpage=1", "displayText": "◀️ 前へ"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=1-3&subpage=1"}},
             # ページ2-1へ遷移
             {"bounds": {"x": 350, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=2-1&subpage=2", "displayText": "🎮 ゲーム"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=2-1&subpage=2"}},
             # ページ2-2へ遷移（無視）
             {"bounds": {"x": 1060, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=2-2&subpage=2", "displayText": "🛠️ ユーティリティ"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=2-2&subpage=2"}},
             # ページ2-3へ遷移
             {"bounds": {"x": 1770, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=2-3&subpage=2", "displayText": "❓ ヘルプ"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=2-3&subpage=2"}},
             # おみくじ
             {"bounds": {"x": 168, "y": 563, "width": 2160, "height": 295},
-             "action": {"type": "postback", "data": "action=omikuji", "displayText": "🔮 おみくじ"}},
+             "action": {"type": "postback", "data": "action=omikuji"}},
             # 明日の時間割
             {"bounds": {"x": 168, "y": 924, "width": 2160, "height": 295},
-             "action": {"type": "postback", "data": "action=timetable", "displayText": "📅 明日の時間割"}},
+             "action": {"type": "postback", "data": "action=timetable"}},
             # 労働
             {"bounds": {"x": 168, "y": 1285, "width": 2160, "height": 295},
-             "action": {"type": "postback", "data": "action=work_home", "displayText": "💼 労働"}}
+             "action": {"type": "postback", "data": "action=work_home"}}
         ]
     }
 
@@ -204,28 +204,28 @@ def get_page2_3_template():
         "areas": [
             # 詳細ヘルプ（ヘルプ本体）
             {"bounds": {"x": 350, "y": 0, "width": 1800, "height": 190},
-             "action": {"type": "postback", "data": "action=help_home", "displayText": "💡 ヘルプ"}},
+             "action": {"type": "postback", "data": "action=help_home"}},
             # ページ1-3へ遷移（前ページへ）
             {"bounds": {"x": 50, "y": 190, "width": 270, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=1-3&subpage=1", "displayText": "◀️ 前へ"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=1-3&subpage=1"}},
             # ページ2-1へ遷移
             {"bounds": {"x": 350, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=2-1&subpage=2", "displayText": "🎮 ゲーム"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=2-1&subpage=2"}},
             # ページ2-2へ遷移
             {"bounds": {"x": 1060, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=2-2&subpage=2", "displayText": "🛠️ ユーティリティ"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=2-2&subpage=2"}},
             # ページ2-3へ遷移（無視）
             {"bounds": {"x": 1770, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "postback", "data": "action=richmenu_page&page=2-3&subpage=2", "displayText": "❓ ヘルプ"}},
+             "action": {"type": "postback", "data": "action=richmenu_page&page=2-3&subpage=2"}},
             # ヘルプ
             {"bounds": {"x": 168, "y": 563, "width": 2160, "height": 295},
-             "action": {"type": "postback", "data": "action=help_home", "displayText": "❓ ヘルプ"}},
+             "action": {"type": "postback", "data": "action=help_home"}},
             # 口座関連の詳細ヘルプ
             {"bounds": {"x": 168, "y": 924, "width": 2160, "height": 295},
-             "action": {"type": "postback", "data": "action=help_detail_account", "displayText": "💰 口座関連ヘルプ"}},
+             "action": {"type": "postback", "data": "action=help_detail_account"}},
             # 株式システムの詳細ヘルプ
             {"bounds": {"x": 168, "y": 1285, "width": 2160, "height": 295},
-             "action": {"type": "postback", "data": "action=help_detail_stock", "displayText": "📈 株式システムヘルプ"}}
+             "action": {"type": "postback", "data": "action=help_detail_stock"}}
         ]
     }
 

@@ -62,10 +62,27 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             return
         # チップ換金（リッチメニュー用）
         elif data == "action=chip_exchange":
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text="チップ換金は「?チップ換金 <枚数>」コマンドで行ってください。\n例: ?チップ換金 10")
-            )
+            from apps.banking.main_bank_system import get_db
+            from apps.shop.shop_flex import get_chip_exchange_flex
+            db = next(get_db())
+            try:
+                chip_balance = shop_commands.get_user_chip_balance(user_id, db)
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    get_chip_exchange_flex(chip_balance)
+                )
+            finally:
+                db.close()
+            return
+        # チップ全額換金
+        elif data == "action=chip_exchange_all":
+            from apps.banking.main_bank_system import get_db
+            db = next(get_db())
+            try:
+                response = shop_commands.handle_chip_exchange_all(user_id, db)
+                line_bot_api.reply_message(event.reply_token, response)
+            finally:
+                db.close()
             return
         # チップ一覧（ショップFlexMessage）
         elif data == "action=chip_list":
@@ -99,20 +116,20 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             utility_commands.handle_help(event)
             return
         
-        # 既存のヘルプ詳細
-        if data == "help_detail_account":
+        # 既存のヘルプ詳細 (action=プレフィックス対応)
+        if data == "action=help_detail_account" or data == "help_detail_account":
             line_bot_api.reply_message(event.reply_token, get_detail_account_flex())
             return
-        elif data == "help_detail_janken":
+        elif data == "action=help_detail_janken" or data == "help_detail_janken" or data == "action=help_detail_game":
             line_bot_api.reply_message(event.reply_token, get_detail_janken_flex())
             return
-        elif data == "help_detail_shop":
+        elif data == "action=help_detail_shop" or data == "help_detail_shop":
             line_bot_api.reply_message(event.reply_token, get_detail_shop_flex())
             return
-        elif data == "help_detail_stock":
+        elif data == "action=help_detail_stock" or data == "help_detail_stock":
             line_bot_api.reply_message(event.reply_token, get_detail_stock_flex())
             return
-        elif data == "help_detail_utility":
+        elif data == "action=help_detail_utility" or data == "help_detail_utility":
             line_bot_api.reply_message(event.reply_token, get_detail_utility_flex())
             return
         # 通帳表示のpostbackアクション
@@ -221,12 +238,12 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         from apps.rich_menu import commands as richmenu_commands
         richmenu_commands.handle_menu_create(event)
         return
-    
+
     if text == "?メニュー削除":
         from apps.rich_menu import commands as richmenu_commands
         richmenu_commands.handle_menu_delete(event)
         return
-    
+
     if text == "?メニュー状態":
         from apps.rich_menu import commands as richmenu_commands
         richmenu_commands.handle_menu_status(event)
