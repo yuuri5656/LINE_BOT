@@ -130,15 +130,16 @@ def set_default_rich_menu(page: str = "1-1"):
     Args:
         page: デフォルトで表示するページ（例: "1-1", "2-1"）
     """
-    menu_id = RICHMENU_IDS.get(f"page{page}")
+    page_key = f"page{page}"
+    menu_id = RICHMENU_IDS.get(page_key)
     if menu_id:
         try:
             line_bot_api.set_default_rich_menu(menu_id)
-            print(f"[リッチメニュー] デフォルトメニューを設定: ページ{page} (ID: {menu_id})")
+            print(f"[リッチメニュー] デフォルトメニューを設定: {page_key} (ID: {menu_id})")
         except Exception as e:
             print(f"[リッチメニュー] デフォルト設定エラー: {e}")
     else:
-        print(f"[リッチメニュー] エラー: ページ{page}のメニューIDが見つかりません")
+        print(f"[リッチメニュー] エラー: {page_key}のメニューIDが見つかりません")
 
 
 def switch_user_menu(user_id: str, page: str):
@@ -149,15 +150,16 @@ def switch_user_menu(user_id: str, page: str):
         user_id: ユーザーID
         page: 切り替え先のページ（例: "1-1", "1-2", "2-1"）
     """
-    menu_id = RICHMENU_IDS.get(f"page{page}")
+    page_key = f"page{page}"
+    menu_id = RICHMENU_IDS.get(page_key)
     if menu_id:
         try:
             line_bot_api.link_rich_menu_to_user(user_id, menu_id)
-            print(f"[リッチメニュー] ユーザー {user_id} をページ{page}に切り替え")
+            print(f"[リッチメニュー] ユーザー {user_id} を{page_key}に切り替え")
         except Exception as e:
             print(f"[リッチメニュー] 切り替えエラー: {e}")
     else:
-        print(f"[リッチメニュー] エラー: ページ{page}のメニューIDが見つかりません")
+        print(f"[リッチメニュー] エラー: {page_key}のメニューIDが見つかりません")
 
 
 def get_menu_ids():

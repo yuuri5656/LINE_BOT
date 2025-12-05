@@ -22,13 +22,17 @@ def handle_menu_create(event):
         # 新しいメニューを作成
         menu_ids = create_rich_menus()
         
-        # デフォルトメニューを設定（ページ1）
-        set_default_rich_menu(page=1)
+        # デフォルトメニューを設定（ページ1-1）
+        set_default_rich_menu(page="1-1")
         
         message = TextSendMessage(
             text=f"✅ リッチメニューを作成しました\n\n"
-                 f"📄 ページ1: {menu_ids['page1'][:8]}...\n"
-                 f"📄 ページ2: {menu_ids['page2'][:8]}...\n\n"
+                 f"📄 ページ1-1: {menu_ids['page1-1'][:8]}...\n"
+                 f"📄 ページ1-2: {menu_ids['page1-2'][:8]}...\n"
+                 f"📄 ページ1-3: {menu_ids['page1-3'][:8]}...\n"
+                 f"📄 ページ2-1: {menu_ids['page2-1'][:8]}...\n"
+                 f"📄 ページ2-2: {menu_ids['page2-2'][:8]}...\n"
+                 f"📄 ページ2-3: {menu_ids['page2-3'][:8]}...\n\n"
                  f"メニューが表示されない場合は、トーク画面を再読み込みしてください。"
         )
         line_bot_api.reply_message(event.reply_token, message)
@@ -56,17 +60,15 @@ def handle_menu_status(event):
     try:
         menu_ids = get_menu_ids()
         
-        if menu_ids["page1"] or menu_ids["page2"]:
+        any_menu_exists = any(menu_ids.values())
+        
+        if any_menu_exists:
             status_text = "📊 リッチメニュー状態\n\n"
-            if menu_ids["page1"]:
-                status_text += f"✅ ページ1: {menu_ids['page1'][:8]}...\n"
-            else:
-                status_text += "❌ ページ1: 未作成\n"
-            
-            if menu_ids["page2"]:
-                status_text += f"✅ ページ2: {menu_ids['page2'][:8]}...\n"
-            else:
-                status_text += "❌ ページ2: 未作成\n"
+            for page_key in ["page1-1", "page1-2", "page1-3", "page2-1", "page2-2", "page2-3"]:
+                if menu_ids[page_key]:
+                    status_text += f"✅ {page_key}: {menu_ids[page_key][:8]}...\n"
+                else:
+                    status_text += f"❌ {page_key}: 未作成\n"
         else:
             status_text = "❌ リッチメニューが作成されていません\n\n?メニュー作成 で作成できます。"
         
