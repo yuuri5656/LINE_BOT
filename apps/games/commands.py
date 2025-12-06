@@ -387,7 +387,7 @@ def handle_confirm_bet(event, user_id, data: Dict):
             distribute_chips({
                 user_id: {
                     'locked': bet_amount,
-                    'payout': result['payout'] - bet_amount  # 純利益のみ
+                    'payout': result['payout']  # 純利益
                 }
             }, game_session_id)
 
