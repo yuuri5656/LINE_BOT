@@ -17,7 +17,7 @@ def bank_reception(event, text, user_id, display_name, sessions):
     step_messages = {
         1: TextSendMessage(text="ご自身のフルネームを半角カタカナで教えてください。\n苗字と名前の間には半角スペースを挿入してください。(例:ﾎﾝﾀﾞ ﾊﾙｷ)"),
         2: TextSendMessage(text="ご自身の生年月日を「YYYY-MM-DD」の形式で教えてください。(例:2011-03-25)"),
-        3: TextSendMessage(text="ご自身の希望する支店を以下から支店名でお選び下さい。\n※どの支店を選んで頂いてもご利用に影響はございません。\n\n支店名　　　　支店番号\n塩路支店　　　001\nメガネ支店　　002\nバナナ支店　　003\nボラ部支店　　004\nゴリラ支店　　005\nマッコリ支店　006\nビースト支店　810"),
+        3: TextSendMessage(text="ご自身の希望する支店を以下から支店名もしくは支店番号でお選び下さい。\n※どの支店を選んで頂いてもご利用に影響はございません。\n\n支店名　　　　支店番号\n塩路支店　　　001\nメガネ支店　　002\nバナナ支店　　003\nボラ部支店　　004\nゴリラ支店　　005\nマッコリ支店　006\nビースト支店　810"),
         4: TextSendMessage(text="ご自身の希望する口座種別を、普通預金・当座預金・定期預金からお選び下さい。"),
         5: TextSendMessage(text="最後に、4桁の暗証番号を設定してください。(例:1234)\nまた、セキュリティの観点から、ご自身の誕生日や連続した数字、同じ数字の繰り返しは避けてください。")
     }
@@ -41,7 +41,7 @@ def bank_reception(event, text, user_id, display_name, sessions):
             if prev_step == 3:
                 line_bot_api.reply_message(
                     event.reply_token,
-                    [TextSendMessage(text="ご自身の希望する支店を以下から支店名でお選び下さい。\n※どの支店を選んで頂いてもご利用に影響はございません。"),
+                    [TextSendMessage(text="ご自身の希望する支店を以下から支店名もしくは支店番号でお選び下さい。\n※どの支店を選んで頂いてもご利用に影響はございません。"),
                     TextSendMessage(text="支店名　　　　支店番号\n塩路支店　　　001\nメガネ支店　　002\nバナナ支店　　003\nボラ部支店　　004\nゴリラ支店　　005\nマッコリ支店　006\nビースト支店　810")]
                 )
             else:
@@ -152,7 +152,7 @@ def bank_reception(event, text, user_id, display_name, sessions):
             sessions[user_id]["step"] = 3
 
             messages.append(TextSendMessage(text=f"{display_name} 様、生年月日のご提供ありがとうございます。「{birth_date_str}」で登録させて頂きます。"))
-            messages.append(TextSendMessage(text="次に、ご自身の希望する支店を以下から支店名でお選び下さい。\n※どの支店を選んで頂いてもご利用に影響はございません。"))
+            messages.append(TextSendMessage(text="次に、ご自身の希望する支店を以下から支店名もしくは支店番号でお選び下さい。\n※どの支店を選んで頂いてもご利用に影響はございません。"))
             messages.append(TextSendMessage(text="支店名　　　　支店番号\n塩路支店　　　001\nメガネ支店　　002\nバナナ支店　　003\nボラ部支店　　004\nゴリラ支店　　005\nマッコリ支店　006\nビースト支店　810"))
             # messages.append(TextSendMessage(text="次に、ご自身の希望する口座種別を、普通預金・定期預金からお選び下さい。"))
             line_bot_api.reply_message(
@@ -167,16 +167,30 @@ def bank_reception(event, text, user_id, display_name, sessions):
         return
     elif current_step == 3:
         messages= []
-        branch_name = text.strip()
+        branch_input = text.strip()
         valid_branches = {"塩路支店": "001", "メガネ支店": "002","バナナ支店": "003", "ボラ部支店": "004", "ゴリラ支店": "005", "マッコリ支店": "006", "ビースト支店": "810"}
-        branch_num = valid_branches[branch_name]
-        if branch_name in list(valid_branches.keys()):
+        # 支店番号から支店名へのマッピング（逆引き用）
+        branch_code_to_name = {v: k for k, v in valid_branches.items()}
+        
+        branch_num = None
+        branch_name = None
+        
+        # 支店名で検索
+        if branch_input in valid_branches:
+            branch_num = valid_branches[branch_input]
+            branch_name = branch_input
+        # 支店番号で検索
+        elif branch_input in branch_code_to_name:
+            branch_num = branch_input
+            branch_name = branch_code_to_name[branch_input]
+        
+        if branch_num and branch_name:
             sessions[user_id]["branch_num"] = branch_num
             sessions[user_id]["step"] = 4
             messages.append(TextSendMessage(text=f"ご入力ありがとうございます。\n支店名:{branch_name}、支店番号{branch_num}で承りました。"))
             messages.append(TextSendMessage(text="次に、ご自身の希望する口座種別を、普通預金・当座預金・定期預金からお選び下さい。"))
         else:
-            messages.append(TextSendMessage(text="申し訳ありません。\n選択された支店名が正しくありません。\n再度確認の上、必ず支店名をご入力下さい。"))
+            messages.append(TextSendMessage(text="申し訳ありません。\n選択された支店名または支店番号が正しくありません。\n支店名または3桁の支店番号を再度ご確認の上、ご入力下さい。"))
         line_bot_api.reply_message(event.reply_token, messages)
     elif current_step == 4:
         account_type = text.strip()
