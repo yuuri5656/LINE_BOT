@@ -256,21 +256,26 @@ def calculate_winner(player_hand: List[Dict], dealer_hand: List[Dict],
     # ディーラーバースト
     if dealer_bust:
         result['result'] = 'win'
-        result['payout'] = bet_amount  # 純利益(ベット額と同額)
+        # payout はベット額を含む総返却額（元のベット + 純利益）
+        # 通常勝利の純利益はベット額と同額なので、総返却は2倍
+        result['payout'] = bet_amount * 2
         result['message'] = 'ディーラーがバースト！あなたの勝ち'
         return result
 
     # 両者ブラックジャック
     if player_bj and dealer_bj:
         result['result'] = 'push'
-        result['payout'] = 0  # 引き分け(ベット額のみ返却、利益なし)
+        # 引き分けはベット額を返却する
+        result['payout'] = bet_amount
         result['message'] = '両者ブラックジャック！引き分け'
         return result
 
     # プレイヤーブラックジャック
     if player_bj:
         result['result'] = 'blackjack'
-        result['payout'] = int(bet_amount * 1.5)  # 1.5倍の純利益
+        # ブラックジャックは純利益が1.5倍（ベットの150%）、
+        # 総返却額は元のベット + 1.5倍 = 2.5倍
+        result['payout'] = int(bet_amount * 2.5)
         result['message'] = 'ブラックジャック！2.5倍配当'
         return result
 
@@ -284,7 +289,8 @@ def calculate_winner(player_hand: List[Dict], dealer_hand: List[Dict],
     # 通常の勝敗判定
     if player_total > dealer_total:
         result['result'] = 'win'
-        result['payout'] = bet_amount  # 純利益(ベット額と同額)
+        # 勝利時は純利益がベット額と同額のため、総返却は2倍
+        result['payout'] = bet_amount * 2
         result['message'] = 'あなたの勝ち！'
     elif player_total < dealer_total:
         result['result'] = 'lose'
@@ -292,7 +298,8 @@ def calculate_winner(player_hand: List[Dict], dealer_hand: List[Dict],
         result['message'] = 'ディーラーの勝ち'
     else:
         result['result'] = 'push'
-        result['payout'] = 0  # 引き分け(ベット額のみ返却、利益なし)
+        # 引き分けはベット額を返却
+        result['payout'] = bet_amount
         result['message'] = '引き分け（プッシュ）'
 
     return result
