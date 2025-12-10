@@ -553,6 +553,12 @@ def _finish_blackjack_game(event, user_id: str, session: Dict, is_doubled: bool 
         is_doubled: ダブルダウンしたか
     """
     try:
+        # セッションはハンドラー側で渡されるが、ダブルダウン等で
+        # セッションが更新されている可能性があるため最新を再取得する。
+        latest_session = individual_game_manager.get_session(user_id)
+        if latest_session:
+            session = latest_session
+
         player_hand = session['player_hand']
         dealer_hand = session['dealer_hand']
         deck = session['deck']
