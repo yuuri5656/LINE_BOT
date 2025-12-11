@@ -29,7 +29,10 @@ def get_chip_balance(user_id: str) -> Dict:
             'locked_base_balance': int,
             'locked_bonus_balance': int,
             'available_base': int,  # 基本チップの利用可能枚数（換金/転送可能）
-            'available_bonus': int   # ボーナスチップの利用可能枚数（使用のみ）
+            'available_bonus': int,  # ボーナスチップの利用可能枚数（使用のみ）
+            'balance': int,  # 互換性: base_balance + bonus_balance
+            'locked': int,  # 互換性: locked_base_balance + locked_bonus_balance
+            'available': int  # 互換性: available_base + available_bonus
         }
     """
     db = SessionLocal()
@@ -45,21 +48,29 @@ def get_chip_balance(user_id: str) -> Dict:
                 'locked_base_balance': 0,
                 'locked_bonus_balance': 0,
                 'available_base': 0,
-                'available_bonus': 0
+                'available_bonus': 0,
+                'balance': 0,
+                'locked': 0,
+                'available': 0
             }
 
         base_balance = int(chip_acc.base_balance)
         bonus_balance = int(chip_acc.bonus_balance)
         locked_base = int(chip_acc.locked_base_balance)
         locked_bonus = int(chip_acc.locked_bonus_balance)
+        available_base = base_balance - locked_base
+        available_bonus = bonus_balance - locked_bonus
 
         return {
             'base_balance': base_balance,
             'bonus_balance': bonus_balance,
             'locked_base_balance': locked_base,
             'locked_bonus_balance': locked_bonus,
-            'available_base': base_balance - locked_base,
-            'available_bonus': bonus_balance - locked_bonus
+            'available_base': available_base,
+            'available_bonus': available_bonus,
+            'balance': base_balance + bonus_balance,  # 互換性
+            'locked': locked_base + locked_bonus,  # 互換性
+            'available': available_base + available_bonus  # 互換性
         }
     finally:
         db.close()

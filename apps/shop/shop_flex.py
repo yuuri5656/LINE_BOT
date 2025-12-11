@@ -367,7 +367,7 @@ def _create_shop_info_row(label: str, value: str) -> dict:
     }
 
 
-def get_purchase_success_flex(item_name: str, chips_received: int, new_balance: int) -> FlexSendMessage:
+def get_purchase_success_flex(item_name: str, chips_received: int, new_base_balance: int, new_bonus_balance: int) -> FlexSendMessage:
     """購入成功メッセージ"""
     return FlexSendMessage(
         alt_text="購入完了",
@@ -451,7 +451,7 @@ def get_purchase_success_flex(item_name: str, chips_received: int, new_balance: 
                     },
                     {
                         "type": "box",
-                        "layout": "baseline",
+                        "layout": "vertical",
                         "contents": [
                             {
                                 "type": "text",
@@ -459,14 +459,50 @@ def get_purchase_success_flex(item_name: str, chips_received: int, new_balance: 
                                 "size": "md",
                                 "color": "#111111",
                                 "weight": "bold",
-                                "flex": 0
+                                "margin": "md"
                             },
                             {
-                                "type": "text",
-                                "text": f"{new_balance}枚",
-                                "size": "md",
-                                "color": "#4CAF50",
-                                "weight": "bold",
+                                "type": "box",
+                                "layout": "baseline",
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": "基本:",
+                                        "size": "sm",
+                                        "color": "#666666",
+                                        "flex": 0
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": f"{new_base_balance}枚",
+                                        "size": "sm",
+                                        "color": "#4CAF50",
+                                        "weight": "bold",
+                                        "margin": "sm"
+                                    }
+                                ],
+                                "margin": "sm"
+                            },
+                            {
+                                "type": "box",
+                                "layout": "baseline",
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": "ボーナス:",
+                                        "size": "sm",
+                                        "color": "#666666",
+                                        "flex": 0
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": f"{new_bonus_balance}枚",
+                                        "size": "sm",
+                                        "color": "#FF9800",
+                                        "weight": "bold",
+                                        "margin": "sm"
+                                    }
+                                ],
                                 "margin": "sm"
                             }
                         ],
