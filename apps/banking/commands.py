@@ -275,3 +275,129 @@ def handle_transfer_account_selection_postback(event, data, user_id, sessions):
     """振り込み用口座選択のpostbackアクション処理"""
     from apps.banking.transfer_handler import handle_account_selection_postback
     handle_account_selection_postback(event, data, user_id, sessions)
+
+
+def handle_chip_transfer(event, user_id, sessions):
+    """チップ送受信コマンド"""
+    # 個人チャットのみ
+    if event.source.type != 'user':
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="チップ送受信は個別チャットでのみ利用可能です。塩爺に直接メッセージを送ってください。")
+        )
+        return
+
+    from apps.banking.chip_flex import get_chip_transfer_guide_flex
+    
+    # セッションを初期化
+    sessions[user_id] = {
+        'chip_transfer': {
+            'step': 'user_id',
+        }
+    }
+    
+    # 案内メッセージを送信
+    line_bot_api.reply_message(event.reply_token, get_chip_transfer_guide_flex())
+
+
+def handle_chip_transfer_session_input(event, text, user_id, sessions):
+    """チップ送受信セッション中の入力処理"""
+    session = sessions.get(user_id)
+    if not session or 'chip_transfer' not in session:
+        return
+
+    from apps.banking.chip_flex import (
+        get_chip_amount_input_flex,
+        get_chip_transfer_success_flex,
+        get_chip_transfer_error_flex,
+        get_chip_receive_notification_flex
+    )
+    from apps.banking.chip_service import transfer_chips, get_chip_balance
+    from core.api import line_bot_api
+    
+    transfer_data = session['chip_transfer']
+    step = transfer_data.get('step')
+
+    if step == 'user_id':
+        # ユーザーID入力処理
+        to_user_id = text.strip()
+        
+        # ユーザーID形式チェック（@で始まる）
+        if not to_user_id.startswith('@') or len(to_user_id) < 2:
+            line_bot_api.reply_message(
+                event.reply_token,
+                get_chip_transfer_error_flex(
+                    "ユーザーIDは @で始まる形式で入力してください。\n例: @U1234567890abcdef",
+                    'validation'
+                )
+            )
+            return
+        
+        transfer_data['to_user_id'] = to_user_id
+        transfer_data['step'] = 'amount'
+        sessions[user_id]['chip_transfer'] = transfer_data
+        
+        line_bot_api.reply_message(event.reply_token, get_chip_amount_input_flex(to_user_id))
+
+    elif step == 'amount':
+        # 枚数入力処理
+        to_user_id = transfer_data.get('to_user_id')
+        
+        # 枚数が数値かチェック
+        if not text.isdigit():
+            line_bot_api.reply_message(
+                event.reply_token,
+                get_chip_transfer_error_flex(
+                    "送信枚数は数字で入力してください。",
+                    'validation'
+                )
+            )
+            return
+        
+        amount = int(text)
+        
+        if amount <= 0:
+            line_bot_api.reply_message(
+                event.reply_token,
+                get_chip_transfer_error_flex(
+                    "送信枚数は1枚以上で入力してください。",
+                    'validation'
+                )
+            )
+            return
+        
+        # チップ転送を実行
+        result = transfer_chips(user_id, to_user_id, amount)
+        
+        if result['success']:
+            from_balance = result.get('new_base_balance', 0)
+            
+            # 送信者に成功メッセージを送信
+            line_bot_api.reply_message(
+                event.reply_token,
+                get_chip_transfer_success_flex(to_user_id, amount, from_balance)
+            )
+            
+            # セッション終了
+            sessions[user_id].pop('chip_transfer', None)
+            
+            # 受信者に通知を送信（ユーザーIDから検索してメッセージ送信）
+            try:
+                to_balance = result.get('to_balance', 0)
+                line_bot_api.push_message(
+                    to_user_id,
+                    get_chip_receive_notification_flex(user_id, amount, to_balance)
+                )
+            except Exception as e:
+                print(f"[ChipTransfer] Failed to notify recipient: {e}")
+        else:
+            error_msg = result.get('error', 'チップ転送に失敗しました')
+            error_type = 'insufficient' if '不足' in error_msg else 'general'
+            
+            line_bot_api.reply_message(
+                event.reply_token,
+                get_chip_transfer_error_flex(error_msg, error_type)
+            )
+            
+            # セッション終了
+            sessions[user_id].pop('chip_transfer', None)

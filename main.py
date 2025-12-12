@@ -10,9 +10,15 @@ app = Flask(__name__)
 # 株価バックグラウンド更新を開始
 start_background_updater()
 
-# リッチメニューの初期化（起動時に自動作成はしない）
-# 手動で ?メニュー作成 コマンドを実行して作成してください
-print("[起動] リッチメニューを使用するには「?メニュー作成」コマンドを実行してください")
+# リッチメニューの初期化（起動時に自動作成）
+try:
+    print("[起動] リッチメニューを初期化中...")
+    create_rich_menus()
+    set_default_rich_menu()
+    print("[起動] リッチメニューの初期化が完了しました")
+except Exception as e:
+    print(f"[起動] リッチメニューの初期化に失敗しました: {e}")
+    print("[起動] 手動で ?メニュー作成 コマンドを実行して作成してください")
 
 @app.route("/callback", methods=['POST'])
 def callback():

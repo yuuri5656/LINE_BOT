@@ -575,13 +575,20 @@ def _finish_blackjack_game(event, user_id: str, session: Dict, is_doubled: bool 
             is_doubled or session.get('is_doubled', False)
         )
 
-        # チップ配分
-        # payoutは総額(ベット額+利益)を含むため、そのまま配分
+        # チップ配分：収支額（純利益）のみ基本チップに変換
+        # payout は総額（ベット額+利益）を含むため、利益 = payout - bet_amount
         payout = result['payout']
+        profit = max(0, payout - bet_amount)  # 利益分のみを基本チップに変換
+        
+        # ロックした額の詳細を取得
+        locked_base = session.get('locked_base', session.get('bet_amount', bet_amount))
+        locked_bonus = session.get('locked_bonus', 0)
+        
         distribute_chips({
             user_id: {
-                'locked': bet_amount,
-                'payout': payout
+                'locked_base': locked_base,
+                'locked_bonus': locked_bonus,
+                'payout': profit  # 利益分だけを付与
             }
         }, game_session_id)
 

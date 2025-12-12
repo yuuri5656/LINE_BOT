@@ -400,11 +400,42 @@ def _execute_transfer(event, pin_code, user_id, sessions, transfer_data):
     try:
         from apps.banking.bank_service import transfer_funds
 
+        # 振込先口座情報を取得して名義を表示
+        to_branch_code = transfer_data.get('to_branch_code')
+        to_account_number = transfer_data.get('to_account_number')
+        
+        # 振込先の口座名義を取得
+        to_account_info = None
+        try:
+            from apps.banking.main_bank_system import SessionLocal, Account, Branch
+            from sqlalchemy import select
+            
+            db = SessionLocal()
+            try:
+                branch = db.execute(select(Branch).filter_by(code=to_branch_code)).scalars().first()
+                if branch:
+                    account = db.execute(
+                        select(Account).filter_by(
+                            account_number=to_account_number,
+                            branch_id=branch.branch_id
+                        )
+                    ).scalars().first()
+                    if account and account.customer:
+                        to_account_info = account.customer.full_name
+            finally:
+                db.close()
+        except Exception:
+            pass
+        
+        # 摘要を作成：振込先の名義を含める
+        description = f'振込: {to_account_info if to_account_info else to_account_number}'
+
         tx = transfer_funds(
             from_account_number=transfer_data.get('from_account_number'),
             to_account_number=transfer_data.get('to_account_number'),
             amount=transfer_data.get('amount'),
-            currency='JPY'
+            currency='JPY',
+            description=description
         )
 
         # 振込後の残高を取得

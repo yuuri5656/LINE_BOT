@@ -141,6 +141,7 @@ def can_work(user_id: str) -> Dict:
 def do_work(user_id: str) -> Dict:
     """
     労働を実行し、給与を口座に振り込む
+    運営元の労働口座（ｶﾌﾞｼｷｶﾞｲｼｬ ﾌﾞﾗｯｸ）からユーザー口座に正しく給与が振り込まれます
 
     Returns:
         {'success': bool, 'salary': Decimal, 'message': str, 'balance_after': Decimal}
@@ -174,21 +175,26 @@ def do_work(user_id: str) -> Dict:
 
     db = next(get_db())
     try:
-        # 口座に入金（会社からの給与振込として記録）
-        success = banking_api.deposit_by_account(
-            account_number,
-            branch_code,
-            salary,
-            'JPY',
-            description='給与',
-            other_account_info='001-8450464'
-        )
-
-        if not success:
+        # 運営元の労働口座から給与を振込（二重仕訳で記録）
+        # ｶﾌﾞｼｷｶﾞｲｼｬ ﾌﾞﾗｯｸ(001-8450464)からユーザー口座に振り込み
+        from apps.banking.bank_service import transfer_funds
+        
+        try:
+            tx = transfer_funds(
+                from_account_number='8450464',  # 運営元口座番号
+                to_account_number=account_number,
+                amount=salary,
+                currency='JPY',
+                description='労働報酬'
+            )
+            print(f"[Work Service] Salary transferred successfully: user={user_id}, amount={salary}, tx_id={tx.transaction_id}")
+        except Exception as e:
+            error_msg = str(e)
+            print(f"[Work Service] Failed to transfer salary: {error_msg}")
             return {
                 'success': False,
                 'salary': salary,
-                'message': '給与の振り込みに失敗しました',
+                'message': f'給与の振り込みに失敗しました: {error_msg}',
                 'balance_after': Decimal('0')
             }
 

@@ -373,6 +373,15 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             banking_commands.handle_transfer(event, user_id, sessions)
             return
 
+        if text == "?チップ送受信":
+            banking_commands.handle_chip_transfer(event, user_id, sessions)
+            return
+
+        # チップ送受信セッション中の処理
+        if isinstance(state, dict) and state.get("chip_transfer"):
+            banking_commands.handle_chip_transfer_session_input(event, text, user_id, sessions)
+            return
+
     # === ショップ機能 ===
     if text == "?ショップ":
         from apps.banking.main_bank_system import get_db

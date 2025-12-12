@@ -322,23 +322,25 @@ def get_user_chip_balance(user_id: str, db) -> int:
 
 
 def handle_chip_exchange_all(user_id: str, db) -> TextSendMessage:
-    """チップ全額換金処理"""
+    """チップ全額換金処理（基本チップのみ換金可能）"""
     from apps.banking.chip_service import get_chip_balance as get_balance
     balance_info = get_balance(user_id)
-    balance = balance_info.get('balance', 0)
     
-    if balance <= 0:
-        return TextSendMessage(text="❌ 換金可能なチップがありません。")
+    # 基本チップのみを参照（ボーナスチップは換金不可）
+    base_balance = balance_info.get('available_base', 0)
+    
+    if base_balance <= 0:
+        return TextSendMessage(text="❌ 換金可能な基本チップがありません。\n（ボーナスチップは換金できません）")
     
     # 全額換金実行
-    result = redeem_chips(user_id, balance)
+    result = redeem_chips(user_id, base_balance)
     
     if result['success']:
         return TextSendMessage(
-            text=f"✅ チップ全額換金完了\n\n"
-                 f"換金枚数: {result['amount_received']}枚\n"
-                 f"振込額: ¥{result['amount_received']:,}\n"
-                 f"残りのチップ: {result['new_balance']}枚\n\n"
+            text=f"✅ 基本チップ全額換金完了\n\n"
+                 f"換金枚数: {base_balance}枚\n"
+                 f"振込額: ¥{int(base_balance * 12):,}\n"
+                 f"残りの基本チップ: {result['new_base_balance']}枚\n\n"
                  f"※登録済みの口座に振り込まれました"
         )
     else:
