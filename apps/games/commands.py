@@ -394,13 +394,18 @@ def handle_confirm_bet(event, user_id, data: Dict):
             payout = result['payout']
             profit = max(0, payout - bet_amount)  # 利益分のみ
             
-            distribute_chips({
+            print(f"[Blackjack Initial BJ] user={user_id}, bet_amount={bet_amount}, payout={payout}, profit={profit}")
+            print(f"[Blackjack Initial BJ] Locked chips: locked_base={locked_base}, locked_bonus={locked_bonus}")
+            
+            distribute_result = distribute_chips({
                 user_id: {
                     'locked_base': locked_base,
                     'locked_bonus': locked_bonus,
                     'payout': profit
                 }
             }, game_session_id)
+            
+            print(f"[Blackjack Initial BJ] Distribute result: {distribute_result}")
 
             # 新しい残高
             new_balance_info = get_chip_balance(user_id)
@@ -604,13 +609,21 @@ def _finish_blackjack_game(event, user_id: str, session: Dict, is_doubled: bool 
         payout = result['payout']
         profit = max(0, payout - bet_amount)  # 利益分のみを基本チップに変換
         
-        distribute_chips({
+        print(f"[Blackjack] Game settle: user={user_id}, bet_amount={bet_amount}, payout={payout}, profit={profit}")
+        print(f"[Blackjack] Locked chips: locked_base={locked_base}, locked_bonus={locked_bonus}")
+        
+        distribute_result = distribute_chips({
             user_id: {
                 'locked_base': locked_base,
                 'locked_bonus': locked_bonus,
                 'payout': profit  # 利益分だけを付与
             }
         }, game_session_id)
+        
+        print(f"[Blackjack] Distribute result: {distribute_result}")
+        
+        if not distribute_result.get('success'):
+            print(f"[Blackjack] ERROR: distribute_chips failed: {distribute_result.get('error')}")
 
         # 新しい残高
         new_balance_info = get_chip_balance(user_id)

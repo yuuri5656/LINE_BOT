@@ -389,6 +389,9 @@ def batch_lock_chips(locks: List[Dict]) -> Dict:
                         chip_acc.locked_bonus_balance += locked_bonus
                         locked_type = 'mixed'
 
+                    # 互換性フィールドも更新
+                    chip_acc.locked_balance += amt
+
                     chip_acc.updated_at = now_jst()
 
                     tx = ChipTransaction(
