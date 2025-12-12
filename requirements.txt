@@ -8,4 +8,4 @@ jaconv
 matplotlib>=3.9.0
 japanize-matplotlib>=1.1.3
 setuptools>=70.0.0  # Python 3.12以上でのエラー回避用
-requests>=2.31.0  # Imgur APIアップロード用
+requests>=2.31.0  # Imgur APIアップロード用APScheduler>=3.10.0  # バックグラウンドスケジューラー用

@@ -9,6 +9,26 @@ from apps.banking.api import banking_api
 
 def handle_work_command(event, user_id):
     """?労働コマンド"""
+    # === NEW: 懲役中チェック ===
+    from apps.prison import prison_service, prison_flex
+    prisoner_status = prison_service.get_prisoner_status(user_id)
+    
+    if prisoner_status['is_imprisoned']:
+        # 懲役中のユーザーは prison_service の処理を使用
+        work_result = prison_service.do_prison_work(user_id)
+        
+        if work_result['success']:
+            # Flex メッセージで結果を表示
+            flex_message = prison_flex.get_prison_work_result_flex(work_result)
+            line_bot_api.reply_message(event.reply_token, flex_message)
+        else:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=f"❌ {work_result['message']}")
+            )
+        return
+    
+    # === 以下は既存の処理 ===
     # 給与振込口座が登録されているか確認
     salary_info = work_service.get_salary_account_info(user_id)
 

@@ -14,6 +14,8 @@ from apps.utilities import commands as utility_commands
 from apps.shop import commands as shop_commands
 from apps.stock import commands as stock_commands
 from apps.work import commands as work_commands
+from apps.prison import commands as prison_commands
+from apps.prison import prison_service
 from apps.rich_menu import menu_manager
 
 
@@ -220,6 +222,17 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
 
     state = sessions.get(user_id)
 
+    # === 懲役中ユーザーの制限チェック ===
+    prisoner_status = prison_service.get_prisoner_status(user_id)
+    if prisoner_status['is_imprisoned']:
+        # 懲役中のユーザーは?労働のみを許可
+        if text != "?労働" and not text.startswith("?キャンセル"):
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="❌ 懲役中のため、?労働のみが実行可能です")
+            )
+            return
+
     # === ?コマンドの優先処理（セッション中でも実行可能） ===
     # キャンセルコマンド（最優先）
     if text.strip() == "?キャンセル":
@@ -421,6 +434,57 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
 
     if text == "?労働":
         work_commands.handle_work_command(event, user_id)
+        return
+
+    # === 管理者コマンド ===
+    if text.startswith("?ユーザー口座 "):
+        if not prison_commands.is_admin(user_id):
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text="❌ このコマンドは管理者のみ実行可能です"))
+            return
+        target_user_id = text.replace("?ユーザー口座 ", "").strip()
+        prison_commands.handle_admin_user_accounts(event, user_id, target_user_id)
+        return
+
+    if text.startswith("?口座番号 "):
+        if not prison_commands.is_admin(user_id):
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text="❌ このコマンドは管理者のみ実行可能です"))
+            return
+        account_number = text.replace("?口座番号 ", "").strip()
+        prison_commands.handle_admin_account_number(event, user_id, account_number)
+        return
+
+    if text.startswith("?懲役 "):
+        if not prison_commands.is_admin(user_id):
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text="❌ このコマンドは管理者のみ実行可能です"))
+            return
+        # パース: "?懲役 [user_id] [start_date] [days] [quota]"
+        params = text.replace("?懲役 ", "").split()
+        if len(params) < 4:
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text="❌ 形式: ?懲役 [user_id] [施行日(YYYY-MM-DD)] [日数] [ノルマ]"))
+            return
+        prison_commands.handle_admin_sentence(event, user_id, params[0], params[1], int(params[2]), int(params[3]))
+        return
+
+    if text.startswith("?凍結 "):
+        if not prison_commands.is_admin(user_id):
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text="❌ このコマンドは管理者のみ実行可能です"))
+            return
+        account_number = text.replace("?凍結 ", "").strip()
+        prison_commands.handle_admin_freeze_account(event, user_id, account_number)
+        return
+
+    if text.startswith("?釈放 "):
+        if not prison_commands.is_admin(user_id):
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text="❌ このコマンドは管理者のみ実行可能です"))
+            return
+        target_user_id = text.replace("?釈放 ", "").strip()
+        prison_commands.handle_admin_release(event, user_id, target_user_id)
         return
 
     # お遊びコマンド
