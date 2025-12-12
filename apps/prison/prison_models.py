@@ -20,7 +20,8 @@ class PrisonSentence(Base):
     
     対応する DB カラム:
         sentence_id SERIAL PRIMARY KEY
-        user_id TEXT NOT NULL UNIQUE -> customers.user_id
+        user_id TEXT NOT NULL UNIQUE
+        customer_id BIGINT NOT NULL -> customers.customer_id
         start_date DATE NOT NULL          -- 施行日
         end_date DATE NOT NULL            -- 釈放日
         initial_days INTEGER NOT NULL     -- 初期懲役日数
@@ -36,6 +37,7 @@ class PrisonSentence(Base):
     
     sentence_id = Column(Integer, primary_key=True)
     user_id = Column(String, nullable=False, unique=True)
+    customer_id = Column(Integer, ForeignKey('customers.customer_id', ondelete='CASCADE'), nullable=False)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     initial_days = Column(Integer, nullable=False)

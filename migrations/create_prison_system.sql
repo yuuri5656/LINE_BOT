@@ -6,7 +6,8 @@
 -- ============================================
 CREATE TABLE IF NOT EXISTS prison_sentences (
     sentence_id SERIAL PRIMARY KEY,
-    user_id TEXT NOT NULL UNIQUE,
+    user_id TEXT NOT NULL,
+    customer_id BIGINT NOT NULL,        -- customers テーブルへの外部キー
     start_date DATE NOT NULL,           -- 施行日
     end_date DATE NOT NULL,             -- 釈放日
     initial_days INTEGER NOT NULL,      -- 初期懲役日数
@@ -16,7 +17,8 @@ CREATE TABLE IF NOT EXISTS prison_sentences (
     last_work_date DATE,                -- 最後に?労働を実行した日付
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now(),
-    FOREIGN KEY (user_id) REFERENCES customers(user_id) ON DELETE CASCADE
+    UNIQUE(user_id),
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_prison_user_id ON prison_sentences(user_id);

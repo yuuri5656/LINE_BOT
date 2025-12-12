@@ -138,6 +138,7 @@ def sentence_prisoner(
         # 懲役レコードを作成
         new_sentence = PrisonSentence(
             user_id=user_id,
+            customer_id=customer.customer_id,
             start_date=start_date,
             end_date=end_date,
             initial_days=days,
