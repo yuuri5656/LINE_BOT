@@ -228,9 +228,12 @@ def do_prison_work(user_id: str) -> dict:
     """
     懲役中ユーザーの?労働処理
     
-    - ノルマカウント +1
-    - ノルマ達成時に remaining_days を -1
-    - 稼いだ金は準備預金へ振り込み
+    既存の労働システムを流用:
+    - 給料: 800～1800円のランダム（既存システムと同じ）
+    - 頻度制限: 15分に1回（既存システムと同じ）
+    - ノルマカウント +1（懲役システム独自）
+    - ノルマ達成時に remaining_days を -1（懲役システム独自）
+    - 稼いだ金は給付金専用口座へ振り込み
     
     Returns:
         {
@@ -242,6 +245,8 @@ def do_prison_work(user_id: str) -> dict:
             'balance_after': Decimal or None
         }
     """
+    import random
+    from datetime import timedelta
     db = SessionLocal()
     try:
         from apps.utilities.timezone_utils import now_jst
@@ -261,20 +266,41 @@ def do_prison_work(user_id: str) -> dict:
                 'balance_after': None
             }
         
-        # 昨日のノルマをリセット（日付が変わっている場合）
+        # === 既存システムの頻度制限を流用（15分に1回） ===
         today = date.today()
         if sentence.last_work_date and sentence.last_work_date < today:
+            # 日付が変わった場合、タイムスタンプをリセット
             sentence.completed_today = 0
             sentence.last_work_date = today
+            # last_work_datetimeもリセット（初回労働を許可）
+            sentence.last_work_datetime = None
         elif not sentence.last_work_date:
             sentence.last_work_date = today
+            sentence.last_work_datetime = None
+        
+        # 前回労働からの経過時間をチェック（15分制限）
+        if sentence.last_work_datetime:
+            now = datetime.now()
+            elapsed = now - sentence.last_work_datetime
+            if elapsed < timedelta(minutes=15):
+                remaining = timedelta(minutes=15) - elapsed
+                minutes = int(remaining.total_seconds() / 60)
+                seconds = int(remaining.total_seconds() % 60)
+                return {
+                    'success': False,
+                    'message': f'次の労働まで {minutes}分{seconds}秒 待ってください',
+                    'quota_completed': False,
+                    'remaining_days': sentence.remaining_days,
+                    'salary': None,
+                    'balance_after': None
+                }
+        
+        # === 既存システムの給料計算を流用（800～1800円のランダム） ===
+        salary = Decimal(random.randint(800, 1800))
         
         # ノルマカウント +1
         sentence.completed_today += 1
         quota_completed = sentence.completed_today >= sentence.daily_quota
-        
-        # 給与を計算（固定値：1,000円）
-        salary = Decimal('1000')
         
         # 給付金専用口座を取得
         rehabilitation_account = db.execute(
@@ -312,6 +338,9 @@ def do_prison_work(user_id: str) -> dict:
         )
         db.add(transaction)
         db.flush()
+        
+        # 最後の労働時刻を更新（15分制限用）
+        sentence.last_work_datetime = datetime.now()
         
         # ノルマ達成時に remaining_days を -1
         if quota_completed:

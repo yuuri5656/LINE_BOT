@@ -45,6 +45,7 @@ class PrisonSentence(Base):
     daily_quota = Column(Integer, nullable=False)
     completed_today = Column(Integer, default=0)
     last_work_date = Column(Date, nullable=True)
+    last_work_datetime = Column(DateTime(timezone=True), nullable=True)  # 15分制限用
     created_at = Column(DateTime(timezone=True), server_default=text('now()'))
     updated_at = Column(DateTime(timezone=True), server_default=text('now()'), onupdate=text('now()'))
     
