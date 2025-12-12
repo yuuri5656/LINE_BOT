@@ -302,11 +302,13 @@ def do_prison_work(user_id: str) -> dict:
         
         # トランザクション記録
         transaction = Transaction(
-            account_id=rehabilitation_account.account_id,
-            transaction_type='deposit',
+            to_account_id=rehabilitation_account.account_id,
+            type='deposit',
             status='completed',
             amount=salary,
-            description=f'懲役中の労働給与: {user_id}'
+            currency='JPY',
+            description=f'懲役中の労働給与: {user_id}',
+            executed_at=now_jst()
         )
         db.add(transaction)
         db.flush()
@@ -458,11 +460,14 @@ def distribute_rehabilitation_fund() -> dict:
             
             # トランザクション記録
             transaction = Transaction(
-                account_id=account.account_id,
-                transaction_type='deposit',
+                from_account_id=rehabilitation_account.account_id,
+                to_account_id=account.account_id,
+                type='transfer',
                 status='completed',
                 amount=amount_per_recipient,
-                description='犯罪者更生給付金'
+                currency='JPY',
+                description='犯罪者更生給付金',
+                executed_at=now_jst()
             )
             db.add(transaction)
         
