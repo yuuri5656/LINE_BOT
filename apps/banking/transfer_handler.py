@@ -430,7 +430,7 @@ def _execute_transfer(event, pin_code, user_id, sessions, transfer_data):
         # 摘要を作成：振込先の名義を含める
         description = f'振込: {to_account_info if to_account_info else to_account_number}'
 
-        tx = transfer_funds(
+        result = transfer_funds(
             from_account_number=transfer_data.get('from_account_number'),
             to_account_number=transfer_data.get('to_account_number'),
             amount=transfer_data.get('amount'),

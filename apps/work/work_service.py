@@ -180,14 +180,14 @@ def do_work(user_id: str) -> Dict:
         from apps.banking.bank_service import transfer_funds
         
         try:
-            tx = transfer_funds(
+            result = transfer_funds(
                 from_account_number='8450464',  # 運営元口座番号
                 to_account_number=account_number,
                 amount=salary,
                 currency='JPY',
                 description='労働報酬'
             )
-            print(f"[Work Service] Salary transferred successfully: user={user_id}, amount={salary}, tx_id={tx.transaction_id}")
+            print(f"[Work Service] Salary transferred successfully: user={user_id}, amount={salary}, tx_id={result['transaction_id']}")
         except Exception as e:
             error_msg = str(e)
             print(f"[Work Service] Failed to transfer salary: {error_msg}")

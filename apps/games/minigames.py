@@ -1205,14 +1205,14 @@ def finish_game_session(group_id: str, line_bot_api):
             
             # ミニゲーム運営口座に手数料を振り込む
             # 参加者全員の口座から集めた参加費の総額から手数料を計算して転送
-            tx = transfer_funds(
+            result = transfer_funds(
                 from_account_number='6291119',  # ミニゲーム手数料受取口座（運営元）
                 to_account_number='6291119',    # 実際の手数料はロック&ロック解除で処理されるため、
                 amount=fee_amount,              # ここでは記録のための転送（実装実現度により調整）
                 currency='JPY',
                 description=f'ゲーム手数料 ({total_players}人対戦)'
             )
-            print(f"[Minigames] Game fee transferred: amount={fee_amount}, tx_id={tx.transaction_id}")
+            print(f"[Minigames] Game fee transferred: amount={fee_amount}, tx_id={result['transaction_id']}")
         except Exception as e:
             # 手数料転送失敗時は警告のみで処理を続行
             print(f"[Minigames] Warning: Failed to transfer game fee: {e}")

@@ -335,6 +335,13 @@ def batch_lock_chips(locks: List[Dict]) -> Dict:
 
     Args:
         locks: [{'user_id': str, 'amount': int, 'game_session_id': str}, ...]
+    
+    Returns:
+        {
+            'success': bool,
+            'completed': [{'user_id': str, 'locked_base': int, 'locked_bonus': int}, ...],
+            'failed': [...]
+        }
     """
     db = SessionLocal()
     completed = []
@@ -366,15 +373,20 @@ def batch_lock_chips(locks: List[Dict]) -> Dict:
                         continue
 
                     # 優先順: 基本チップ → ボーナスチップ
+                    locked_base = Decimal('0')
+                    locked_bonus = Decimal('0')
+                    
                     if available_base >= amt:
                         # 基本チップのみで済む
+                        locked_base = amt
                         chip_acc.locked_base_balance += amt
                         locked_type = 'base'
                     else:
                         # 基本チップ + ボーナスチップ
-                        bonus_needed = amt - available_base
-                        chip_acc.locked_base_balance += available_base
-                        chip_acc.locked_bonus_balance += bonus_needed
+                        locked_base = available_base
+                        locked_bonus = amt - available_base
+                        chip_acc.locked_base_balance += locked_base
+                        chip_acc.locked_bonus_balance += locked_bonus
                         locked_type = 'mixed'
 
                     chip_acc.updated_at = now_jst()
@@ -390,7 +402,11 @@ def batch_lock_chips(locks: List[Dict]) -> Dict:
                     )
                     db.add(tx)
 
-                    completed.append(user_id)
+                    completed.append({
+                        'user_id': user_id,
+                        'locked_base': int(locked_base),
+                        'locked_bonus': int(locked_bonus)
+                    })
 
                 except Exception as e:
                     failed.append({'user_id': user_id, 'error': str(e)})

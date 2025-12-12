@@ -249,7 +249,7 @@ def transfer_initial_funds(to_account_number: str, to_branch_code: str, user_id:
             return
 
         # 準備預金口座から新規口座へ5000円振り込み
-        transfer_funds(
+        result = transfer_funds(
             from_account_number=RESERVE_ACCOUNT_NUMBER,
             to_account_number=to_account_number,
             amount=Decimal('5000'),
@@ -349,7 +349,17 @@ def transfer_funds(from_account_number: str, to_account_number: str, amount, cur
             to_acc.balance = to_acc.balance + amount
 
         # commit は with db.begin() で行われる
-        return tx
+        # セッション外でアクセスされる前に transaction_id を抽出
+        transaction_id = tx.transaction_id
+        
+        return {
+            'transaction_id': transaction_id,
+            'from_account_id': from_acc.account_id,
+            'to_account_id': to_acc.account_id,
+            'amount': amount,
+            'currency': currency,
+            'status': 'completed'
+        }
 
     except Exception as e:
         db.rollback()

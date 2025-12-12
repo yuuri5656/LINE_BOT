@@ -355,6 +355,11 @@ def handle_confirm_bet(event, user_id, data: Dict):
             )
             return
 
+        # ロック結果から基本/ボーナスの詳細を取得
+        lock_info = lock_result.get('completed', [{}])[0]
+        locked_base = lock_info.get('locked_base', bet_amount)
+        locked_bonus = lock_info.get('locked_bonus', 0)
+
         # ブラックジャックゲーム開始
         deck = blackjack_game.create_deck()
         player_hand, dealer_hand, deck = blackjack_game.deal_initial_cards(deck)
@@ -371,6 +376,8 @@ def handle_confirm_bet(event, user_id, data: Dict):
             'type': 'playing',
             'bet_amount': bet_amount,
             'locked_chips': bet_amount,
+            'locked_base': locked_base,
+            'locked_bonus': locked_bonus,
             'game_session_id': game_session_id,
             'deck': deck,
             'player_hand': player_hand,
@@ -383,11 +390,15 @@ def handle_confirm_bet(event, user_id, data: Dict):
             # ディーラーもブラックジャックかチェック
             result = blackjack_game.calculate_winner(player_hand, dealer_hand, bet_amount, False)
 
-            # チップ配分
+            # チップ配分（新フォーマット）
+            payout = result['payout']
+            profit = max(0, payout - bet_amount)  # 利益分のみ
+            
             distribute_chips({
                 user_id: {
-                    'locked': bet_amount,
-                    'payout': result['payout']  # 純利益
+                    'locked_base': locked_base,
+                    'locked_bonus': locked_bonus,
+                    'payout': profit
                 }
             }, game_session_id)
 
@@ -399,7 +410,7 @@ def handle_confirm_bet(event, user_id, data: Dict):
             flex_message = blackjack_flex.get_result_screen(
                 player_hand, dealer_hand,
                 result['player_total'], result['dealer_total'],
-                result['result'], bet_amount, result['payout'],
+                result['result'], bet_amount, payout,
                 new_chip_balance
             )
 
@@ -514,18 +525,28 @@ def handle_blackjack_action(event, user_id, action: str):
                 )
                 return
 
+            # 追加ロック情報を取得
+            additional_lock_info = additional_lock_result.get('completed', [{}])[0]
+            additional_locked_base = additional_lock_info.get('locked_base', bet_amount)
+            additional_locked_bonus = additional_lock_info.get('locked_bonus', 0)
+
             # ベット額を2倍に
             new_bet_amount = bet_amount * 2
 
             # 1枚だけ引く
             player_hand, deck = blackjack_game.process_double_down(player_hand, deck)
 
-            # セッション更新
+            # セッション更新（ロック額の累積）
+            current_locked_base = session.get('locked_base', bet_amount)
+            current_locked_bonus = session.get('locked_bonus', 0)
+            
             individual_game_manager.update_session(user_id, {
                 'player_hand': player_hand,
                 'deck': deck,
                 'bet_amount': new_bet_amount,
                 'locked_chips': new_bet_amount,
+                'locked_base': current_locked_base + additional_locked_base,
+                'locked_bonus': current_locked_bonus + additional_locked_bonus,
                 'is_doubled': True
             })
 
@@ -564,6 +585,10 @@ def _finish_blackjack_game(event, user_id: str, session: Dict, is_doubled: bool 
         deck = session['deck']
         bet_amount = session['bet_amount']
         game_session_id = session['game_session_id']
+        
+        # ロック情報を取得（基本/ボーナス）
+        locked_base = session.get('locked_base')
+        locked_bonus = session.get('locked_bonus')
 
         # ディーラーのプレイ（プレイヤーがバーストしていない場合）
         if not blackjack_game.is_bust(player_hand):
@@ -576,13 +601,8 @@ def _finish_blackjack_game(event, user_id: str, session: Dict, is_doubled: bool 
         )
 
         # チップ配分：収支額（純利益）のみ基本チップに変換
-        # payout は総額（ベット額+利益）を含むため、利益 = payout - bet_amount
         payout = result['payout']
         profit = max(0, payout - bet_amount)  # 利益分のみを基本チップに変換
-        
-        # ロックした額の詳細を取得
-        locked_base = session.get('locked_base', session.get('bet_amount', bet_amount))
-        locked_bonus = session.get('locked_bonus', 0)
         
         distribute_chips({
             user_id: {
