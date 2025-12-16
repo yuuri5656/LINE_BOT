@@ -23,6 +23,8 @@ except ImportError:
 from typing import List, Dict, Optional
 import io
 import base64
+import time
+import random
 from datetime import datetime
 from .price_service import price_service
 from config import IMGUR_CLIENT_ID, IMGBB_API_KEY
@@ -50,34 +52,71 @@ class ChartService:
             print("[ImgBB] IMGBB_API_KEYが設定されていません")
             return None
 
-        try:
-            data = {
-                'key': IMGBB_API_KEY,
-                'image': image_base64
-            }
+        # リトライ用設定
+        max_retries = 3
+        backoff_base = 1
 
-            response = requests.post(
-                'https://api.imgbb.com/1/upload',
-                data=data,
-                timeout=10
-            )
+        for attempt in range(1, max_retries + 1):
+            try:
+                data = {
+                    'key': IMGBB_API_KEY,
+                    'image': image_base64,
+                    # 自動削除（秒）: 5分 = 300秒
+                    'expiration': 300
+                }
 
-            if response.status_code == 200:
-                result = response.json()
-                if result.get('success'):
-                    image_url = result['data']['url']
-                    print(f"[ImgBB] 画像アップロード成功: {image_url}")
-                    return image_url
+                response = requests.post(
+                    'https://api.imgbb.com/1/upload',
+                    data=data,
+                    timeout=10
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get('success'):
+                        image_url = result['data']['url']
+                        print(f"[ImgBB] 画像アップロード成功: {image_url}")
+                        return image_url
+                    else:
+                        print(f"[ImgBB] アップロード失敗: {result}")
+                        return None
                 else:
-                    print(f"[ImgBB] アップロード失敗: {result}")
-                    return None
-            else:
-                print(f"[ImgBB] HTTPエラー: {response.status_code} - {response.text}")
-                return None
+                    # レート制限の判定
+                    is_rate_limited = False
+                    try:
+                        result = response.json()
+                    except Exception:
+                        result = None
 
-        except Exception as e:
-            print(f"[ImgBB] アップロードエラー: {e}")
-            return None
+                    if response.status_code == 429:
+                        is_rate_limited = True
+                    elif result and isinstance(result, dict):
+                        err = result.get('error')
+                        if isinstance(err, dict):
+                            if err.get('code') == 100:
+                                is_rate_limited = True
+                            elif isinstance(err.get('message'), str) and 'rate' in err.get('message').lower():
+                                is_rate_limited = True
+                        elif isinstance(err, str) and 'rate' in err.lower():
+                            is_rate_limited = True
+
+                    if is_rate_limited and attempt < max_retries:
+                        wait = backoff_base * (2 ** (attempt - 1)) + random.uniform(0, 0.5)
+                        print(f"[ImgBB] レート制限検出({response.status_code})。{wait:.1f}s後にリトライします ({attempt}/{max_retries})")
+                        time.sleep(wait)
+                        continue
+                    else:
+                        print(f"[ImgBB] HTTPエラー: {response.status_code} - {response.text}")
+                        return None
+
+            except Exception as e:
+                if attempt < max_retries:
+                    wait = backoff_base * (2 ** (attempt - 1)) + random.uniform(0, 0.5)
+                    print(f"[ImgBB] アップロードエラー: {e}。{wait:.1f}s後にリトライします ({attempt}/{max_retries})")
+                    time.sleep(wait)
+                    continue
+                print(f"[ImgBB] アップロードエラー: {e}")
+                return None
 
     @staticmethod
     def upload_to_imgur(image_base64: str) -> Optional[str]:
