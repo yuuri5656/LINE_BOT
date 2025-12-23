@@ -1160,3 +1160,230 @@ def get_update_announcement_flex():
         ]
     }
     return FlexSendMessage(alt_text="アップデート情報", contents=announcement)
+
+
+def get_detail_tax_flex():
+    """税システムの詳細ヘルプ"""
+    detail = {
+        "type": "bubble",
+        "header": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": "💰 税システム詳細",
+                    "weight": "bold",
+                    "size": "xl",
+                    "color": "#ffffff"
+                }
+            ],
+            "backgroundColor": "#2E7D32",
+            "paddingAll": "15px"
+        },
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": "📊 課税の仕組み",
+                    "weight": "bold",
+                    "size": "lg",
+                    "margin": "lg"
+                },
+                {
+                    "type": "text",
+                    "text": "• 毎週日曜 00:00 に前週の所得を計算\n• 1万円未満の所得は非課税\n• 1000円未満は切り捨て",
+                    "size": "sm",
+                    "color": "#555555",
+                    "wrap": True,
+                    "margin": "md"
+                },
+                {
+                    "type": "separator",
+                    "margin": "lg"
+                },
+                {
+                    "type": "text",
+                    "text": "💡 税率について",
+                    "weight": "bold",
+                    "size": "lg",
+                    "margin": "lg"
+                },
+                {
+                    "type": "text",
+                    "text": "• 固定税率 10%\n• 所得額が高いほど多く徴収\n• 給与・ボーナス・その他収入が対象",
+                    "size": "sm",
+                    "color": "#555555",
+                    "wrap": True,
+                    "margin": "md"
+                },
+                {
+                    "type": "separator",
+                    "margin": "lg"
+                },
+                {
+                    "type": "text",
+                    "text": "📈 予想税額について",
+                    "weight": "bold",
+                    "size": "lg",
+                    "margin": "lg"
+                },
+                {
+                    "type": "text",
+                    "text": "• ダッシュボードに『予想税額（現在まで）』を表示\n• 週次課税前の現在の所得から算出\n• 日々更新されます",
+                    "size": "sm",
+                    "color": "#555555",
+                    "wrap": True,
+                    "margin": "md"
+                },
+                {
+                    "type": "separator",
+                    "margin": "lg"
+                },
+                {
+                    "type": "text",
+                    "text": "⚠️ 重要な注意",
+                    "weight": "bold",
+                    "size": "lg",
+                    "margin": "lg",
+                    "color": "#D32F2F"
+                },
+                {
+                    "type": "text",
+                    "text": "• 税金を納めないと罰金が発生\n• 延納は給与差押えの対象\n• 申告納税の義務あり",
+                    "size": "sm",
+                    "color": "#D32F2F",
+                    "wrap": True,
+                    "margin": "md"
+                }
+            ],
+            "spacing": "md",
+            "paddingAll": "15px"
+        }
+    }
+    return FlexSendMessage(alt_text="税システム詳細ヘルプ", contents=detail)
+
+
+def get_detail_loan_flex():
+    """借金システムの詳細ヘルプ"""
+    detail = {
+        "type": "bubble",
+        "header": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": "💳 借金システム詳細",
+                    "weight": "bold",
+                    "size": "xl",
+                    "color": "#ffffff"
+                }
+            ],
+            "backgroundColor": "#6A1B9A",
+            "paddingAll": "15px"
+        },
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": "📋 審査について",
+                    "weight": "bold",
+                    "size": "lg",
+                    "margin": "lg"
+                },
+                {
+                    "type": "text",
+                    "text": "• 週給から月給を計算（4.33倍）\n• 月給の3倍まで借入可能\n• 所得が0の場合は借入不可",
+                    "size": "sm",
+                    "color": "#555555",
+                    "wrap": True,
+                    "margin": "md"
+                },
+                {
+                    "type": "separator",
+                    "margin": "lg"
+                },
+                {
+                    "type": "text",
+                    "text": "💰 利息について",
+                    "weight": "bold",
+                    "size": "lg",
+                    "margin": "lg"
+                },
+                {
+                    "type": "text",
+                    "text": "• 最大利率 8.0%（小数第1位）\n• 日利で計算され自動加算\n• 借入残高に応じて変動",
+                    "size": "sm",
+                    "color": "#555555",
+                    "wrap": True,
+                    "margin": "md"
+                },
+                {
+                    "type": "separator",
+                    "margin": "lg"
+                },
+                {
+                    "type": "text",
+                    "text": "📅 返済方法",
+                    "weight": "bold",
+                    "size": "lg",
+                    "margin": "lg"
+                },
+                {
+                    "type": "text",
+                    "text": "• 日返済額を指定する方式\n• 毎日自動で返済される\n• 0円に設定すると返済なし",
+                    "size": "sm",
+                    "color": "#555555",
+                    "wrap": True,
+                    "margin": "md"
+                },
+                {
+                    "type": "separator",
+                    "margin": "lg"
+                },
+                {
+                    "type": "text",
+                    "text": "⚠️ 延滞時の措置",
+                    "weight": "bold",
+                    "size": "lg",
+                    "margin": "lg",
+                    "color": "#D32F2F"
+                },
+                {
+                    "type": "text",
+                    "text": "• 給与が入った時に自動差押え\n• 預金口座から直接徴収\n• 残高を超える場合は部分徴収\n• 延滞料金が加算される",
+                    "size": "sm",
+                    "color": "#D32F2F",
+                    "wrap": True,
+                    "margin": "md"
+                },
+                {
+                    "type": "separator",
+                    "margin": "lg"
+                },
+                {
+                    "type": "text",
+                    "text": "💡 返済計画のポイント",
+                    "weight": "bold",
+                    "size": "lg",
+                    "margin": "lg"
+                },
+                {
+                    "type": "text",
+                    "text": "• 給与の20～30%で返済を推奨\n• 元金+利息で完済を目指す\n• 無理のない計画が重要",
+                    "size": "sm",
+                    "color": "#555555",
+                    "wrap": True,
+                    "margin": "md"
+                }
+            ],
+            "spacing": "md",
+            "paddingAll": "15px"
+        }
+    }
+    return FlexSendMessage(alt_text="借金システム詳細ヘルプ", contents=detail)
