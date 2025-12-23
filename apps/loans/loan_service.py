@@ -90,14 +90,18 @@ def create_loan(user_id: str, principal: Any, receive_account_id: int, autopay_a
 
     db = SessionLocal()
     try:
-        recv_acc = db.execute(select(Account).where(Account.account_id == receive_account_id)).scalars().first()
-        auto_acc = db.execute(select(Account).where(Account.account_id == autopay_account_id)).scalars().first()
-        if not recv_acc or recv_acc.user_id != user_id:
-            return {'success': False, 'message': '受取口座が見つかりません'}
-        if not auto_acc or auto_acc.user_id != user_id:
-            return {'success': False, 'message': '自動引落口座が見つかりません'}
-
+        # SQLAlchemy 2.x では execute 時点で autobegin されるため、
+        # Session 上で作業する前に begin ブロックに入る。
         with db.begin():
+            recv_acc = db.execute(select(Account).where(Account.account_id == receive_account_id)).scalars().first()
+            auto_acc = db.execute(select(Account).where(Account.account_id == autopay_account_id)).scalars().first()
+            if not recv_acc or recv_acc.user_id != user_id:
+                return {'success': False, 'message': '受取口座が見つかりません'}
+            if not auto_acc or auto_acc.user_id != user_id:
+                return {'success': False, 'message': '自動引落口座が見つかりません'}
+
+            recv_acc_number = recv_acc.account_number
+
             loan = Loan(
                 user_id=user_id,
                 principal=principal,
@@ -119,7 +123,7 @@ def create_loan(user_id: str, principal: Any, receive_account_id: int, autopay_a
         try:
             tx = transfer_funds(
                 from_account_number=RESERVE_ACCOUNT_NUMBER,
-                to_account_number=recv_acc.account_number,
+                to_account_number=recv_acc_number,
                 amount=principal,
                 currency='JPY',
                 description='借入',
@@ -203,33 +207,38 @@ def manual_repay(user_id: str, amount: Any) -> Dict[str, Any]:
 
     db = SessionLocal()
     try:
-        loan = db.execute(
-            select(Loan)
-            .where(Loan.user_id == user_id)
-            .where(Loan.status == 'active')
-            .order_by(Loan.loan_id.desc())
-            .limit(1)
-        ).scalars().first()
-        if not loan:
-            return {'success': False, 'message': '返済対象のローンがありません'}
+        # 先に必要値を確定し（属性expire回避のためプリミティブに落とす）、
+        # 送金後に別トランザクションで更新する。
+        with db.begin():
+            loan = db.execute(
+                select(Loan)
+                .where(Loan.user_id == user_id)
+                .where(Loan.status == 'active')
+                .order_by(Loan.loan_id.desc())
+                .limit(1)
+            ).scalars().first()
+            if not loan:
+                return {'success': False, 'message': '返済対象のローンがありません'}
+            loan_id = loan.loan_id
 
-        from_acc = db.execute(
-            select(Account)
-            .where(Account.user_id == user_id)
-            .where(Account.status.in_(['active', 'frozen']))
-            .order_by(Account.account_id.asc())
-            .limit(1)
-        ).scalars().first()
-        if not from_acc:
-            return {'success': False, 'message': '返済元口座が見つかりません'}
+            from_acc = db.execute(
+                select(Account)
+                .where(Account.user_id == user_id)
+                .where(Account.status.in_(['active', 'frozen']))
+                .order_by(Account.account_id.asc())
+                .limit(1)
+            ).scalars().first()
+            if not from_acc:
+                return {'success': False, 'message': '返済元口座が見つかりません'}
+            from_acc_number = from_acc.account_number
 
-        bal = _as_decimal(loan.outstanding_balance)
-        pay_amount = amount if amount < bal else bal
+            bal = _as_decimal(loan.outstanding_balance)
+            pay_amount = amount if amount < bal else bal
 
         from apps.banking.bank_service import transfer_funds, RESERVE_ACCOUNT_NUMBER
         try:
             tx = transfer_funds(
-                from_account_number=from_acc.account_number,
+                from_account_number=from_acc_number,
                 to_account_number=RESERVE_ACCOUNT_NUMBER,
                 amount=pay_amount,
                 currency='JPY',
@@ -238,9 +247,14 @@ def manual_repay(user_id: str, amount: Any) -> Dict[str, Any]:
         except Exception as e:
             return {'success': False, 'message': f'振込に失敗しました: {e}'}
 
+        now = now_jst()
         with db.begin():
-            loan.outstanding_balance = bal - pay_amount
-            loan.updated_at = now_jst()
+            loan = db.execute(select(Loan).where(Loan.loan_id == loan_id)).scalars().first()
+            if not loan:
+                return {'success': False, 'message': '返済対象のローンが見つかりません'}
+
+            loan.outstanding_balance = _as_decimal(loan.outstanding_balance) - pay_amount
+            loan.updated_at = now
             # 手動返済が入ったら延滞状態は解除
             loan.autopay_failed_since = None
             db.add(loan)
@@ -249,7 +263,7 @@ def manual_repay(user_id: str, amount: Any) -> Dict[str, Any]:
                 loan_id=loan.loan_id,
                 bank_transaction_id=tx.get('transaction_id') if isinstance(tx, dict) else None,
                 amount=pay_amount,
-                paid_at=now_jst(),
+                paid_at=now,
             )
             db.add(lp)
 
@@ -259,7 +273,9 @@ def manual_repay(user_id: str, amount: Any) -> Dict[str, Any]:
                 from apps.collections.collections_service import mark_case_resolved_if_exists
                 mark_case_resolved_if_exists(db, case_type='loan', reference_id=loan.loan_id, note='manual_paid_off')
 
-        return {'success': True, 'paid': str(pay_amount), 'remaining_balance': str(_as_decimal(loan.outstanding_balance))}
+            remaining = _as_decimal(loan.outstanding_balance)
+
+        return {'success': True, 'paid': str(pay_amount), 'remaining_balance': str(remaining)}
     finally:
         db.close()
 
@@ -306,7 +322,9 @@ def attempt_autopay_daily(run_at: Optional[datetime] = None) -> Dict[str, Any]:
                     description='借金返済（自動）',
                 )
 
-                with db.begin():
+                # この Session はすでに autobegin されている可能性があるため、
+                # begin() を重ねず commit/rollback を明示する。
+                try:
                     loan.outstanding_balance = bal - pay_amount
                     loan.last_autopay_attempt_at = run_at
                     loan.autopay_failed_since = None
@@ -328,11 +346,16 @@ def attempt_autopay_daily(run_at: Optional[datetime] = None) -> Dict[str, Any]:
                         from apps.collections.collections_service import mark_case_resolved_if_exists
                         mark_case_resolved_if_exists(db, case_type='loan', reference_id=loan.loan_id, note='paid_off')
 
+                    db.commit()
+                except Exception:
+                    db.rollback()
+                    raise
+
                 paid += 1
 
             except Exception as e:
                 failed += 1
-                with db.begin():
+                try:
                     loan.last_autopay_attempt_at = run_at
                     if not loan.autopay_failed_since:
                         loan.autopay_failed_since = run_at
@@ -341,6 +364,11 @@ def attempt_autopay_daily(run_at: Optional[datetime] = None) -> Dict[str, Any]:
                     from apps.collections.collections_service import ensure_loan_case_for_loan, add_event
                     c = ensure_loan_case_for_loan(db=db, user_id=loan.user_id, loan_id=loan.loan_id, failed_since=loan.autopay_failed_since)
                     add_event(db, c.case_id, 'autopay_failed', note=str(e))
+
+                    db.commit()
+                except Exception:
+                    db.rollback()
+                    raise
 
                 # 2日に1回Push（個別チャット前提）
                 failed_since = loan.autopay_failed_since
