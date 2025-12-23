@@ -188,6 +188,13 @@ def do_work(user_id: str) -> Dict:
                 description='労働報酬'
             )
             print(f"[Work Service] Salary transferred successfully: user={user_id}, amount={salary}, tx_id={result['transaction_id']}")
+
+            # 税: 労働所得を記録
+            try:
+                from apps.tax.tax_service import record_work_income
+                record_work_income(user_id=user_id, bank_transaction_id=int(result['transaction_id']), amount=salary)
+            except Exception as tax_err:
+                print(f"[Work Service] tax income record failed user={user_id} err={tax_err}")
         except Exception as e:
             error_msg = str(e)
             print(f"[Work Service] Failed to transfer salary: {error_msg}")

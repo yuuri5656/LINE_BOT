@@ -4,6 +4,7 @@ from core.api import handler
 import core.handler
 from apps.stock.background_updater import start_background_updater
 from apps.prison.rehabilitation_scheduler import start_rehabilitation_distribution_scheduler
+from apps.tax.tax_scheduler import start_tax_collections_loan_scheduler
 from apps.rich_menu import create_rich_menus, set_default_rich_menu
 
 app = Flask(__name__)
@@ -13,6 +14,9 @@ start_background_updater()
 
 # 懲役システムの給付金配布スケジューラーを開始
 start_rehabilitation_distribution_scheduler()
+
+# 税/回収/ローンのスケジューラーを開始
+start_tax_collections_loan_scheduler()
 
 # リッチメニューの初期化（起動時に自動作成）
 try:

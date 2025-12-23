@@ -825,7 +825,7 @@ def withdraw_by_account_number(account_number: str, branch_code: str, amount, cu
         db.close()
 
 
-def deposit_to_user(user_id: str, amount, currency: str = 'JPY'):
+def deposit_to_user(user_id: str, amount, currency: str = 'JPY', description: str = None, other_account_info: str = None):
     """ユーザー口座へ入金する。口座が存在しない場合は例外を投げる。
     transactionsテーブルとtransaction_entriesテーブルに記録される。
     """
@@ -971,6 +971,72 @@ def deposit_by_account_number(account_number: str, branch_code: str, amount, cur
     except Exception as e:
         db.rollback()
         print(f"[BankService] deposit_by_account_number failed account={account_number} branch={branch_code} amount={amt} currency={currency} error={e}")
+        raise
+    finally:
+        db.close()
+
+
+def deposit_by_account_number_return_tx_id(
+    account_number: str,
+    branch_code: str,
+    amount,
+    currency: str = 'JPY',
+    description: str = None,
+    other_account_info: str = None,
+) -> int:
+    """`deposit_by_account_number` と同等だが、作成した `transactions.transaction_id` を返す。"""
+    db = SessionLocal()
+    amt = Decimal(amount)
+    try:
+        with db.begin():
+            branch = db.execute(select(Branch).filter_by(code=str(branch_code))).scalars().first()
+            if not branch:
+                raise ValueError(f"Branch not found: {branch_code}")
+
+            acc = db.execute(
+                select(Account)
+                .filter_by(account_number=account_number, branch_id=branch.branch_id)
+                .with_for_update()
+            ).scalars().first()
+            if not acc:
+                raise ValueError(f"Account not found: {account_number} at branch {branch_code}")
+
+            acc_currency = str(getattr(acc, 'currency', '')).strip().upper()
+            if acc_currency != str(currency).strip().upper():
+                raise ValueError("Currency mismatch")
+
+            acc_status = str(getattr(acc, 'status', '')).strip().lower()
+            if acc_status not in ('active', 'frozen'):
+                raise ValueError("Account not active or frozen")
+
+            acc.balance = acc.balance + amt
+
+            tx = Transaction(
+                from_account_id=None,
+                to_account_id=acc.account_id,
+                amount=amt,
+                currency=currency,
+                type='deposit',
+                status='completed',
+                executed_at=now_jst(),
+                description=description,
+                other_account_number=other_account_info,
+            )
+            db.add(tx)
+            db.flush()
+
+            credit_entry = TransactionEntry(
+                transaction_id=tx.transaction_id,
+                account_id=acc.account_id,
+                entry_type='credit',
+                amount=amt,
+            )
+            db.add(credit_entry)
+
+            return int(tx.transaction_id)
+    except Exception as e:
+        db.rollback()
+        print(f"[BankService] deposit_by_account_number_return_tx_id failed account={account_number} branch={branch_code} amount={amt} currency={currency} error={e}")
         raise
     finally:
         db.close()

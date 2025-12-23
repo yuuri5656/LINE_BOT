@@ -351,7 +351,7 @@ class PriceService:
                     from apps.stock.stock_service import RESERVE_ACCOUNT_NUMBER
                     description = f"配当金 {stock.symbol_code} {holding.quantity}株"
                     try:
-                        banking_api.transfer(
+                        bank_tx = banking_api.transfer(
                             from_account_number=RESERVE_ACCOUNT_NUMBER,
                             to_account_number=bank_account.account_number,
                             amount=float(total_dividend),
@@ -374,6 +374,20 @@ class PriceService:
                             stock_account_id=holding.stock_account_id
                         )
                         db.add(dividend_payment)
+
+                        # 税: 配当所得
+                        try:
+                            from apps.tax.tax_service import record_dividend_income
+                            tx_id = int(bank_tx.get('transaction_id')) if isinstance(bank_tx, dict) and bank_tx.get('transaction_id') else None
+                            if tx_id:
+                                record_dividend_income(
+                                    user_id=holding.user_id,
+                                    bank_transaction_id=tx_id,
+                                    amount=total_dividend,
+                                    symbol_code=stock.symbol_code,
+                                )
+                        except Exception as tax_err:
+                            print(f"[配当金] tax income record failed user={holding.user_id} err={tax_err}")
 
                         total_paid += float(total_dividend)
                         success_count += 1

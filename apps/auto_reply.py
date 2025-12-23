@@ -222,6 +222,17 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
 
     state = sessions.get(user_id)
 
+    # === 回収（督促）の割り込み ===
+    # 全発言に対して督促文をpushで送る（返信枠を消費しない）
+    if event.source.type == 'user':
+        try:
+            from apps.collections.collections_service import get_inline_notice_text
+            notice = get_inline_notice_text(user_id)
+            if notice:
+                line_bot_api.push_message(user_id, TextSendMessage(text=notice))
+        except Exception as e:
+            print(f"[AutoReply] inline notice push failed user={user_id} err={e}")
+
     # === 懲役中ユーザーの制限チェック ===
     prisoner_status = prison_service.get_prisoner_status(user_id)
     if prisoner_status['is_imprisoned']:
@@ -304,6 +315,22 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             line_bot_api.reply_message(event.reply_token, response)
         finally:
             db.close()
+        return
+
+    # === 税/借金 ===
+    if text.startswith("?納税"):
+        from apps.tax.commands import handle_tax_command
+        line_bot_api.reply_message(event.reply_token, handle_tax_command(user_id, text))
+        return
+
+    if text.startswith("?借入"):
+        from apps.loans.commands import handle_loan_command
+        line_bot_api.reply_message(event.reply_token, handle_loan_command(user_id, text))
+        return
+
+    if text.startswith("?返済"):
+        from apps.loans.commands import handle_loan_command
+        line_bot_api.reply_message(event.reply_token, handle_loan_command(user_id, text))
         return
 
     if text == "?ゲーム":

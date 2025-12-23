@@ -398,6 +398,13 @@ class StockService:
             # 売却金額計算
             total_amount = Decimal(str(stock.current_price * quantity))
 
+            # 原価（保有総原価の按分）と損益
+            holding_qty_before = holding.quantity
+            holding_cost_before = Decimal(str(holding.total_cost))
+            sell_ratio = Decimal(str(quantity)) / Decimal(str(holding_qty_before))
+            cost_basis = holding_cost_before * sell_ratio
+            profit = total_amount - cost_basis
+
             # 銀行口座取得
             bank_account = db.query(Account).filter_by(account_id=stock_account.linked_bank_account_id).first()
             if not bank_account:
@@ -410,7 +417,7 @@ class StockService:
             # 準備預金口座から振込（株式売却代金）
             description = f"株式売却 {stock.symbol_code} {quantity}株"
             try:
-                banking_api.transfer(
+                bank_tx = banking_api.transfer(
                     from_account_number=RESERVE_ACCOUNT_NUMBER,
                     to_account_number=bank_account.account_number,
                     amount=float(total_amount),
@@ -426,9 +433,8 @@ class StockService:
                 db.delete(holding)
             else:
                 # 一部売却
-                sell_ratio = quantity / holding.quantity
                 holding.quantity -= quantity
-                holding.total_cost = Decimal(str(float(holding.total_cost) * (1 - sell_ratio)))
+                holding.total_cost = Decimal(str(float(holding.total_cost) * (1 - float(sell_ratio))))
                 holding.updated_at = now_jst()
 
             # 取引履歴記録
@@ -449,6 +455,21 @@ class StockService:
             stock_account.last_traded_at = now_jst()
 
             db.commit()
+
+            # 税: 売却益（利益のみ課税、損失は0扱い）
+            try:
+                from apps.tax.tax_service import record_stock_sale_profit
+                record_stock_sale_profit(
+                    user_id=user_id,
+                    stock_transaction_id=int(transaction.transaction_id),
+                    profit=profit,
+                    proceeds=total_amount,
+                    cost_basis=cost_basis,
+                    bank_transaction_id=int(bank_tx.get('transaction_id')) if isinstance(bank_tx, dict) and bank_tx.get('transaction_id') else None,
+                    symbol_code=stock.symbol_code,
+                )
+            except Exception as tax_err:
+                print(f"[StockService] tax income record failed user={user_id} err={tax_err}")
 
             return True, "売却が完了しました", {
                 'symbol_code': symbol_code,

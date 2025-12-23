@@ -553,7 +553,7 @@ def redeem_chips(user_id: str, amount: int) -> Dict:
     Returns:
         {'success': bool, 'new_base_balance': int, 'amount_received': int, 'error': str (optional)}
     """
-    from apps.banking.bank_service import deposit_by_account_number
+    from apps.banking.bank_service import deposit_by_account_number_return_tx_id
     from apps.banking.api import banking_api
 
     db = SessionLocal()
@@ -640,7 +640,7 @@ def redeem_chips(user_id: str, amount: int) -> Dict:
         try:
             from apps.shop.shop_service import get_shop_operations_account
             shop_account = get_shop_operations_account()
-            deposit_by_account_number(
+            tx_id = deposit_by_account_number_return_tx_id(
                 account.account_number,
                 branch.code,
                 redeem_amount,
@@ -648,6 +648,17 @@ def redeem_chips(user_id: str, amount: int) -> Dict:
                 description=f'チップ換金 {amount}枚',
                 other_account_info=f"{shop_account['branch_num']}-{shop_account['account_number']}"
             )
+
+            # 税: ギャンブル所得（換金時）を記録
+            try:
+                from apps.tax.tax_service import record_gamble_cashout_income
+                record_gamble_cashout_income(
+                    user_id=user_id,
+                    bank_transaction_id=int(tx_id),
+                    cashout_amount=redeem_amount,
+                )
+            except Exception as tax_err:
+                print(f"[ChipService] tax income record failed user={user_id} err={tax_err}")
         except Exception as e:
             # 入金失敗時はチップをロールバック（別トランザクションなので手動処理）
             db2 = SessionLocal()
