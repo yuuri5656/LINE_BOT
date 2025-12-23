@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, Dict, Optional
 
 from sqlalchemy import select
@@ -42,6 +43,15 @@ def _as_int(v: Any) -> Optional[int]:
 def _yen(n: Any) -> str:
     try:
         return f"¥{int(Decimal(str(n))):,}"
+    except Exception:
+        return "-"
+
+
+def _percent_1dp(rate) -> str:
+    try:
+        d = Decimal(str(rate))
+        pct = (d * Decimal('100')).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+        return f"{pct:.1f}%"
     except Exception:
         return "-"
 
@@ -343,10 +353,12 @@ def handle_loan_text_flow(*, text: str, user_id: str, sessions) -> Optional[Any]
         daily = flow.get('daily_autopay')
         rate = flow.get('applied_rate')
 
+        rate_text = _percent_1dp(rate) if rate is not None and rate != '' else '-'
+
         summary = (
             f"借入額: {_yen(principal)}\n"
             f"日返済額: {_yen(daily)}（毎日自動引落）\n"
-            f"利率(週): {rate or '-'}\n"
+            f"利率(週): {rate_text}\n"
             f"注意: 返済が滞るとブラックリスト/差押えになります。"
         )
 

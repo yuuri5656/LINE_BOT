@@ -19,14 +19,17 @@ def _as_decimal(v: Any) -> Decimal:
 
 
 def compute_interest_rate(principal: Decimal, prev_week_income: Decimal) -> Tuple[Decimal, Decimal]:
-    """仕様: (principal / prev_income) * 0.04% をベースに、上限(cap)を適用。"""
-    base_factor = _as_decimal(getattr(config, 'LOAN_INTEREST_FACTOR', '0.0004'))  # 0.04%
+    """仕様: (principal / prev_income) * factor をベースに、上限(cap)を適用。
+
+    既定値は「借入上限=前週所得×5」の場合に、最大で約8%/週になるよう調整している。
+    """
+    base_factor = _as_decimal(getattr(config, 'LOAN_INTEREST_FACTOR', '0.016'))
 
     if prev_week_income <= 0:
         return Decimal('0'), Decimal('0')
 
     raw = (principal / prev_week_income) * base_factor
-    cap = _as_decimal(getattr(config, 'LOAN_INTEREST_RATE_CAP', '0.02'))
+    cap = _as_decimal(getattr(config, 'LOAN_INTEREST_RATE_CAP', '0.08'))
     applied = raw if raw <= cap else cap
     return raw, applied
 

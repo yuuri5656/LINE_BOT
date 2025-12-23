@@ -50,6 +50,9 @@ LOAN_LENDER_BRANCH_CODE = '001'
 LOAN_LENDER_ACCOUNT_NUMBER = '7777777'  # 準備預金口座を貸付元/回収先として流用
 LOAN_MIN_PRINCIPAL = Decimal('10000')
 LOAN_MAX_MULTIPLIER = Decimal('5')
-LOAN_INTEREST_FACTOR = Decimal('0.0004')  # 0.04%
-LOAN_INTEREST_RATE_CAP = Decimal('0.02')  # 上限（要調整）
+# 利率（週）
+# 仕様: (principal / prev_income) * LOAN_INTEREST_FACTOR をベースにし、上限を適用。
+# 借入上限が「前週所得×5」なので、factor=0.016 にすると最大で約8%/週（5×0.016=0.08）になります。
+LOAN_INTEREST_FACTOR = Decimal('0.016')
+LOAN_INTEREST_RATE_CAP = Decimal('0.08')
 LOAN_LATE_WEEKLY_RATE = Decimal('0.20')
