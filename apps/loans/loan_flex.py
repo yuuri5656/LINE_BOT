@@ -42,7 +42,7 @@ def build_loan_dashboard_flex(*, loan: Optional[Dict], blacklisted: bool) -> Fle
                 {"type": "button", "style": "primary", "action": {"type": "postback", "label": "借りる", "data": "action=loan_borrow"}},
                 {"type": "button", "style": "primary", "action": {"type": "postback", "label": "返す", "data": "action=loan_repay"}},
                 {"type": "button", "style": "secondary", "action": {"type": "postback", "label": "設定", "data": "action=loan_settings"}},
-                {"type": "button", "style": "secondary", "action": {"type": "postback", "label": "ヘルプ", "data": "action=loan_help"}},
+                {"type": "button", "style": "secondary", "action": {"type": "postback", "label": "ヘルプ", "data": "action=help_detail_loan"}},
             ],
         },
     }
@@ -99,7 +99,7 @@ def build_loan_prompt_flex(*, title: str, message: str, cancel_data: str) -> Fle
     return FlexSendMessage(alt_text=title, contents=bubble)
 
 
-def build_loan_contract_flex(*, summary: str) -> FlexSendMessage:
+def build_loan_contract_flex(*, summary: str, daily_amount_text: str = '') -> FlexSendMessage:
     bubble = {
         "type": "bubble",
         "size": "kilo",
@@ -108,6 +108,11 @@ def build_loan_contract_flex(*, summary: str) -> FlexSendMessage:
             "layout": "vertical",
             "contents": [
                 {"type": "text", "text": "契約内容の確認", "weight": "bold", "size": "lg"},
+                (
+                    {"type": "text", "text": daily_amount_text, "weight": "bold", "size": "xl", "margin": "md"}
+                    if daily_amount_text
+                    else {"type": "text", "text": "", "size": "xxs", "color": "#FFFFFF"}
+                ),
                 {"type": "text", "text": summary, "wrap": True, "size": "sm", "color": "#666666", "margin": "md"},
             ],
         },

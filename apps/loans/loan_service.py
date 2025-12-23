@@ -54,6 +54,10 @@ def can_borrow(user_id: str, amount: Decimal, reference_at: Optional[datetime] =
         return False, '前週所得が0のため借入できません', {'prev_week_income': str(income)}
 
     max_amount = income * _as_decimal(getattr(config, 'LOAN_MAX_MULTIPLIER', 5))
+    # 仕様: 借入上限には最低額30000円を適用する
+    min_max = _as_decimal(getattr(config, 'LOAN_MAX_MIN_AMOUNT', 30000))
+    if max_amount < min_max:
+        max_amount = min_max
     if amount > max_amount:
         return False, f'借入上限は前週所得の{getattr(config, "LOAN_MAX_MULTIPLIER", 5)}倍までです', {
             'prev_week_income': str(income),

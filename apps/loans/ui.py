@@ -10,6 +10,7 @@ import config
 from linebot.models import FlexSendMessage, TextSendMessage
 
 from apps.banking.main_bank_system import SessionLocal, Account, Branch
+from apps.banking.api import banking_api
 from apps.common.account_picker_flex import build_account_picker_flex, build_pin_prompt_flex
 from apps.banking.bank_service import verify_pin_for_account
 from apps.loans.models import Loan
@@ -277,69 +278,40 @@ def handle_loan_text_flow(*, text: str, user_id: str, sessions) -> Optional[Any]
         if not ok:
             return TextSendMessage(text=str(msg))
 
-        min_daily = int(Decimal(str(getattr(config, 'LOAN_MIN_AUTOPAY_DAILY', 1000))))
-        min_monthly = min_daily * 30
-
         flow['principal'] = principal
-        flow['step'] = 'await_monthly'
-        flow['min_monthly'] = min_monthly
+        flow['step'] = 'await_daily'
+        flow['min_daily'] = int(Decimal(str(getattr(config, 'LOAN_MIN_AUTOPAY_DAILY', 1000))))
         flow['applied_rate'] = meta.get('applied_rate')
         state['flex_flow'] = flow
         sessions[user_id] = state
 
+        min_daily = int(flow.get('min_daily') or 1000)
         return build_loan_prompt_flex(
             title='借入申請',
-            message=f"最低月返済額: {_yen(min_monthly)}\n月返済額を入力してください（1000円単位）",
+            message=f"日返済額を入力してください（1000円単位）\n最低日返済額: {_yen(min_daily)}",
             cancel_data='action=loan_dashboard',
         )
 
-    if flow.get('type') == 'loan_apply' and flow.get('step') == 'await_monthly':
+    if flow.get('type') == 'loan_apply' and flow.get('step') == 'await_daily':
         t = text.strip()
         if not _AMOUNT_RE.match(t):
-            return TextSendMessage(text='月返済額は数字で入力してください')
+            return TextSendMessage(text='日返済額は数字で入力してください')
 
-        monthly = int(t)
-        if monthly % 1000 != 0:
+        daily = int(t)
+        if daily % 1000 != 0:
             return TextSendMessage(text='1000円単位で入力してください')
 
-        min_monthly = int(flow.get('min_monthly') or 0)
-        if monthly < min_monthly:
-            return TextSendMessage(text=f"最低月返済額は {_yen(min_monthly)} です")
+        min_daily = int(flow.get('min_daily') or 0)
+        if daily < min_daily:
+            return TextSendMessage(text=f"最低日返済額は {_yen(min_daily)} です")
 
-        # 内部は日次引落なので、月額を30日で割って1000円単位に丸める
-        daily = int((monthly / 30) // 1000) * 1000
-        if daily < int(Decimal(str(getattr(config, 'LOAN_MIN_AUTOPAY_DAILY', 1000)))):
-            daily = int(Decimal(str(getattr(config, 'LOAN_MIN_AUTOPAY_DAILY', 1000))))
-
-        flow['monthly_repay'] = monthly
         flow['daily_autopay'] = daily
         flow['step'] = 'await_account'
         state['flex_flow'] = flow
         sessions[user_id] = state
 
         # 口座選択Flex
-        db = SessionLocal()
-        try:
-            rows = db.execute(
-                select(Account, Branch.code)
-                .join(Branch, Account.branch_id == Branch.branch_id, isouter=True)
-                .where(Account.user_id == user_id)
-                .where(Account.status.in_(['active', 'frozen']))
-                .order_by(Account.account_id.asc())
-            ).all()
-
-            accounts = []
-            for acc, branch_code in rows:
-                accounts.append(
-                    {
-                        'account_id': int(acc.account_id),
-                        'account_number': str(acc.account_number),
-                        'branch_code': str(branch_code) if branch_code else '---',
-                        'balance': acc.balance,
-                    }
-                )
-        finally:
-            db.close()
+        accounts = [a for a in banking_api.get_accounts_by_user(user_id) if a and a.get('account_id')]
 
         if not accounts:
             return TextSendMessage(text='口座が見つかりません。先に ?口座開設 を実行してください。')
@@ -368,13 +340,12 @@ def handle_loan_text_flow(*, text: str, user_id: str, sessions) -> Optional[Any]
 
         # 契約内容を表示
         principal = flow.get('principal')
-        monthly = flow.get('monthly_repay')
         daily = flow.get('daily_autopay')
         rate = flow.get('applied_rate')
 
         summary = (
             f"借入額: {_yen(principal)}\n"
-            f"月返済額: {_yen(monthly)}（内部: 毎日{_yen(daily)}を自動引落）\n"
+            f"日返済額: {_yen(daily)}（毎日自動引落）\n"
             f"利率(週): {rate or '-'}\n"
             f"注意: 返済が滞るとブラックリスト/差押えになります。"
         )
@@ -383,6 +354,6 @@ def handle_loan_text_flow(*, text: str, user_id: str, sessions) -> Optional[Any]
         state['flex_flow'] = flow
         sessions[user_id] = state
 
-        return build_loan_contract_flex(summary=summary)
+        return build_loan_contract_flex(summary=summary, daily_amount_text=f"日返済額: {_yen(daily)}")
 
     return None

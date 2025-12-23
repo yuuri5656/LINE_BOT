@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 
 from linebot.models import FlexSendMessage
 
@@ -13,7 +13,15 @@ def _yen(v) -> str:
         return "-"
 
 
-def build_tax_dashboard_flex(*, tax_account_text: str, latest: Optional[Dict]) -> FlexSendMessage:
+def build_tax_dashboard_flex(
+    *,
+    tax_account_text: str,
+    latest: Optional[Dict],
+    income_total_so_far: Any = None,
+    income_taxable_so_far: Any = None,
+    estimated_tax: Any = None,
+    period_end_text: str = '-',
+) -> FlexSendMessage:
     status_lines = []
     if latest is None:
         status_lines = [
@@ -26,6 +34,15 @@ def build_tax_dashboard_flex(*, tax_account_text: str, latest: Optional[Dict]) -
             {"type": "text", "text": f"納付期限: {latest.get('due_text')}", "size": "sm"},
         ]
 
+    income_lines = [
+        {"type": "separator", "margin": "md"},
+        {"type": "text", "text": "予想（現在まで）", "weight": "bold", "size": "md", "margin": "sm"},
+        {"type": "text", "text": f"対象締め: {period_end_text}", "size": "xs", "color": "#666666"},
+        {"type": "text", "text": f"所得合計: {_yen(income_total_so_far)}", "size": "sm"},
+        {"type": "text", "text": f"課税対象: {_yen(income_taxable_so_far)}", "size": "sm"},
+        {"type": "text", "text": f"予想税額: {_yen(estimated_tax)}", "size": "sm", "weight": "bold"},
+    ]
+
     bubble = {
         "type": "bubble",
         "size": "kilo",
@@ -37,6 +54,7 @@ def build_tax_dashboard_flex(*, tax_account_text: str, latest: Optional[Dict]) -
                 {"type": "text", "text": f"納税口座: {tax_account_text}", "wrap": True, "size": "sm", "color": "#666666", "margin": "sm"},
                 {"type": "separator", "margin": "md"},
                 *status_lines,
+                *income_lines,
             ],
         },
         "footer": {
@@ -47,7 +65,7 @@ def build_tax_dashboard_flex(*, tax_account_text: str, latest: Optional[Dict]) -
                 {"type": "button", "style": "primary", "action": {"type": "postback", "label": "納税履歴", "data": "action=tax_history"}},
                 {"type": "button", "style": "primary", "action": {"type": "postback", "label": "手動納税", "data": "action=tax_pay"}},
                 {"type": "button", "style": "secondary", "action": {"type": "postback", "label": "口座を登録", "data": "action=tax_account_select"}},
-                {"type": "button", "style": "secondary", "action": {"type": "postback", "label": "納税ヘルプ", "data": "action=tax_help"}},
+                {"type": "button", "style": "secondary", "action": {"type": "postback", "label": "納税ヘルプ", "data": "action=help_detail_tax"}},
             ],
         },
     }

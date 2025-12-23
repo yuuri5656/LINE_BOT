@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, time
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -11,6 +11,7 @@ from linebot.models import FlexSendMessage, TextSendMessage
 
 import config
 from apps.banking.main_bank_system import SessionLocal, Account, Branch
+from apps.banking.api import banking_api
 from apps.tax.models import TaxProfile, TaxAssessment
 from apps.tax.tax_flex import (
     build_tax_dashboard_flex,
@@ -35,27 +36,62 @@ def _as_int(v: Any) -> Optional[int]:
 
 
 def list_user_accounts(user_id: str) -> List[Dict[str, Any]]:
+    # 口座選択UIは通帳と同じ見た目にするため、銀行APIの詳細口座情報を使う
+    accounts = banking_api.get_accounts_by_user(user_id)
+    return [a for a in accounts if a and a.get('account_id')]
+
+
+def _current_tax_cycle_bounds(now: datetime) -> tuple[datetime, datetime]:
+    """現在の課税サイクル（次の日曜15:01をendとする）[start, end) を返す。"""
+    # now は tz-aware (JST) 前提
+    days_until_sun = (6 - now.weekday()) % 7
+    end_date = now.date() + timedelta(days=days_until_sun)
+    end = datetime.combine(end_date, time(15, 1), tzinfo=now.tzinfo)
+    if now >= end:
+        end = end + timedelta(days=7)
+    start = end - timedelta(days=7)
+    return start, end
+
+
+def _income_so_far(user_id: str) -> Dict[str, Any]:
+    from apps.tax.models import TaxIncomeEvent
+    from sqlalchemy import func
+
+    now = now_jst()
+    start, end = _current_tax_cycle_bounds(now)
+
     db = SessionLocal()
     try:
-        rows = db.execute(
-            select(Account, Branch.code)
-            .join(Branch, Account.branch_id == Branch.branch_id, isouter=True)
-            .where(Account.user_id == user_id)
-            .where(Account.status.in_(['active', 'frozen']))
-            .order_by(Account.account_id.asc())
-        ).all()
-
-        out = []
-        for acc, branch_code in rows:
-            out.append(
-                {
-                    'account_id': int(acc.account_id),
-                    'account_number': str(acc.account_number),
-                    'branch_code': str(branch_code) if branch_code else '---',
-                    'balance': acc.balance,
-                }
+        totals = db.execute(
+            select(
+                func.coalesce(func.sum(TaxIncomeEvent.amount), 0),
+                func.coalesce(func.sum(TaxIncomeEvent.taxable_amount), 0),
             )
-        return out
+            .where(TaxIncomeEvent.user_id == user_id)
+            .where(TaxIncomeEvent.occurred_at >= start)
+            .where(TaxIncomeEvent.occurred_at < now)
+        ).first()
+
+        total_income = Decimal(str(totals[0]))
+        taxable_income = Decimal(str(totals[1]))
+
+        from apps.tax.tax_service import compute_tax_amount
+
+        _, est_tax = compute_tax_amount(taxable_income)
+
+        try:
+            end_text = end.strftime('%Y-%m-%d %H:%M')
+        except Exception:
+            end_text = str(end)
+
+        return {
+            'period_start': start,
+            'period_end': end,
+            'period_end_text': end_text,
+            'income_total_so_far': total_income,
+            'income_taxable_so_far': taxable_income,
+            'estimated_tax': est_tax,
+        }
     finally:
         db.close()
 
@@ -132,9 +168,14 @@ def _history_items(user_id: str) -> List[Dict[str, Any]]:
 
 
 def build_dashboard(user_id: str) -> FlexSendMessage:
+    sofar = _income_so_far(user_id)
     return build_tax_dashboard_flex(
         tax_account_text=_tax_account_text(user_id),
         latest=_latest_assessment_dict(user_id),
+        income_total_so_far=sofar.get('income_total_so_far'),
+        income_taxable_so_far=sofar.get('income_taxable_so_far'),
+        estimated_tax=sofar.get('estimated_tax'),
+        period_end_text=str(sofar.get('period_end_text') or '-'),
     )
 
 

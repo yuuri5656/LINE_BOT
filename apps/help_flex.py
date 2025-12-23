@@ -185,7 +185,7 @@ def get_help_flex():
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
-                        {"type": "text", "text": "ページ 1/4", "size": "xs", "color": "#999999", "align": "center"},
+                        {"type": "text", "text": "ページ 1/7", "size": "xs", "color": "#999999", "align": "center"},
                         {
                             "type": "button",
                             "action": {
@@ -235,7 +235,7 @@ def get_help_flex():
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
-                        {"type": "text", "text": "ページ 2/4", "size": "xs", "color": "#999999", "align": "center"},
+                        {"type": "text", "text": "ページ 2/7", "size": "xs", "color": "#999999", "align": "center"},
                         {
                             "type": "button",
                             "action": {
@@ -285,7 +285,7 @@ def get_help_flex():
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
-                        {"type": "text", "text": "ページ 3/4", "size": "xs", "color": "#999999", "align": "center"},
+                        {"type": "text", "text": "ページ 3/7", "size": "xs", "color": "#999999", "align": "center"},
                         {
                             "type": "button",
                             "action": {
@@ -335,7 +335,7 @@ def get_help_flex():
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
-                        {"type": "text", "text": "ページ 4/5", "size": "xs", "color": "#999999", "align": "center"},
+                        {"type": "text", "text": "ページ 4/7", "size": "xs", "color": "#999999", "align": "center"},
                         {
                             "type": "button",
                             "action": {
@@ -391,7 +391,7 @@ def get_help_flex():
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
-                        {"type": "text", "text": "ページ 5/5", "size": "xs", "color": "#999999", "align": "center"},
+                        {"type": "text", "text": "ページ 5/7", "size": "xs", "color": "#999999", "align": "center"},
                         {
                             "type": "button",
                             "action": {
@@ -407,9 +407,158 @@ def get_help_flex():
                     "paddingAll": "10px"
                 }
             }
+            ,
+            {
+                "type": "bubble",
+                "hero": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {"type": "text", "text": "税システム", "weight": "bold", "size": "xl", "color": "#ffffff"}
+                    ],
+                    "backgroundColor": "#2E7D32",
+                    "paddingAll": "20px"
+                },
+                "body": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {"type": "text", "text": "?税", "weight": "bold", "size": "md", "color": "#2E7D32", "margin": "md"},
+                        {"type": "text", "text": "税ダッシュボード（個別チャットのみ）", "size": "sm", "color": "#666666", "wrap": True},
+                        {"type": "separator", "margin": "md"},
+                        {"type": "text", "text": "・所得イベントから週次で課税\n・1万円未満非課税\n・1000円未満切捨て", "size": "sm", "color": "#666666", "wrap": True}
+                    ],
+                    "spacing": "sm",
+                    "paddingAll": "20px"
+                },
+                "footer": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {"type": "text", "text": "ページ 6/7", "size": "xs", "color": "#999999", "align": "center"},
+                        {
+                            "type": "button",
+                            "action": {"type": "postback", "label": "税システムの詳細ヘルプ", "data": "help_detail_tax"},
+                            "style": "primary",
+                            "color": "#2E7D32",
+                            "margin": "md"
+                        }
+                    ],
+                    "paddingAll": "10px"
+                }
+            },
+            {
+                "type": "bubble",
+                "hero": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {"type": "text", "text": "借金システム", "weight": "bold", "size": "xl", "color": "#ffffff"}
+                    ],
+                    "backgroundColor": "#6A1B9A",
+                    "paddingAll": "20px"
+                },
+                "body": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {"type": "text", "text": "?借金", "weight": "bold", "size": "md", "color": "#6A1B9A", "margin": "md"},
+                        {"type": "text", "text": "借金ダッシュボード（個別チャットのみ）", "size": "sm", "color": "#666666", "wrap": True},
+                        {"type": "separator", "margin": "md"},
+                        {"type": "text", "text": "・前週所得から審査\n・日返済額を自動引落\n・延滞で督促/ブラックリスト/差押え", "size": "sm", "color": "#666666", "wrap": True}
+                    ],
+                    "spacing": "sm",
+                    "paddingAll": "20px"
+                },
+                "footer": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {"type": "text", "text": "ページ 7/7", "size": "xs", "color": "#999999", "align": "center"},
+                        {
+                            "type": "button",
+                            "action": {"type": "postback", "label": "借金システムの詳細ヘルプ", "data": "help_detail_loan"},
+                            "style": "primary",
+                            "color": "#6A1B9A",
+                            "margin": "md"
+                        }
+                    ],
+                    "paddingAll": "10px"
+                }
+            }
         ]
     }
     return FlexSendMessage(alt_text="コマンドヘルプ", contents=help_carousel)
+
+
+def get_detail_tax_flex():
+    detail = {
+        "type": "bubble",
+        "header": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": "💰 税システム 詳細ヘルプ", "weight": "bold", "size": "xl", "color": "#2E7D32"}
+            ]
+        },
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {"type": "separator", "color": "#2E7D32"},
+                {"type": "text", "text": "概要", "weight": "bold", "size": "lg", "color": "#2E7D32", "margin": "md"},
+                {"type": "text", "text": "所得イベントを台帳に記録し、週次で課税確定します。納付できない場合は延滞として回収処理に移行します。", "size": "md", "color": "#333333", "wrap": True, "margin": "sm"},
+                {"type": "separator", "color": "#2E7D32", "margin": "md"},
+                {"type": "text", "text": "税の計算方法", "weight": "bold", "size": "lg", "color": "#2E7D32", "margin": "md"},
+                {"type": "text", "text": "・1万円未満は非課税\n・課税所得は1000円未満切捨て\n・税額 = 課税所得×税率 − 控除額（0未満は0）", "size": "sm", "color": "#666666", "wrap": True, "margin": "sm"},
+                {"type": "separator", "color": "#2E7D32", "margin": "md"},
+                {"type": "text", "text": "所得になるもの（例）", "weight": "bold", "size": "lg", "color": "#2E7D32", "margin": "md"},
+                {"type": "text", "text": "・労働報酬\n・株の配当\n・株の売却益\n・ギャンブル換金（換金時課税）", "size": "sm", "color": "#666666", "wrap": True, "margin": "sm"},
+                {"type": "separator", "color": "#2E7D32", "margin": "md"},
+                {"type": "text", "text": "延滞・差押え", "weight": "bold", "size": "lg", "color": "#2E7D32", "margin": "md"},
+                {"type": "text", "text": "・延滞税: 週15%を日割り\n・滞納が一定期間続くと差押え", "size": "sm", "color": "#666666", "wrap": True, "margin": "sm"},
+            ],
+            "spacing": "md",
+            "paddingAll": "lg",
+            "backgroundColor": "#F0FFF0",
+        },
+    }
+    return FlexSendMessage(alt_text="税システム詳細ヘルプ", contents=detail)
+
+
+def get_detail_loan_flex():
+    detail = {
+        "type": "bubble",
+        "header": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": "💳 借金システム 詳細ヘルプ", "weight": "bold", "size": "xl", "color": "#6A1B9A"}
+            ]
+        },
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {"type": "separator", "color": "#6A1B9A"},
+                {"type": "text", "text": "審査方法", "weight": "bold", "size": "lg", "color": "#6A1B9A", "margin": "md"},
+                {"type": "text", "text": "・ブラックリストは借入不可\n・前週所得に基づく上限（最低上限3万円）\n・借入は最低1万円から", "size": "sm", "color": "#666666", "wrap": True, "margin": "sm"},
+                {"type": "separator", "color": "#6A1B9A", "margin": "md"},
+                {"type": "text", "text": "利子", "weight": "bold", "size": "lg", "color": "#6A1B9A", "margin": "md"},
+                {"type": "text", "text": "・日次で利息を積み上げ\n・延滞中は遅延損害金（週20%日割り）", "size": "sm", "color": "#666666", "wrap": True, "margin": "sm"},
+                {"type": "separator", "color": "#6A1B9A", "margin": "md"},
+                {"type": "text", "text": "返済方式", "weight": "bold", "size": "lg", "color": "#6A1B9A", "margin": "md"},
+                {"type": "text", "text": "・日返済額（1000円単位）を毎日自動引落\n・手動返済も可能（1000円単位）", "size": "sm", "color": "#666666", "wrap": True, "margin": "sm"},
+                {"type": "separator", "color": "#6A1B9A", "margin": "md"},
+                {"type": "text", "text": "延滞", "weight": "bold", "size": "lg", "color": "#6A1B9A", "margin": "md"},
+                {"type": "text", "text": "・自動引落失敗が続くと督促\n・一定期間でブラックリスト\n・さらに続くと差押え", "size": "sm", "color": "#666666", "wrap": True, "margin": "sm"},
+            ],
+            "spacing": "md",
+            "paddingAll": "lg",
+            "backgroundColor": "#F7F0FF",
+        },
+    }
+    return FlexSendMessage(alt_text="借金システム詳細ヘルプ", contents=detail)
 
 def get_detail_account_flex():
     detail = {

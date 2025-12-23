@@ -5,6 +5,7 @@
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 from core.api import line_bot_api
 from apps.help_flex import get_detail_account_flex, get_detail_janken_flex, get_detail_shop_flex, get_detail_stock_flex, get_detail_utility_flex
+from apps.help_flex import get_detail_tax_flex, get_detail_loan_flex
 
 # 各機能のコマンドハンドラーをインポート
 from apps.banking import commands as banking_commands
@@ -167,6 +168,12 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             return
         elif data == "action=help_detail_utility" or data == "help_detail_utility":
             line_bot_api.reply_message(event.reply_token, get_detail_utility_flex())
+            return
+        elif data == "action=help_detail_tax" or data == "help_detail_tax":
+            line_bot_api.reply_message(event.reply_token, get_detail_tax_flex())
+            return
+        elif data == "action=help_detail_loan" or data == "help_detail_loan":
+            line_bot_api.reply_message(event.reply_token, get_detail_loan_flex())
             return
         # 通帳表示のpostbackアクション
         elif data.startswith("action=view_passbook"):
