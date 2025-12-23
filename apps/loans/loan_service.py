@@ -40,10 +40,16 @@ def can_borrow(user_id: str, amount: Decimal, reference_at: Optional[datetime] =
     if amount < _as_decimal(getattr(config, 'LOAN_MIN_PRINCIPAL', 10000)):
         return False, '借入は1万円からです', {}
 
-    if is_blacklisted(user_id):
-        return False, 'ブラックリストのため借入できません', {}
+    try:
+        if is_blacklisted(user_id):
+            return False, 'ブラックリストのため借入できません', {}
+    except Exception:
+        return False, '信用情報を参照できないため借入できません（DB権限を確認してください）', {}
 
-    income = get_prev_week_total_income(user_id, reference_at)
+    try:
+        income = get_prev_week_total_income(user_id, reference_at)
+    except Exception:
+        return False, '所得情報を参照できないため借入できません（DB権限を確認してください）', {}
     if income <= 0:
         return False, '前週所得が0のため借入できません', {'prev_week_income': str(income)}
 
@@ -257,6 +263,7 @@ def attempt_autopay_daily(run_at: Optional[datetime] = None) -> Dict[str, Any]:
 
     from apps.banking.bank_service import transfer_funds, RESERVE_ACCOUNT_NUMBER
     from core.api import line_bot_api
+    from linebot.models import TextSendMessage
 
     db = SessionLocal()
     attempted = 0
@@ -335,12 +342,7 @@ def attempt_autopay_daily(run_at: Optional[datetime] = None) -> Dict[str, Any]:
                         try:
                             line_bot_api.push_message(
                                 loan.user_id,
-                                [
-                                    {
-                                        'type': 'text',
-                                        'text': '⚠️ 借金の自動引落に失敗しました。残高不足などを確認し、?返済 で返済してください。',
-                                    }
-                                ],
+                                TextSendMessage(text='⚠️ 借金の自動引落に失敗しました。残高不足などを確認し、?借金 → 返す から返済してください。'),
                             )
                         except Exception as push_err:
                             print(f"[LoanService] push failed user={loan.user_id} err={push_err}")

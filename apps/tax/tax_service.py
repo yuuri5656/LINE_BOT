@@ -450,6 +450,34 @@ def set_tax_account_by_branch_and_number(user_id: str, branch_code: str, account
         db.close()
 
 
+def set_tax_account_by_id(user_id: str, account_id: int) -> Dict[str, Any]:
+    """納税元口座（tax_profiles.tax_account_id）を設定する（account_id指定）。"""
+    db = SessionLocal()
+    try:
+        with db.begin():
+            acc = db.execute(
+                select(Account)
+                .where(Account.account_id == int(account_id))
+                .where(Account.user_id == user_id)
+            ).scalars().first()
+            if not acc:
+                return {'success': False, 'message': '口座が見つかりません（あなた名義のみ設定可能）'}
+
+            profile = db.execute(select(TaxProfile).where(TaxProfile.user_id == user_id)).scalars().first()
+            if not profile:
+                profile = TaxProfile(user_id=user_id)
+                db.add(profile)
+                db.flush()
+
+            profile.tax_account_id = acc.account_id
+            profile.updated_at = now_jst()
+            db.add(profile)
+
+            return {'success': True, 'message': 'ok', 'tax_account_id': int(acc.account_id)}
+    finally:
+        db.close()
+
+
 def pay_latest_unpaid_tax(user_id: str) -> Dict[str, Any]:
     """直近の未納課税（assessed）を納付する。"""
     db = SessionLocal()
@@ -466,7 +494,7 @@ def pay_latest_unpaid_tax(user_id: str) -> Dict[str, Any]:
 
         profile = db.execute(select(TaxProfile).where(TaxProfile.user_id == user_id)).scalars().first()
         if not profile or not profile.tax_account_id:
-            return {'success': False, 'message': '納税口座が未設定です（?納税 設定 001-1234567）'}
+            return {'success': False, 'message': '納税口座が未設定です（?税 → 口座を登録）'}
 
         from_acc = db.execute(select(Account).where(Account.account_id == profile.tax_account_id)).scalars().first()
         if not from_acc:

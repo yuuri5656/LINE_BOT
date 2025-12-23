@@ -129,6 +129,28 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         elif data == "action=help_home":
             utility_commands.handle_help(event)
             return
+
+        # === 税/借金 (Flex) ===
+        elif data.startswith("action=tax_") or data.startswith("action=loan_"):
+            import urllib.parse
+            parsed = dict(urllib.parse.parse_qsl(data))
+            action = parsed.get('action')
+
+            # 税
+            if action and action.startswith('tax_'):
+                from apps.tax.ui import handle_tax_postback
+                resp = handle_tax_postback(action=action, parsed=parsed, user_id=user_id, sessions=sessions)
+                if resp:
+                    line_bot_api.reply_message(event.reply_token, resp)
+                return
+
+            # 借金
+            if action and action.startswith('loan_'):
+                from apps.loans.ui import handle_loan_postback
+                resp = handle_loan_postback(action=action, parsed=parsed, user_id=user_id, sessions=sessions)
+                if resp:
+                    line_bot_api.reply_message(event.reply_token, resp)
+                return
         
         # 既存のヘルプ詳細 (action=プレフィックス対応)
         if data == "action=help_detail_account" or data == "help_detail_account":
@@ -244,6 +266,21 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             )
             return
 
+    # === 税/借金: テキスト入力フロー（PIN/金額など） ===
+    if event.source.type == 'user' and isinstance(state, dict) and state.get('flex_flow'):
+        from apps.tax.ui import handle_tax_text_flow
+        from apps.loans.ui import handle_loan_text_flow
+
+        resp = handle_tax_text_flow(text=text, user_id=user_id, sessions=sessions)
+        if resp:
+            line_bot_api.reply_message(event.reply_token, resp)
+            return
+
+        resp = handle_loan_text_flow(text=text, user_id=user_id, sessions=sessions)
+        if resp:
+            line_bot_api.reply_message(event.reply_token, resp)
+            return
+
     # === ?コマンドの優先処理（セッション中でも実行可能） ===
     # キャンセルコマンド（最優先）
     if text.strip() == "?キャンセル":
@@ -318,6 +355,22 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         return
 
     # === 税/借金 ===
+    if text.strip() == "?税":
+        if event.source.type != 'user':
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="税は個別チャットで利用してください"))
+            return
+        from apps.tax.ui import build_dashboard
+        line_bot_api.reply_message(event.reply_token, build_dashboard(user_id))
+        return
+
+    if text.strip() == "?借金":
+        if event.source.type != 'user':
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="借金は個別チャットで利用してください"))
+            return
+        from apps.loans.ui import build_dashboard
+        line_bot_api.reply_message(event.reply_token, build_dashboard(user_id))
+        return
+
     if text.startswith("?納税"):
         from apps.tax.commands import handle_tax_command
         line_bot_api.reply_message(event.reply_token, handle_tax_command(user_id, text))

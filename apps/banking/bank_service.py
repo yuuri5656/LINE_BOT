@@ -67,6 +67,23 @@ def verify_pin(pin: str, pin_hash: str) -> bool:
         return False
 
 
+def verify_pin_for_account(account_id: int, pin_code: str) -> bool:
+    """指定口座の暗証番号を検証する（税/借金の口座登録で使用）。"""
+    db = SessionLocal()
+    try:
+        acc = db.execute(select(Account).filter_by(account_id=account_id)).scalars().first()
+        if not acc:
+            return False
+
+        cred = db.execute(select(CustomerCredential).filter_by(customer_id=acc.customer_id)).scalars().first()
+        if not cred:
+            return False
+
+        return verify_pin(str(pin_code), str(cred.pin_hash))
+    finally:
+        db.close()
+
+
 def generate_account_number(db: Session, branch: Branch, max_retries: int = 5) -> str:
     """
     7桁の口座番号を生成する。

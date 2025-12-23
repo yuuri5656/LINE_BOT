@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Any, Dict, Optional, List
 
 from sqlalchemy import select, func
+from sqlalchemy.exc import SQLAlchemyError
 
 import config
 from apps.banking.main_bank_system import SessionLocal, Account
@@ -36,6 +37,10 @@ def is_blacklisted(user_id: str) -> bool:
     try:
         p = db.execute(select(CreditProfile).where(CreditProfile.user_id == user_id)).scalars().first()
         return bool(p and p.is_blacklisted)
+    except SQLAlchemyError as e:
+        # 権限不足などで参照できない場合は「判断不能」。上流で扱う。
+        print(f"[Collections] is_blacklisted check failed user={user_id} err={e}")
+        raise
     finally:
         db.close()
 
@@ -148,7 +153,7 @@ def get_inline_notice_text(user_id: str, now: Optional[datetime] = None) -> Opti
         # tax: 即表示
         for c in cases:
             if c.case_type == 'tax':
-                return '⚠️ 納税が未完了です。?納税 で確認/納付してください。'
+                return '⚠️ 納税が未完了です。?税 で確認/納付してください。'
 
         # loan: 7日目以降で表示
         for c in db.execute(
@@ -160,8 +165,12 @@ def get_inline_notice_text(user_id: str, now: Optional[datetime] = None) -> Opti
             if not c.overdue_started_at:
                 continue
             if (now - c.overdue_started_at).days >= 7:
-                return '⚠️ 借金の返済が滞っています。?返済 で返済してください。'
+                return '⚠️ 借金の返済が滞っています。?借金 で返済してください。'
 
+        return None
+    except SQLAlchemyError as e:
+        # 権限不足等は通知を出せないだけなので黙ってスキップ
+        print(f"[Collections] get_inline_notice_text failed user={user_id} err={e}")
         return None
     finally:
         db.close()
