@@ -534,12 +534,13 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
         return
 
     if text.startswith("?口座番号 "):
-        if not prison_commands.is_admin(user_id):
+        parts = text.replace("?口座番号 ", "").strip().split("-")
+        if len(parts) != 2:
             line_bot_api.reply_message(event.reply_token,
-                TextSendMessage(text="❌ このコマンドは管理者のみ実行可能です"))
+                TextSendMessage(text="❌ 形式: ?口座番号 [支店番号-口座番号]"))
             return
-        account_number = text.replace("?口座番号 ", "").strip()
-        prison_commands.handle_admin_account_number(event, user_id, account_number)
+        branch_number, account_number = parts
+        prison_commands.handle_admin_account_number(event, user_id, branch_number, account_number)
         return
 
     if text.startswith("?懲役 "):

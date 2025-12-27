@@ -106,6 +106,97 @@ def handle_passbook(event, user_id):
     line_bot_api.reply_message(event.reply_token, flex_message)
 
 
+def handle_passbook_by_account_ids(event, account_ids: list):
+    """
+    口座IDリストから通帳（取引履歴）表示用の画面を表示
+
+    Args:
+        event: LINEイベントオブジェクト
+        account_ids: 口座IDのリスト
+    """
+    if not account_ids or len(account_ids) == 0:
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="表示する口座が見つかりません。"))
+        return
+
+    # 口座IDから口座情報を取得
+    from apps.banking.main_bank_system import SessionLocal, Account
+    from sqlalchemy import select
+
+    db = SessionLocal()
+    try:
+        accounts_data = []
+        for account_id in account_ids:
+            account = db.execute(
+                select(Account).where(Account.account_id == account_id)
+            ).scalars().first()
+
+            if account:
+                # Account オブジェクトを辞書形式に変換
+                acc_dict = {
+                    'account_id': account.account_id,
+                    'account_number': account.account_number,
+                    'account_type': account.account_type,
+                    'balance': account.balance,
+                    'currency': account.currency,
+                    'status': account.status,
+                    'branch_code': account.branch.code if account.branch else None,
+                    'branch_name': account.branch.name if account.branch else None,
+                    'customer_name': account.customer.name if account.customer else None,
+                }
+                accounts_data.append(acc_dict)
+
+        if not accounts_data:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="有効な口座が見つかりません。"))
+            return
+
+        # 口座情報画面に「この口座の通帳を見る」ボタンを追加して表示
+        from apps.help_flex import get_account_flex_bubble
+
+        bubbles = []
+        for acc in accounts_data:
+            bubble = get_account_flex_bubble(acc)
+
+            # ボタンを追加（通帳表示用）
+            footer = {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "button",
+                        "action": {
+                            "type": "postback",
+                            "label": "この口座の通帳を見る",
+                            "data": f"action=view_passbook&branch_code={acc.get('branch_code')}&account_number={acc.get('account_number')}"
+                        },
+                        "style": "primary",
+                        "color": "#1E90FF"
+                    }
+                ],
+                "paddingAll": "12px"
+            }
+            bubble["footer"] = footer
+            bubbles.append(bubble)
+
+        # 口座が1つの場合はbubbleを、複数の場合はcarouselを表示
+        if len(bubbles) == 1:
+            flex_message = FlexSendMessage(
+                alt_text="口座情報",
+                contents=bubbles[0]
+            )
+        else:
+            flex_message = FlexSendMessage(
+                alt_text="通帳を表示する口座を選択してください",
+                contents={
+                    "type": "carousel",
+                    "contents": bubbles
+                }
+            )
+        line_bot_api.reply_message(event.reply_token, flex_message)
+
+    finally:
+        db.close()
+
+
 def _display_transaction_history(event, account_number, branch_code):
     """取引履歴をカルーセル形式で表示（内部関数）"""
     txs = banking_api.get_transactions(account_number, branch_code, limit=20)
@@ -288,14 +379,14 @@ def handle_chip_transfer(event, user_id, sessions):
         return
 
     from apps.banking.chip_flex import get_chip_transfer_guide_flex
-    
+
     # セッションを初期化
     sessions[user_id] = {
         'chip_transfer': {
             'step': 'user_id',
         }
     }
-    
+
     # 案内メッセージを送信
     line_bot_api.reply_message(event.reply_token, get_chip_transfer_guide_flex())
 
@@ -314,14 +405,14 @@ def handle_chip_transfer_session_input(event, text, user_id, sessions):
     )
     from apps.banking.chip_service import transfer_chips, get_chip_balance
     from core.api import line_bot_api
-    
+
     transfer_data = session['chip_transfer']
     step = transfer_data.get('step')
 
     if step == 'user_id':
         # ユーザーID入力処理
         to_user_id = text.strip()
-        
+
         # ユーザーID形式チェック（@で始まる）
         if not to_user_id.startswith('@') or len(to_user_id) < 2:
             line_bot_api.reply_message(
@@ -332,17 +423,17 @@ def handle_chip_transfer_session_input(event, text, user_id, sessions):
                 )
             )
             return
-        
+
         transfer_data['to_user_id'] = to_user_id
         transfer_data['step'] = 'amount'
         sessions[user_id]['chip_transfer'] = transfer_data
-        
+
         line_bot_api.reply_message(event.reply_token, get_chip_amount_input_flex(to_user_id))
 
     elif step == 'amount':
         # 枚数入力処理
         to_user_id = transfer_data.get('to_user_id')
-        
+
         # 枚数が数値かチェック
         if not text.isdigit():
             line_bot_api.reply_message(
@@ -353,9 +444,9 @@ def handle_chip_transfer_session_input(event, text, user_id, sessions):
                 )
             )
             return
-        
+
         amount = int(text)
-        
+
         if amount <= 0:
             line_bot_api.reply_message(
                 event.reply_token,
@@ -365,22 +456,22 @@ def handle_chip_transfer_session_input(event, text, user_id, sessions):
                 )
             )
             return
-        
+
         # チップ転送を実行
         result = transfer_chips(user_id, to_user_id, amount)
-        
+
         if result['success']:
             from_balance = result.get('new_base_balance', 0)
-            
+
             # 送信者に成功メッセージを送信
             line_bot_api.reply_message(
                 event.reply_token,
                 get_chip_transfer_success_flex(to_user_id, amount, from_balance)
             )
-            
+
             # セッション終了
             sessions[user_id].pop('chip_transfer', None)
-            
+
             # 受信者に通知を送信（ユーザーIDから検索してメッセージ送信）
             try:
                 to_balance = result.get('to_balance', 0)
@@ -393,11 +484,11 @@ def handle_chip_transfer_session_input(event, text, user_id, sessions):
         else:
             error_msg = result.get('error', 'チップ転送に失敗しました')
             error_type = 'insufficient' if '不足' in error_msg else 'general'
-            
+
             line_bot_api.reply_message(
                 event.reply_token,
                 get_chip_transfer_error_flex(error_msg, error_type)
             )
-            
+
             # セッション終了
             sessions[user_id].pop('chip_transfer', None)
