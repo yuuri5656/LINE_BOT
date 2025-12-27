@@ -135,7 +135,7 @@ def handle_passbook_by_account_ids(event, account_ids: list):
                 acc_dict = {
                     'account_id': account.account_id,
                     'account_number': account.account_number,
-                    'account_type': account.account_type,
+                    'account_type': account.type,
                     'balance': account.balance,
                     'currency': account.currency,
                     'status': account.status,
