@@ -453,20 +453,66 @@ def get_account_info_by_user(user_id: str):
         db.close()
 
 
-def get_accounts_by_user(user_id: str):
-    """ユーザーIDに紐づく全口座情報をリストで返す。
+def get_account_ids_by_user(user_id: str):
+    """ユーザーIDに紐づく有効口座の account_id をリストで返す。
+
     注: active または frozen の口座のみを返す（closed は除外）
     """
+    if not user_id:
+        return []
+
     db = SessionLocal()
     try:
-        # user_idで口座を取得し、active/frozenのみフィルタ
-        all_accounts = db.execute(
-            select(Account).filter_by(user_id=user_id)
-        ).scalars().all()
-        # closedを除外
+        all_accounts = db.execute(select(Account).filter_by(user_id=user_id)).scalars().all()
         accounts = [acc for acc in all_accounts if getattr(acc, 'status', None) in ('active', 'frozen')]
+
+        # できるだけ決定的な順序にする（DBの返却順が不安定な環境を考慮）
+        accounts.sort(key=lambda a: getattr(a, 'account_id', 0) or 0)
+
         result = []
         for acc in accounts:
+            aid = getattr(acc, 'account_id', None)
+            if aid is not None:
+                result.append(aid)
+        return result
+    finally:
+        db.close()
+
+
+def get_accounts_by_account_ids(account_ids: list):
+    """口座IDリストに紐づく口座情報をリストで返す。
+
+    - 既存の口座情報返却形式に揃える
+    - active / frozen のみ返す（closed は除外）
+    - 可能な限り入力順を維持する
+    """
+    if not account_ids:
+        return []
+
+    # account_ids が文字列混入でも落ちにくいように int 化を試みる
+    normalized_ids = []
+    for raw in account_ids:
+        try:
+            normalized_ids.append(int(raw))
+        except Exception:
+            continue
+    if not normalized_ids:
+        return []
+
+    db = SessionLocal()
+    try:
+        accounts = (
+            db.execute(select(Account).where(Account.account_id.in_(normalized_ids)))
+            .scalars()
+            .all()
+        )
+
+        info_by_id = {}
+        for acc in accounts:
+            status = getattr(acc, 'status', None)
+            if status not in ('active', 'frozen'):
+                continue
+
             branch_code = None
             branch_name = None
             try:
@@ -480,14 +526,14 @@ def get_accounts_by_user(user_id: str):
             balance = getattr(acc, 'balance', None)
             balance_str = format(balance, '.2f') if balance is not None else None
 
-            # 顧客情報から氏名を取得
             full_name = None
             try:
                 if hasattr(acc, 'customer') and acc.customer:
                     full_name = getattr(acc.customer, 'full_name', None)
             except Exception:
                 full_name = None
-            info = {
+
+            info_by_id[getattr(acc, 'account_id', None)] = {
                 'account_id': getattr(acc, 'account_id', None),
                 'account_number': getattr(acc, 'account_number', None),
                 'balance': balance_str,
@@ -495,11 +541,17 @@ def get_accounts_by_user(user_id: str):
                 'type': getattr(acc, 'type', None),
                 'branch_code': branch_code,
                 'branch_name': branch_name,
-                'status': getattr(acc, 'status', None),
+                'status': status,
                 'created_at': getattr(acc, 'created_at', None),
                 'full_name': full_name,
             }
-            result.append(info)
+
+        # 入力順を維持して返す
+        result = []
+        for aid in normalized_ids:
+            info = info_by_id.get(aid)
+            if info:
+                result.append(info)
         return result
     finally:
         db.close()

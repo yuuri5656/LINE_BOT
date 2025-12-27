@@ -75,7 +75,27 @@ class BankingAPI:
             口座情報辞書のリスト
         """
         service = _get_bank_service()
-        return service.get_accounts_by_user(user_id)
+        account_ids = service.get_account_ids_by_user(user_id)
+        return service.get_accounts_by_account_ids(account_ids)
+
+    @staticmethod
+    def get_account_ids_by_user(user_id: str) -> List[int]:
+        """ユーザーIDに紐づく有効口座のID一覧を取得。"""
+        service = _get_bank_service()
+        return service.get_account_ids_by_user(user_id)
+
+    @staticmethod
+    def get_accounts_by_ids(account_ids: List[int]) -> List[dict]:
+        """口座IDリストから口座情報を取得。
+
+        Args:
+            account_ids: 口座IDのリスト
+
+        Returns:
+            口座情報辞書のリスト
+        """
+        service = _get_bank_service()
+        return service.get_accounts_by_account_ids(account_ids)
 
     @staticmethod
     def get_active_account(user_id: str):

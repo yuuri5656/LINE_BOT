@@ -7,6 +7,47 @@ from apps.banking.api import banking_api
 from apps.banking.session_handler import bank_reception
 
 
+def build_passbook_account_selection_flex(accounts: list) -> FlexSendMessage:
+    """口座情報(dict)のリストから、通帳用途の口座選択FlexMessageを作成する。"""
+    from apps.help_flex import get_account_flex_bubble
+
+    bubbles = []
+    for acc in accounts:
+        if not acc:
+            continue
+        bubble = get_account_flex_bubble(acc)
+        bubble["footer"] = {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "button",
+                    "action": {
+                        "type": "postback",
+                        "label": "この口座の通帳を見る",
+                        "data": f"action=view_passbook&branch_code={acc.get('branch_code')}&account_number={acc.get('account_number')}",
+                    },
+                    "style": "primary",
+                    "color": "#1E90FF",
+                }
+            ],
+            "paddingAll": "12px",
+        }
+        bubbles.append(bubble)
+
+    if not bubbles:
+        return FlexSendMessage(alt_text="通帳", contents={"type": "bubble", "body": {"type": "box", "layout": "vertical", "contents": [{"type": "text", "text": "表示できる口座がありません。"}]}})
+
+    # 口座が1つの場合はbubbleを、複数の場合はcarouselを表示
+    if len(bubbles) == 1:
+        return FlexSendMessage(alt_text="口座情報", contents=bubbles[0])
+
+    return FlexSendMessage(
+        alt_text="通帳を表示する口座を選択してください",
+        contents={"type": "carousel", "contents": bubbles},
+    )
+
+
 def handle_account_opening(event, text, user_id, display_name, sessions):
     """口座開設コマンド"""
     bank_reception(event, text, user_id, display_name, sessions)
@@ -54,55 +95,15 @@ def handle_passbook(event, user_id):
     from core.api import show_loading_animation
     show_loading_animation(user_id, loading_seconds=5)
 
-    # ユーザーに紐づく全口座を取得
-    accounts = banking_api.get_accounts_by_user(user_id)
+    # ユーザーに紐づく口座IDを取得してから詳細を取得
+    account_ids = banking_api.get_account_ids_by_user(user_id)
+    accounts = banking_api.get_accounts_by_ids(account_ids)
 
     if not accounts or len(accounts) == 0:
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="有効な口座が見つかりません。「?口座開設」 を入力して口座を作成してください。"))
         return
 
-    # 口座情報画面に「この口座の通帳を見る」ボタンを追加して表示
-    from apps.help_flex import get_account_flex_bubble
-
-    bubbles = []
-    for acc in accounts:
-        bubble = get_account_flex_bubble(acc)
-
-        # ボタンを追加（通帳表示用）
-        footer = {
-            "type": "box",
-            "layout": "vertical",
-            "contents": [
-                {
-                    "type": "button",
-                    "action": {
-                        "type": "postback",
-                        "label": "この口座の通帳を見る",
-                        "data": f"action=view_passbook&branch_code={acc.get('branch_code')}&account_number={acc.get('account_number')}"
-                    },
-                    "style": "primary",
-                    "color": "#1E90FF"
-                }
-            ],
-            "paddingAll": "12px"
-        }
-        bubble["footer"] = footer
-        bubbles.append(bubble)
-
-    # 口座が1つの場合はbubbleを、複数の場合はcarouselを表示
-    if len(bubbles) == 1:
-        flex_message = FlexSendMessage(
-            alt_text="口座情報",
-            contents=bubbles[0]
-        )
-    else:
-        flex_message = FlexSendMessage(
-            alt_text="通帳を表示する口座を選択してください",
-            contents={
-                "type": "carousel",
-                "contents": bubbles
-            }
-        )
+    flex_message = build_passbook_account_selection_flex(accounts)
     line_bot_api.reply_message(event.reply_token, flex_message)
 
 
@@ -118,83 +119,13 @@ def handle_passbook_by_account_ids(event, account_ids: list):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="表示する口座が見つかりません。"))
         return
 
-    # 口座IDから口座情報を取得
-    from apps.banking.main_bank_system import SessionLocal, Account
-    from sqlalchemy import select
+    accounts_data = banking_api.get_accounts_by_ids(account_ids)
+    if not accounts_data:
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="有効な口座が見つかりません。"))
+        return
 
-    db = SessionLocal()
-    try:
-        accounts_data = []
-        for account_id in account_ids:
-            account = db.execute(
-                select(Account).where(Account.account_id == account_id)
-            ).scalars().first()
-
-            if account:
-                # Account オブジェクトを辞書形式に変換
-                acc_dict = {
-                    'account_id': account.account_id,
-                    'account_number': account.account_number,
-                    'account_type': account.type,
-                    'balance': account.balance,
-                    'currency': account.currency,
-                    'status': account.status,
-                    'branch_code': account.branch.code if account.branch else None,
-                    'branch_name': account.branch.name if account.branch else None,
-                    'customer_name': account.customer.full_name if account.customer else None,
-                }
-                accounts_data.append(acc_dict)
-
-        if not accounts_data:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="有効な口座が見つかりません。"))
-            return
-
-        # 口座情報画面に「この口座の通帳を見る」ボタンを追加して表示
-        from apps.help_flex import get_account_flex_bubble
-
-        bubbles = []
-        for acc in accounts_data:
-            bubble = get_account_flex_bubble(acc)
-
-            # ボタンを追加（通帳表示用）
-            footer = {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                    {
-                        "type": "button",
-                        "action": {
-                            "type": "postback",
-                            "label": "この口座の通帳を見る",
-                            "data": f"action=view_passbook&branch_code={acc.get('branch_code')}&account_number={acc.get('account_number')}"
-                        },
-                        "style": "primary",
-                        "color": "#1E90FF"
-                    }
-                ],
-                "paddingAll": "12px"
-            }
-            bubble["footer"] = footer
-            bubbles.append(bubble)
-
-        # 口座が1つの場合はbubbleを、複数の場合はcarouselを表示
-        if len(bubbles) == 1:
-            flex_message = FlexSendMessage(
-                alt_text="口座情報",
-                contents=bubbles[0]
-            )
-        else:
-            flex_message = FlexSendMessage(
-                alt_text="通帳を表示する口座を選択してください",
-                contents={
-                    "type": "carousel",
-                    "contents": bubbles
-                }
-            )
-        line_bot_api.reply_message(event.reply_token, flex_message)
-
-    finally:
-        db.close()
+    flex_message = build_passbook_account_selection_flex(accounts_data)
+    line_bot_api.reply_message(event.reply_token, flex_message)
 
 
 def _display_transaction_history(event, account_number, branch_code):
