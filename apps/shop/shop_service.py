@@ -332,15 +332,16 @@ def _purchase_chip_item(db, user_id: str, item, payment_info: Dict) -> Dict:
     # 属性から数値を取得
     chip_amount = get_item_attribute(item.item_id, 'chip_amount', 0)
     bonus_chip = get_item_attribute(item.item_id, 'bonus_chip', 0)
+    total_chips = chip_amount + bonus_chip
 
-    if chip_amount <= 0:
+    if total_chips <= 0:
         return {'success': False, 'error': '商品設定エラー: チップ数が不正です'}
 
-    # チップ購入実行（基本チップとボーナスチップを分別）
+    # チップ購入実行（ボーナス廃止: bonus分も含めて単一チップとして付与）
     result = purchase_chips(
         user_id=user_id,
-        base_amount=chip_amount,
-        bonus_amount=bonus_chip,
+        base_amount=total_chips,
+        bonus_amount=0,
         account_number=payment_info['account_number'],
         branch_code=payment_info['branch_code'],
         price=item.price
@@ -367,13 +368,9 @@ def _purchase_chip_item(db, user_id: str, item, payment_info: Dict) -> Dict:
     return {
         'success': True,
         'item_name': item.name,
-        'chips_received': chip_amount + bonus_chip,
-        'chip_breakdown': {
-            'base': chip_amount,
-            'bonus': bonus_chip
-        },
+        'chips_received': total_chips,
         'new_base_balance': result['new_base_balance'],
-        'new_bonus_balance': result['new_bonus_balance']
+        'new_bonus_balance': 0
     }
 
 

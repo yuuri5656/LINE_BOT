@@ -119,19 +119,7 @@ def get_category_items_flex(category_name: str, items: List[Dict]) -> FlexSendMe
             }
             item_box["contents"].append(total_chip_info)
 
-            # 内訳（小さく表示）
-            breakdown_text = f"基本{chip_amount}枚"
-            if bonus_chip > 0:
-                breakdown_text += f" + ボーナス{bonus_chip}枚"
-
-            breakdown_info = {
-                "type": "text",
-                "text": f"({breakdown_text})",
-                "size": "xs",
-                "color": "#999999",
-                "margin": "xs"
-            }
-            item_box["contents"].append(breakdown_info)
+            # ボーナス内訳の表示は廃止
 
         # 商品説明（サイズを大きく）
         description_info = {
@@ -367,7 +355,7 @@ def _create_shop_info_row(label: str, value: str) -> dict:
     }
 
 
-def get_purchase_success_flex(item_name: str, chips_received: int, new_base_balance: int, new_bonus_balance: int) -> FlexSendMessage:
+def get_purchase_success_flex(item_name: str, chips_received: int, new_balance: int) -> FlexSendMessage:
     """購入成功メッセージ"""
     return FlexSendMessage(
         alt_text="購入完了",
@@ -467,38 +455,16 @@ def get_purchase_success_flex(item_name: str, chips_received: int, new_base_bala
                                 "contents": [
                                     {
                                         "type": "text",
-                                        "text": "基本:",
+                                        "text": "残高:",
                                         "size": "sm",
                                         "color": "#666666",
                                         "flex": 0
                                     },
                                     {
                                         "type": "text",
-                                        "text": f"{new_base_balance}枚",
+                                        "text": f"{new_balance}枚",
                                         "size": "sm",
                                         "color": "#4CAF50",
-                                        "weight": "bold",
-                                        "margin": "sm"
-                                    }
-                                ],
-                                "margin": "sm"
-                            },
-                            {
-                                "type": "box",
-                                "layout": "baseline",
-                                "contents": [
-                                    {
-                                        "type": "text",
-                                        "text": "ボーナス:",
-                                        "size": "sm",
-                                        "color": "#666666",
-                                        "flex": 0
-                                    },
-                                    {
-                                        "type": "text",
-                                        "text": f"{new_bonus_balance}枚",
-                                        "size": "sm",
-                                        "color": "#FF9800",
                                         "weight": "bold",
                                         "margin": "sm"
                                     }

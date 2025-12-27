@@ -18,21 +18,41 @@ from apps.banking.main_bank_system import (
 )
 
 
+def _merge_bonus_into_base(chip_acc: MinigameChip) -> None:
+    """ボーナスチップ廃止: 既存データのbonus系をbase系へ統合して0に寄せる。"""
+    bonus = getattr(chip_acc, 'bonus_balance', None) or Decimal('0')
+    locked_bonus = getattr(chip_acc, 'locked_bonus_balance', None) or Decimal('0')
+
+    if bonus != 0:
+        chip_acc.base_balance += bonus
+        chip_acc.bonus_balance = Decimal('0')
+
+    if locked_bonus != 0:
+        chip_acc.locked_base_balance += locked_bonus
+        chip_acc.locked_bonus_balance = Decimal('0')
+
+    # 互換性フィールドを同期
+    chip_acc.balance = chip_acc.base_balance
+    chip_acc.locked_balance = chip_acc.locked_base_balance
+
+
 def get_chip_balance(user_id: str) -> Dict:
     """
     ユーザーのチップ残高を取得
 
     Returns:
+        ※ボーナスチップ廃止: チップは1種類のみ。
+        互換性のためキーは残すが、bonus系は常に0。
         {
             'base_balance': int,
             'bonus_balance': int,
             'locked_base_balance': int,
             'locked_bonus_balance': int,
-            'available_base': int,  # 基本チップの利用可能枚数（換金/転送可能）
-            'available_bonus': int,  # ボーナスチップの利用可能枚数（使用のみ）
-            'balance': int,  # 互換性: base_balance + bonus_balance
-            'locked': int,  # 互換性: locked_base_balance + locked_bonus_balance
-            'available': int  # 互換性: available_base + available_bonus
+            'available_base': int,
+            'available_bonus': int,
+            'balance': int,
+            'locked': int,
+            'available': int
         }
     """
     db = SessionLocal()
@@ -55,22 +75,24 @@ def get_chip_balance(user_id: str) -> Dict:
             }
 
         base_balance = int(chip_acc.base_balance)
-        bonus_balance = int(chip_acc.bonus_balance)
+        bonus_balance = int(getattr(chip_acc, 'bonus_balance', 0) or 0)
         locked_base = int(chip_acc.locked_base_balance)
-        locked_bonus = int(chip_acc.locked_bonus_balance)
-        available_base = base_balance - locked_base
-        available_bonus = bonus_balance - locked_bonus
+        locked_bonus = int(getattr(chip_acc, 'locked_bonus_balance', 0) or 0)
+
+        total_balance = base_balance + bonus_balance
+        total_locked = locked_base + locked_bonus
+        available_total = total_balance - total_locked
 
         return {
-            'base_balance': base_balance,
-            'bonus_balance': bonus_balance,
-            'locked_base_balance': locked_base,
-            'locked_bonus_balance': locked_bonus,
-            'available_base': available_base,
-            'available_bonus': available_bonus,
-            'balance': base_balance + bonus_balance,  # 互換性
-            'locked': locked_base + locked_bonus,  # 互換性
-            'available': available_base + available_bonus  # 互換性
+            'base_balance': total_balance,
+            'bonus_balance': 0,
+            'locked_base_balance': total_locked,
+            'locked_bonus_balance': 0,
+            'available_base': available_total,
+            'available_bonus': 0,
+            'balance': total_balance,
+            'locked': total_locked,
+            'available': available_total
         }
     finally:
         db.close()
@@ -114,8 +136,8 @@ def purchase_chips(user_id: str, base_amount: int, bonus_amount: int, account_nu
 
     Args:
         user_id: ユーザーID
-        base_amount: 基本チップ枚数
-        bonus_amount: ボーナスチップ枚数
+        base_amount: 付与チップ枚数（ボーナス廃止により単一）
+        bonus_amount: 互換性のため残す（常にbaseに合算）
         account_number: 支払い口座番号
         branch_code: 支払い口座の支店コード
         price: 商品価格（データベースから取得）
@@ -180,45 +202,34 @@ def purchase_chips(user_id: str, base_amount: int, bonus_amount: int, account_nu
                 db.add(chip_acc)
                 db.flush()
 
-            base_amt = Decimal(str(base_amount))
-            bonus_amt = Decimal(str(bonus_amount))
-            
-            # 新フィールドに追加
-            chip_acc.base_balance += base_amt
-            chip_acc.bonus_balance += bonus_amt
-            
+            _merge_bonus_into_base(chip_acc)
+
+            total_amount = int(base_amount) + int(bonus_amount)
+            total_amt = Decimal(str(total_amount))
+
+            chip_acc.base_balance += total_amt
+            chip_acc.bonus_balance = Decimal('0')
+
             # 互換性のため古いフィールドも同時に更新
-            chip_acc.balance += base_amt + bonus_amt
+            chip_acc.balance += total_amt
             chip_acc.updated_at = now_jst()
 
-            # 基本チップの取引履歴を記録
-            if base_amount > 0:
-                tx_base = ChipTransaction(
+            # 取引履歴を記録（チップは1種類）
+            if total_amount > 0:
+                tx = ChipTransaction(
                     user_id=user_id,
-                    amount=base_amt,
+                    amount=total_amt,
                     balance_after=chip_acc.base_balance,
                     type='purchase',
                     chip_type='base',
-                    description=f'基本チップ{base_amount}枚を購入'
+                    description=f'チップ{total_amount}枚を購入'
                 )
-                db.add(tx_base)
-
-            # ボーナスチップの取引履歴を記録
-            if bonus_amount > 0:
-                tx_bonus = ChipTransaction(
-                    user_id=user_id,
-                    amount=bonus_amt,
-                    balance_after=chip_acc.bonus_balance,
-                    type='purchase',
-                    chip_type='bonus',
-                    description=f'ボーナスチップ{bonus_amount}枚を購入'
-                )
-                db.add(tx_bonus)
+                db.add(tx)
             
             db.flush()
 
             new_base_balance = int(chip_acc.base_balance)
-            new_bonus_balance = int(chip_acc.bonus_balance)
+            new_bonus_balance = 0
 
         return {
             'success': True,
@@ -239,7 +250,7 @@ def purchase_chips(user_id: str, base_amount: int, bonus_amount: int, account_nu
 def transfer_chips(from_user_id: str, to_user_id: str, amount: int) -> Dict:
     """
     ユーザー間でチップを送る
-    ⚠️ 基本チップのみ転送可能。ボーナスチップは転送不可
+    ボーナスチップ廃止: チップは全て転送可能
 
     Returns:
         {'success': bool, 'new_base_balance': int, 'error': str (optional)}
@@ -257,10 +268,11 @@ def transfer_chips(from_user_id: str, to_user_id: str, amount: int) -> Dict:
             if not from_acc:
                 raise ValueError('チップ残高がありません')
 
-            # ⚠️ 基本チップのみ転送可能
+            _merge_bonus_into_base(from_acc)
+
             available = from_acc.base_balance - from_acc.locked_base_balance
             if available < amt:
-                raise ValueError(f'利用可能な基本チップが不足しています（必要: {amount}, 利用可能: {int(available)}）\n※ボーナスチップは転送できません')
+                raise ValueError(f'利用可能なチップが不足しています（必要: {amount}, 利用可能: {int(available)}）')
 
             # 受信者のチップアカウント
             to_acc = db.execute(
@@ -280,7 +292,9 @@ def transfer_chips(from_user_id: str, to_user_id: str, amount: int) -> Dict:
                 db.add(to_acc)
                 db.flush()
 
-            # 転送（基本チップのみ）
+            _merge_bonus_into_base(to_acc)
+
+            # 転送（チップは1種類）
             from_acc.base_balance -= amt
             from_acc.balance -= amt
             from_acc.updated_at = now_jst()
@@ -297,7 +311,7 @@ def transfer_chips(from_user_id: str, to_user_id: str, amount: int) -> Dict:
                 type='transfer_out',
                 chip_type='base',
                 related_user_id=to_user_id,
-                description=f'{to_user_id}へ基本チップ{amount}枚送信'
+                description=f'{to_user_id}へチップ{amount}枚送信'
             )
             tx_in = ChipTransaction(
                 user_id=to_user_id,
@@ -306,7 +320,7 @@ def transfer_chips(from_user_id: str, to_user_id: str, amount: int) -> Dict:
                 type='transfer_in',
                 chip_type='base',
                 related_user_id=from_user_id,
-                description=f'{from_user_id}から基本チップ{amount}枚受信'
+                description=f'{from_user_id}からチップ{amount}枚受信'
             )
             db.add_all([tx_out, tx_in])
             db.flush()
@@ -331,7 +345,7 @@ def transfer_chips(from_user_id: str, to_user_id: str, amount: int) -> Dict:
 def batch_lock_chips(locks: List[Dict]) -> Dict:
     """
     複数ユーザーのチップを一括ロック（ゲーム開始時）
-    優先順: 基本チップ → ボーナスチップの順で消費
+    ボーナスチップ廃止: ロック対象は単一チップのみ
 
     Args:
         locks: [{'user_id': str, 'amount': int, 'game_session_id': str}, ...]
@@ -363,31 +377,17 @@ def batch_lock_chips(locks: List[Dict]) -> Dict:
                         failed.append({'user_id': user_id, 'error': 'チップアカウントなし'})
                         continue
 
-                    # 利用可能なチップを計算（基本 + ボーナス）
-                    available_base = chip_acc.base_balance - chip_acc.locked_base_balance
-                    available_bonus = chip_acc.bonus_balance - chip_acc.locked_bonus_balance
-                    total_available = available_base + available_bonus
+                    _merge_bonus_into_base(chip_acc)
 
-                    if total_available < amt:
-                        failed.append({'user_id': user_id, 'error': f'チップ不足（必要:{lock["amount"]}, 利用可能:{int(total_available)}）'})
+                    available = chip_acc.base_balance - chip_acc.locked_base_balance
+                    if available < amt:
+                        failed.append({'user_id': user_id, 'error': f'チップ不足（必要:{lock["amount"]}, 利用可能:{int(available)}）'})
                         continue
 
-                    # 優先順: 基本チップ → ボーナスチップ
-                    locked_base = Decimal('0')
+                    locked_base = amt
                     locked_bonus = Decimal('0')
-                    
-                    if available_base >= amt:
-                        # 基本チップのみで済む
-                        locked_base = amt
-                        chip_acc.locked_base_balance += amt
-                        locked_type = 'base'
-                    else:
-                        # 基本チップ + ボーナスチップ
-                        locked_base = available_base
-                        locked_bonus = amt - available_base
-                        chip_acc.locked_base_balance += locked_base
-                        chip_acc.locked_bonus_balance += locked_bonus
-                        locked_type = 'mixed'
+                    chip_acc.locked_base_balance += locked_base
+                    locked_type = 'base'
 
                     # 互換性フィールドも更新
                     chip_acc.locked_balance += amt
@@ -397,7 +397,7 @@ def batch_lock_chips(locks: List[Dict]) -> Dict:
                     tx = ChipTransaction(
                         user_id=user_id,
                         amount=-amt,
-                        balance_after=chip_acc.base_balance + chip_acc.bonus_balance,
+                        balance_after=chip_acc.base_balance,
                         type='game_bet',
                         chip_type=locked_type,
                         game_session_id=game_session_id,
@@ -447,9 +447,9 @@ def distribute_chips(distributions: Dict, game_session_id: str) -> Dict:
         フォーマット1（新）:
         {
             user_id: {
-                'locked_base': int,   # ロックした基本チップ
-                'locked_bonus': int,  # ロックしたボーナスチップ
-                'payout': int         # 賞金額（純粋な獲得分、参加費は含まない）
+                'locked_base': int,   # ロックしたチップ
+                'locked_bonus': int,  # 互換性（常に0）
+                'payout': int         # 総払戻額（ベット返却を含む）
             },
             ...
         }
@@ -457,8 +457,8 @@ def distribute_chips(distributions: Dict, game_session_id: str) -> Dict:
         フォーマット2（旧・互換性）:
         {
             user_id: {
-                'locked': int,   # ロック総額（基本+ボーナス）
-                'payout': int    # 賞金額
+                'locked': int,   # ロック総額
+                'payout': int    # 総払戻額（ベット返却を含む）
             },
             ...
         }
@@ -483,7 +483,7 @@ def distribute_chips(distributions: Dict, game_session_id: str) -> Dict:
                     locked_base_amt = locked_total
                     locked_bonus_amt = Decimal('0')
                 
-                payout_amt = Decimal(str(dist['payout']))
+                payout_total_amt = Decimal(str(dist['payout']))
 
                 chip_acc = db.execute(
                     select(MinigameChip).filter_by(user_id=user_id).with_for_update()
@@ -492,32 +492,30 @@ def distribute_chips(distributions: Dict, game_session_id: str) -> Dict:
                 if not chip_acc:
                     continue
 
-                # ロック解除（ベット額を残高から引く）
-                chip_acc.base_balance -= locked_base_amt
-                chip_acc.locked_base_balance -= locked_base_amt
-                
-                chip_acc.bonus_balance -= locked_bonus_amt
-                chip_acc.locked_bonus_balance -= locked_bonus_amt
+                _merge_bonus_into_base(chip_acc)
 
-                # 互換性のため古いフィールドも更新
-                chip_acc.balance -= (locked_base_amt + locked_bonus_amt)
-                chip_acc.locked_balance -= (locked_base_amt + locked_bonus_amt)
+                locked_total = locked_base_amt + locked_bonus_amt
 
-                # 賞金付与（基本チップとして）
-                chip_acc.base_balance += payout_amt
-                chip_acc.balance += payout_amt
+                # ロック解除（ロック残高のみ減らす）
+                chip_acc.locked_base_balance -= locked_total
+                chip_acc.locked_balance -= locked_total
+
+                # 精算差分 = 総払戻 - ベット（ロック額）
+                delta = payout_total_amt - locked_total
+                chip_acc.base_balance += delta
+                chip_acc.balance += delta
                 chip_acc.updated_at = now_jst()
 
-                # 履歴記録
-                if payout_amt > 0:
+                # 履歴記録（増加のみ）
+                if delta > 0:
                     tx = ChipTransaction(
                         user_id=user_id,
-                        amount=payout_amt,
+                        amount=delta,
                         balance_after=chip_acc.base_balance,
                         type='game_win',
                         chip_type='base',
                         game_session_id=game_session_id,
-                        description=f'ゲーム賞金{int(payout_amt)}枚獲得（基本チップ）'
+                        description=f'ゲーム獲得{int(delta)}枚'
                     )
                     db.add(tx)
 
@@ -543,7 +541,7 @@ def distribute_chips(distributions: Dict, game_session_id: str) -> Dict:
 def redeem_chips(user_id: str, amount: int) -> Dict:
     """
     チップを換金（銀行口座に振り込み）
-    ⚠️ 基本チップのみ換金可能。ボーナスチップは換金不可
+    ボーナスチップ廃止: チップは全て換金可能
     換金率: 1チップ = 12 JPY
 
     Args:
@@ -607,15 +605,16 @@ def redeem_chips(user_id: str, amount: int) -> Dict:
         if not chip_acc:
             return {'success': False, 'error': 'チップ残高がありません'}
 
-        # ⚠️ 基本チップのみ換金可能
-        available_base = chip_acc.base_balance - chip_acc.locked_base_balance
-        if available_base < amt:
+        _merge_bonus_into_base(chip_acc)
+
+        available = chip_acc.base_balance - chip_acc.locked_base_balance
+        if available < amt:
             return {
                 'success': False,
-                'error': f'基本チップが不足しています（必要: {amount}, 利用可能: {int(available_base)}）\n※ボーナスチップは換金できません'
+                'error': f'チップが不足しています（必要: {amount}, 利用可能: {int(available)}）'
             }
 
-        # 基本チップを減らす
+        # チップを減らす
         chip_acc.base_balance -= amt
         # 互換性のため古いフィールドも更新
         chip_acc.balance -= amt
@@ -628,7 +627,7 @@ def redeem_chips(user_id: str, amount: int) -> Dict:
             balance_after=chip_acc.base_balance,
             type='redeem',
             chip_type='base',
-            description=f'基本チップ{amount}枚を換金'
+            description=f'チップ{amount}枚を換金'
         )
         db.add(tx)
         db.commit()

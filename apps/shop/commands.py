@@ -17,28 +17,13 @@ def handle_shop_command(user_id: str, db):
 def handle_chip_balance_command(user_id: str, db):
     """?チップ残高コマンド"""
     balance_info = get_chip_balance(user_id)
-    base_balance = balance_info.get('base_balance', 0)
-    bonus_balance = balance_info.get('bonus_balance', 0)
-    locked_base = balance_info.get('locked_base_balance', 0)
-    locked_bonus = balance_info.get('locked_bonus_balance', 0)
-    available_base = balance_info.get('available_base', 0)
-    available_bonus = balance_info.get('available_bonus', 0)
-
-    total_balance = base_balance + bonus_balance
-    total_locked = locked_base + locked_bonus
-    total_available = available_base + available_bonus
+    total_balance = balance_info.get('balance', 0)
+    total_locked = balance_info.get('locked', 0)
+    total_available = balance_info.get('available', 0)
 
     message = f"💰 チップ残高\n\n"
-    message += f"【基本チップ】\n"
-    message += f"  残高: {base_balance}枚\n"
-    message += f"  利用可: {available_base}枚\n"
-    if locked_base > 0:
-        message += f"  ロック中: {locked_base}枚\n"
-    message += f"\n【ボーナスチップ】\n"
-    message += f"  残高: {bonus_balance}枚\n"
-    message += f"  利用可: {available_bonus}枚\n"
-    if locked_bonus > 0:
-        message += f"  ロック中: {locked_bonus}枚\n"
+    message += f"  残高: {total_balance}枚\n"
+    message += f"  利用可: {total_available}枚\n"
     message += f"\n合計: {total_balance}枚"
     if total_locked > 0:
         message += f"（ロック中: {total_locked}枚）"
@@ -77,7 +62,7 @@ def handle_chip_redeem_command(user_id: str, text: str, db):
             text=f"✅ チップ換金完了\n\n"
                  f"換金枚数: {amount}枚\n"
                  f"振込額: ¥{result['amount_received']:,}\n"
-                 f"残りのチップ: {result['new_base_balance']}枚（基本チップ）\n\n"
+                 f"残りのチップ: {result['new_base_balance']}枚\n\n"
                  f"※登録済みの口座に振り込まれました"
         )
     else:
@@ -171,8 +156,7 @@ def handle_shop_postback(user_id: str, data: dict, db, message_text: Optional[st
                 return shop_flex.get_purchase_success_flex(
                     item_name=result['item_name'],
                     chips_received=result['chips_received'],
-                    new_base_balance=result['new_base_balance'],
-                    new_bonus_balance=result['new_bonus_balance']
+                    new_balance=result['new_base_balance']
                 )
             else:
                 error_message = result.get('error', result.get('message', '不明なエラー'))
@@ -326,21 +310,21 @@ def handle_chip_exchange_all(user_id: str, db) -> TextSendMessage:
     from apps.banking.chip_service import get_chip_balance as get_balance
     balance_info = get_balance(user_id)
     
-    # 基本チップのみを参照（ボーナスチップは換金不可）
-    base_balance = balance_info.get('available_base', 0)
+    # ボーナス廃止: 利用可能チップを全額換金
+    base_balance = balance_info.get('available', 0)
     
     if base_balance <= 0:
-        return TextSendMessage(text="❌ 換金可能な基本チップがありません。\n（ボーナスチップは換金できません）")
+        return TextSendMessage(text="❌ 換金可能なチップがありません。")
     
     # 全額換金実行
     result = redeem_chips(user_id, base_balance)
     
     if result['success']:
         return TextSendMessage(
-            text=f"✅ 基本チップ全額換金完了\n\n"
+            text=f"✅ チップ全額換金完了\n\n"
                  f"換金枚数: {base_balance}枚\n"
                  f"振込額: ¥{int(base_balance * 12):,}\n"
-                 f"残りの基本チップ: {result['new_base_balance']}枚\n\n"
+                 f"残りのチップ: {result['new_base_balance']}枚\n\n"
                  f"※登録済みの口座に振り込まれました"
         )
     else:

@@ -241,10 +241,10 @@ class MinigameChip(Base):
     """minigame_chips テーブルの ORM 定義
 
     ミニゲーム用チップ残高を管理
-    - base_balance: 基本チップ（換金可能、転送可能）
-    - bonus_balance: ボーナスチップ（換金不可、転送不可）
-    - locked_base_balance: ロック中の基本チップ（ゲーム中）
-    - locked_bonus_balance: ロック中のボーナスチップ（ゲーム中）
+    - base_balance: チップ残高（ボーナスチップ廃止により単一）
+    - locked_base_balance: ロック中チップ（ゲーム中）
+
+    ※互換性のため bonus_balance / locked_bonus_balance カラムは残すが、アプリ側では常に0に寄せる。
     """
     __tablename__ = 'minigame_chips'
 
@@ -262,7 +262,7 @@ class MinigameChip(Base):
     updated_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
 
     def __repr__(self):
-        return f"<MinigameChip(chip_id={self.chip_id}, user_id={self.user_id}, base={self.base_balance}, bonus={self.bonus_balance})>"
+        return f"<MinigameChip(chip_id={self.chip_id}, user_id={self.user_id}, base={self.base_balance})>"
 
 
 class ChipTransaction(Base):

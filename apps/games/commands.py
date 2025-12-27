@@ -355,10 +355,10 @@ def handle_confirm_bet(event, user_id, data: Dict):
             )
             return
 
-        # ロック結果から基本/ボーナスの詳細を取得
+        # ロック結果から詳細を取得（ボーナスチップ廃止: locked_bonusは常に0）
         lock_info = lock_result.get('completed', [{}])[0]
         locked_base = lock_info.get('locked_base', bet_amount)
-        locked_bonus = lock_info.get('locked_bonus', 0)
+        locked_bonus = 0
 
         # ブラックジャックゲーム開始
         deck = blackjack_game.create_deck()
@@ -390,21 +390,20 @@ def handle_confirm_bet(event, user_id, data: Dict):
             # ディーラーもブラックジャックかチェック
             result = blackjack_game.calculate_winner(player_hand, dealer_hand, bet_amount, False)
 
-            # チップ配分（新フォーマット）
+            # チップ精算（payoutはベット返却を含む総払戻）
             payout = result['payout']
-            profit = max(0, payout - bet_amount)  # 利益分のみ
-            
-            print(f"[Blackjack Initial BJ] user={user_id}, bet_amount={bet_amount}, payout={payout}, profit={profit}")
-            print(f"[Blackjack Initial BJ] Locked chips: locked_base={locked_base}, locked_bonus={locked_bonus}")
-            
+
+            print(f"[Blackjack Initial BJ] user={user_id}, bet_amount={bet_amount}, payout={payout}")
+            print(f"[Blackjack Initial BJ] Locked chips: locked_base={locked_base}")
+
             distribute_result = distribute_chips({
                 user_id: {
                     'locked_base': locked_base,
                     'locked_bonus': locked_bonus,
-                    'payout': profit
+                    'payout': payout
                 }
             }, game_session_id)
-            
+
             print(f"[Blackjack Initial BJ] Distribute result: {distribute_result}")
 
             # 新しい残高
@@ -533,7 +532,7 @@ def handle_blackjack_action(event, user_id, action: str):
             # 追加ロック情報を取得
             additional_lock_info = additional_lock_result.get('completed', [{}])[0]
             additional_locked_base = additional_lock_info.get('locked_base', bet_amount)
-            additional_locked_bonus = additional_lock_info.get('locked_bonus', 0)
+            additional_locked_bonus = 0
 
             # ベット額を2倍に
             new_bet_amount = bet_amount * 2
@@ -543,15 +542,15 @@ def handle_blackjack_action(event, user_id, action: str):
 
             # セッション更新（ロック額の累積）
             current_locked_base = session.get('locked_base', bet_amount)
-            current_locked_bonus = session.get('locked_bonus', 0)
-            
+            current_locked_bonus = 0
+
             individual_game_manager.update_session(user_id, {
                 'player_hand': player_hand,
                 'deck': deck,
                 'bet_amount': new_bet_amount,
                 'locked_chips': new_bet_amount,
                 'locked_base': current_locked_base + additional_locked_base,
-                'locked_bonus': current_locked_bonus + additional_locked_bonus,
+                'locked_bonus': 0,
                 'is_doubled': True
             })
 
@@ -590,10 +589,10 @@ def _finish_blackjack_game(event, user_id: str, session: Dict, is_doubled: bool 
         deck = session['deck']
         bet_amount = session['bet_amount']
         game_session_id = session['game_session_id']
-        
-        # ロック情報を取得（基本/ボーナス）
-        locked_base = session.get('locked_base')
-        locked_bonus = session.get('locked_bonus')
+
+        # ロック情報を取得（ボーナス廃止）
+        locked_base = session.get('locked_base', bet_amount)
+        locked_bonus = 0
 
         # ディーラーのプレイ（プレイヤーがバーストしていない場合）
         if not blackjack_game.is_bust(player_hand):
@@ -605,23 +604,22 @@ def _finish_blackjack_game(event, user_id: str, session: Dict, is_doubled: bool 
             is_doubled or session.get('is_doubled', False)
         )
 
-        # チップ配分：収支額（純利益）のみ基本チップに変換
+        # チップ精算（payoutはベット返却を含む総払戻）
         payout = result['payout']
-        profit = max(0, payout - bet_amount)  # 利益分のみを基本チップに変換
-        
-        print(f"[Blackjack] Game settle: user={user_id}, bet_amount={bet_amount}, payout={payout}, profit={profit}")
-        print(f"[Blackjack] Locked chips: locked_base={locked_base}, locked_bonus={locked_bonus}")
-        
+
+        print(f"[Blackjack] Game settle: user={user_id}, bet_amount={bet_amount}, payout={payout}")
+        print(f"[Blackjack] Locked chips: locked_base={locked_base}")
+
         distribute_result = distribute_chips({
             user_id: {
                 'locked_base': locked_base,
                 'locked_bonus': locked_bonus,
-                'payout': profit  # 利益分だけを付与
+                'payout': payout
             }
         }, game_session_id)
-        
+
         print(f"[Blackjack] Distribute result: {distribute_result}")
-        
+
         if not distribute_result.get('success'):
             print(f"[Blackjack] ERROR: distribute_chips failed: {distribute_result.get('error')}")
 

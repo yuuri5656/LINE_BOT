@@ -1170,14 +1170,13 @@ def finish_game_session(group_id: str, line_bot_api):
         total_players = len(session.eliminated_players) + 1  # 脱落者 + 勝者
         prize_info = calculate_winner_takes_all(total_players, session.min_balance)
 
-        # チップ分配：収支額（純利益）のみ基本チップに変換
+        # チップ分配：payout はベット返却を含む総払戻
         distributions = {}
 
-        # 勝者に賞金：利益分のみを基本チップに変換
-        profit = prize_info['prize'] - session.min_balance  # 総賞金 - ベット額 = 利益
+        # 勝者に総賞金（ベット返却を含む総払戻として扱う）
         distributions[winner.user_id] = {
             'locked': session.min_balance,
-            'payout': max(0, profit)  # 利益分のみを付与
+            'payout': int(prize_info['prize'])
         }
 
         # 敗者は0

@@ -276,7 +276,7 @@ def calculate_winner(player_hand: List[Dict], dealer_hand: List[Dict],
         # ブラックジャックは純利益が1.5倍（ベットの150%）、
         # 総返却額は元のベット + 1.5倍 = 2.5倍
         result['payout'] = int(bet_amount * 2.5)
-        result['message'] = 'ブラックジャック！2.5倍配当'
+        result['message'] = 'ブラックジャック！1.5倍配当'
         return result
 
     # ディーラーブラックジャック
