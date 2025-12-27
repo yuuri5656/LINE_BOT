@@ -27,7 +27,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
     # Postbackイベントで詳細ヘルプを返す
     if hasattr(event, 'postback') and event.postback and hasattr(event.postback, 'data'):
         data = event.postback.data
-        
+
         # リッチメニューページ切り替え
         if data.startswith("action=richmenu_page"):
             import urllib.parse
@@ -35,7 +35,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
             page = parsed_data.get("page", "1-1")  # 例: "1-1", "2-2"
             menu_manager.switch_user_menu(user_id, page)
             return
-        
+
         # リッチメニューからの各種アクション
         # 口座開設
         elif data == "action=account_create":
@@ -152,7 +152,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
                 if resp:
                     line_bot_api.reply_message(event.reply_token, resp)
                 return
-        
+
         # 既存のヘルプ詳細 (action=プレフィックス対応)
         if data == "action=help_detail_account" or data == "help_detail_account":
             line_bot_api.reply_message(event.reply_token, get_detail_account_flex())
@@ -526,7 +526,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
     # === 管理者コマンド ===
     if text.startswith("?ユーザー口座 "):
         if not prison_commands.is_admin(user_id):
-            line_bot_api.reply_message(event.reply_token, 
+            line_bot_api.reply_message(event.reply_token,
                 TextSendMessage(text="❌ このコマンドは管理者のみ実行可能です"))
             return
         target_user_id = text.replace("?ユーザー口座 ", "").strip()
@@ -535,7 +535,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
 
     if text.startswith("?口座番号 "):
         if not prison_commands.is_admin(user_id):
-            line_bot_api.reply_message(event.reply_token, 
+            line_bot_api.reply_message(event.reply_token,
                 TextSendMessage(text="❌ このコマンドは管理者のみ実行可能です"))
             return
         account_number = text.replace("?口座番号 ", "").strip()
@@ -544,13 +544,13 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
 
     if text.startswith("?懲役 "):
         if not prison_commands.is_admin(user_id):
-            line_bot_api.reply_message(event.reply_token, 
+            line_bot_api.reply_message(event.reply_token,
                 TextSendMessage(text="❌ このコマンドは管理者のみ実行可能です"))
             return
         # パース: "?懲役 [user_id] [start_date] [days] [quota]"
         params = text.replace("?懲役 ", "").split()
         if len(params) < 4:
-            line_bot_api.reply_message(event.reply_token, 
+            line_bot_api.reply_message(event.reply_token,
                 TextSendMessage(text="❌ 形式: ?懲役 [user_id] [施行日(YYYY-MM-DD)] [日数] [ノルマ]"))
             return
         prison_commands.handle_admin_sentence(event, user_id, params[0], params[1], int(params[2]), int(params[3]))
@@ -558,7 +558,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
 
     if text.startswith("?凍結 "):
         if not prison_commands.is_admin(user_id):
-            line_bot_api.reply_message(event.reply_token, 
+            line_bot_api.reply_message(event.reply_token,
                 TextSendMessage(text="❌ このコマンドは管理者のみ実行可能です"))
             return
         account_number = text.replace("?凍結 ", "").strip()
@@ -567,7 +567,7 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
 
     if text.startswith("?釈放 "):
         if not prison_commands.is_admin(user_id):
-            line_bot_api.reply_message(event.reply_token, 
+            line_bot_api.reply_message(event.reply_token,
                 TextSendMessage(text="❌ このコマンドは管理者のみ実行可能です"))
             return
         target_user_id = text.replace("?釈放 ", "").strip()
