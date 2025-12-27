@@ -141,7 +141,7 @@ def handle_passbook_by_account_ids(event, account_ids: list):
                     'status': account.status,
                     'branch_code': account.branch.code if account.branch else None,
                     'branch_name': account.branch.name if account.branch else None,
-                    'customer_name': account.customer.name if account.customer else None,
+                    'customer_name': account.customer.full_name if account.customer else None,
                 }
                 accounts_data.append(acc_dict)
 
