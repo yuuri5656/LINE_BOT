@@ -24,16 +24,16 @@ def get_page1_1_template():
              "action": {"type": "postback", "data": "action=help_detail_account"}},
             # ページ1-1へ遷移（無視）
             {"bounds": {"x": 50, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page1-1", "data": "action=richmenu_switched&page=1-1"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page1-1", "data": "action=richmenu_switched&page=1-1"}},
             # ページ1-2へ遷移
             {"bounds": {"x": 760, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page1-2", "data": "action=richmenu_switched&page=1-2"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page1-2", "data": "action=richmenu_switched&page=1-2"}},
             # ページ1-3へ遷移
             {"bounds": {"x": 1470, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page1-3", "data": "action=richmenu_switched&page=1-3"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page1-3", "data": "action=richmenu_switched&page=1-3"}},
             # ページ2-1へ遷移
             {"bounds": {"x": 2180, "y": 190, "width": 270, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page2-1", "data": "action=richmenu_switched&page=2-1"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page2-1", "data": "action=richmenu_switched&page=2-1"}},
             # 口座開設
             {"bounds": {"x": 168, "y": 563, "width": 2160, "height": 295},
              "action": {"type": "postback", "data": "action=account_create"}},
@@ -60,16 +60,16 @@ def get_page1_2_template():
              "action": {"type": "postback", "data": "action=help_detail_shop"}},
             # ページ1-1へ遷移
             {"bounds": {"x": 50, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page1-1", "data": "action=richmenu_switched&page=1-1"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page1-1", "data": "action=richmenu_switched&page=1-1"}},
             # ページ1-2へ遷移（無視）
             {"bounds": {"x": 760, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page1-2", "data": "action=richmenu_switched&page=1-2"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page1-2", "data": "action=richmenu_switched&page=1-2"}},
             # ページ1-3へ遷移
             {"bounds": {"x": 1470, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page1-3", "data": "action=richmenu_switched&page=1-3"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page1-3", "data": "action=richmenu_switched&page=1-3"}},
             # ページ2-1へ遷移
             {"bounds": {"x": 2180, "y": 190, "width": 270, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page2-1", "data": "action=richmenu_switched&page=2-1"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page2-1", "data": "action=richmenu_switched&page=2-1"}},
             # ショップ
             {"bounds": {"x": 168, "y": 563, "width": 2160, "height": 295},
              "action": {"type": "postback", "data": "action=shop_home"}},
@@ -96,16 +96,16 @@ def get_page1_3_template():
              "action": {"type": "postback", "data": "action=help_detail_stock"}},
             # ページ1-1へ遷移
             {"bounds": {"x": 50, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page1-1", "data": "action=richmenu_switched&page=1-1"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page1-1", "data": "action=richmenu_switched&page=1-1"}},
             # ページ1-2へ遷移
             {"bounds": {"x": 760, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page1-2", "data": "action=richmenu_switched&page=1-2"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page1-2", "data": "action=richmenu_switched&page=1-2"}},
             # ページ1-3へ遷移（無視）
             {"bounds": {"x": 1470, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page1-3", "data": "action=richmenu_switched&page=1-3"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page1-3", "data": "action=richmenu_switched&page=1-3"}},
             # ページ2-1へ遷移
             {"bounds": {"x": 2180, "y": 190, "width": 270, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page2-1", "data": "action=richmenu_switched&page=2-1"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page2-1", "data": "action=richmenu_switched&page=2-1"}},
             # 株式ダッシュボード
             {"bounds": {"x": 115, "y": 624, "width": 1100, "height": 400},
              "action": {"type": "postback", "data": "action=stock_home"}},
@@ -135,16 +135,16 @@ def get_page2_1_template():
              "action": {"type": "postback", "data": "action=help_detail_game"}},
             # ページ1-3へ遷移（前ページへ）
             {"bounds": {"x": 50, "y": 190, "width": 270, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page1-3", "data": "action=richmenu_switched&page=1-3"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page1-3", "data": "action=richmenu_switched&page=1-3"}},
             # ページ2-1へ遷移（無視）
             {"bounds": {"x": 350, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page2-1", "data": "action=richmenu_switched&page=2-1"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page2-1", "data": "action=richmenu_switched&page=2-1"}},
             # ページ2-2へ遷移
             {"bounds": {"x": 1060, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page2-2", "data": "action=richmenu_switched&page=2-2"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page2-2", "data": "action=richmenu_switched&page=2-2"}},
             # ページ2-3へ遷移
             {"bounds": {"x": 1770, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page2-3", "data": "action=richmenu_switched&page=2-3"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page2-3", "data": "action=richmenu_switched&page=2-3"}},
             # ゲームメニュー
             {"bounds": {"x": 168, "y": 563, "width": 2160, "height": 295},
              "action": {"type": "postback", "data": "action=game_home"}},
@@ -171,16 +171,16 @@ def get_page2_2_template():
              "action": {"type": "postback", "data": "action=help_detail_utility"}},
             # ページ1-3へ遷移（前ページへ）
             {"bounds": {"x": 50, "y": 190, "width": 270, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page1-3", "data": "action=richmenu_switched&page=1-3"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page1-3", "data": "action=richmenu_switched&page=1-3"}},
             # ページ2-1へ遷移
             {"bounds": {"x": 350, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page2-1", "data": "action=richmenu_switched&page=2-1"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page2-1", "data": "action=richmenu_switched&page=2-1"}},
             # ページ2-2へ遷移（無視）
             {"bounds": {"x": 1060, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page2-2", "data": "action=richmenu_switched&page=2-2"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page2-2", "data": "action=richmenu_switched&page=2-2"}},
             # ページ2-3へ遷移
             {"bounds": {"x": 1770, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page2-3", "data": "action=richmenu_switched&page=2-3"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page2-3", "data": "action=richmenu_switched&page=2-3"}},
             # おみくじ
             {"bounds": {"x": 168, "y": 563, "width": 2160, "height": 295},
              "action": {"type": "postback", "data": "action=omikuji"}},
@@ -207,16 +207,16 @@ def get_page2_3_template():
              "action": {"type": "postback", "data": "action=help_home"}},
             # ページ1-3へ遷移（前ページへ）
             {"bounds": {"x": 50, "y": 190, "width": 270, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page1-3", "data": "action=richmenu_switched&page=1-3"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page1-3", "data": "action=richmenu_switched&page=1-3"}},
             # ページ2-1へ遷移
             {"bounds": {"x": 350, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page2-1", "data": "action=richmenu_switched&page=2-1"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page2-1", "data": "action=richmenu_switched&page=2-1"}},
             # ページ2-2へ遷移
             {"bounds": {"x": 1060, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page2-2", "data": "action=richmenu_switched&page=2-2"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page2-2", "data": "action=richmenu_switched&page=2-2"}},
             # ページ2-3へ遷移（無視）
             {"bounds": {"x": 1770, "y": 190, "width": 680, "height": 230},
-             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm.page2-3", "data": "action=richmenu_switched&page=2-3"}},
+             "action": {"type": "richmenuswitch", "richMenuAliasId": "rm_page2-3", "data": "action=richmenu_switched&page=2-3"}},
             # ヘルプ
             {"bounds": {"x": 168, "y": 563, "width": 2160, "height": 295},
              "action": {"type": "postback", "data": "action=help_home"}},

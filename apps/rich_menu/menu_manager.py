@@ -29,12 +29,13 @@ RICHMENU_IDS = {
 
 # richMenuAliasId（固定）: richmenuswitch が参照する
 RICHMENU_ALIASES = {
-    "page1-1": "rm.page1-1",
-    "page1-2": "rm.page1-2",
-    "page1-3": "rm.page1-3",
-    "page2-1": "rm.page2-1",
-    "page2-2": "rm.page2-2",
-    "page2-3": "rm.page2-3",
+    # NOTE: richMenuAliasId はドット不可。英小文字/数字/ハイフン/アンダースコアで構成する。
+    "page1-1": "rm_page1-1",
+    "page1-2": "rm_page1-2",
+    "page1-3": "rm_page1-3",
+    "page2-1": "rm_page2-1",
+    "page2-2": "rm_page2-2",
+    "page2-3": "rm_page2-3",
 }
 
 
