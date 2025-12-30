@@ -28,6 +28,11 @@ def auto_reply(event, text, user_id, group_id, display_name, sessions):
     if hasattr(event, 'postback') and event.postback and hasattr(event.postback, 'data'):
         data = event.postback.data
 
+        # richmenuswitch のpostback（切替自体はLINE側で即時に完了）
+        # 余計な処理や通知を走らせないため、ここで終了する。
+        if data.startswith("action=richmenu_switched"):
+            return
+
         # リッチメニューページ切り替え
         if data.startswith("action=richmenu_page"):
             import urllib.parse

@@ -7,8 +7,11 @@ import os
 from linebot import LineBotApi
 from linebot.models import RichMenu, RichMenuSize, RichMenuArea, RichMenuBounds
 from linebot.models.actions import PostbackAction
+from linebot.models.actions import RichMenuSwitchAction
 from config import LINE_CHANNEL_ACCESS_TOKEN
 from .menu_templates import get_all_templates
+
+import requests
 
 
 # LINE Bot API初期化
@@ -23,6 +26,70 @@ RICHMENU_IDS = {
     "page2-2": None,
     "page2-3": None
 }
+
+# richMenuAliasId（固定）: richmenuswitch が参照する
+RICHMENU_ALIASES = {
+    "page1-1": "rm.page1-1",
+    "page1-2": "rm.page1-2",
+    "page1-3": "rm.page1-3",
+    "page2-1": "rm.page2-1",
+    "page2-2": "rm.page2-2",
+    "page2-3": "rm.page2-3",
+}
+
+
+def _line_api_headers() -> dict:
+    return {
+        "Authorization": f"Bearer {LINE_CHANNEL_ACCESS_TOKEN}",
+        "Content-Type": "application/json",
+    }
+
+
+def ensure_rich_menu_alias(alias_id: str, rich_menu_id: str) -> bool:
+    """rich menu alias を作成（既にあれば更新）する。
+
+    line-bot-sdk には alias API が無いので、Messaging API を直接呼ぶ。
+    """
+    if not alias_id or not rich_menu_id:
+        return False
+
+    base = "https://api.line.me/v2/bot/richmenu/alias"
+    timeout_seconds = 8
+
+    # まず作成を試行（存在する場合は更新へフォールバック）
+    try:
+        resp = requests.post(
+            base,
+            headers=_line_api_headers(),
+            json={"richMenuAliasId": alias_id, "richMenuId": rich_menu_id},
+            timeout=timeout_seconds,
+        )
+        if resp.status_code in (200, 201):
+            print(f"[リッチメニュー] alias作成: {alias_id} -> {rich_menu_id}")
+            return True
+
+        # 既存aliasの可能性（409 / 400）
+        if resp.status_code not in (400, 409):
+            print(f"[リッチメニュー] alias作成失敗: {resp.status_code} - {resp.text}")
+    except Exception as e:
+        print(f"[リッチメニュー] alias作成例外: {e}")
+
+    # 更新（aliasが既に存在する前提）
+    try:
+        resp = requests.post(
+            f"{base}/{alias_id}",
+            headers=_line_api_headers(),
+            json={"richMenuId": rich_menu_id},
+            timeout=timeout_seconds,
+        )
+        if resp.status_code in (200, 201):
+            print(f"[リッチメニュー] alias更新: {alias_id} -> {rich_menu_id}")
+            return True
+        print(f"[リッチメニュー] alias更新失敗: {resp.status_code} - {resp.text}")
+        return False
+    except Exception as e:
+        print(f"[リッチメニュー] alias更新例外: {e}")
+        return False
 
 
 def create_rich_menu(template: dict, image_path: str) -> str:
@@ -45,11 +112,21 @@ def create_rich_menu(template: dict, image_path: str) -> str:
             width=area_def["bounds"]["width"],
             height=area_def["bounds"]["height"]
         )
-        # displayTextがある場合のみ設定（メッセージ送信を防ぐ）
-        action_params = {"data": area_def["action"]["data"]}
-        if "displayText" in area_def["action"] and area_def["action"]["displayText"]:
-            action_params["display_text"] = area_def["action"]["displayText"]
-        action = PostbackAction(**action_params)
+        action_def = area_def["action"]
+        action_type = action_def.get("type")
+
+        if action_type == "richmenuswitch":
+            # LINE側でのメニュー切替。必要ならdataでpostbackを飛ばせる。
+            alias_id = action_def.get("richMenuAliasId")
+            data = action_def.get("data")
+            action = RichMenuSwitchAction(rich_menu_alias_id=alias_id, data=data)
+        else:
+            # displayTextがある場合のみ設定（メッセージ送信を防ぐ）
+            action_params = {"data": action_def["data"]}
+            if "displayText" in action_def and action_def["displayText"]:
+                action_params["display_text"] = action_def["displayText"]
+            action = PostbackAction(**action_params)
+
         areas.append(RichMenuArea(bounds=bounds, action=action))
     
     rich_menu = RichMenu(
@@ -110,6 +187,12 @@ def create_rich_menus(image_dir: str = "apps/rich_menu/images") -> dict:
         image_path = os.path.join(image_dir, image_filename)
         menu_id = create_rich_menu(templates[page_key], image_path)
         RICHMENU_IDS[page_key] = menu_id
+
+        # richmenuswitch 用 alias を作成/更新
+        if menu_id:
+            alias_id = RICHMENU_ALIASES.get(page_key)
+            if alias_id:
+                ensure_rich_menu_alias(alias_id=alias_id, rich_menu_id=menu_id)
         
         if menu_id:
             created_count += 1
