@@ -12,6 +12,15 @@ from apps.utilities.timezone_utils import now_jst, format_jst
 from apps.tax.tax_service import _as_decimal
 
 
+def _tax_status_ja(status: Any) -> str:
+    s = str(status) if status is not None else ''
+    mapping = {
+        'assessed': '未納',
+        'paid': '納付済み',
+    }
+    return mapping.get(s, s or '-')
+
+
 def _find_account_by_branch_and_number(db, branch_code: str, account_number: str, user_id: str) -> Optional[Account]:
     branch = db.execute(select(Branch).where(Branch.code == str(branch_code))).scalars().first()
     if not branch:
@@ -100,7 +109,7 @@ def handle_tax_command(user_id: str, text: str) -> TextSendMessage:
                 "【納税】\n"
                 f"納税口座: {acct_text}\n"
                 f"税額: ¥{int(tax_amount):,}\n"
-                f"状態: {status}\n"
+                f"状態: {_tax_status_ja(status)}\n"
                 f"納付期限: {format_jst(a.payment_window_end_at, '%m/%d %H:%M')}\n"
             )
             if status != 'paid' and tax_amount > 0:

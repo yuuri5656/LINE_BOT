@@ -382,20 +382,37 @@ def assess_weekly_taxes_and_autopay(run_at: Optional[datetime] = None) -> Dict[s
                     print(f"[TaxService] autopay failed user={a.user_id} err={e}")
                     continue
 
-                with db2.begin():
-                    payment = TaxPayment(
-                        assessment_id=a.assessment_id,
-                        bank_transaction_id=tx.get('transaction_id'),
-                        amount=_as_decimal(a.tax_amount),
-                    )
-                    db2.add(payment)
-                    a.status = 'paid'
-                    a.paid_at = run_at
-                    db2.add(a)
-                    auto_paid += 1
+                # transfer_funds が成功したら、別セッションで確実に納付記録と状態更新をコミットする。
+                dbw = SessionLocal()
+                try:
+                    with dbw.begin():
+                        assessment = dbw.execute(
+                            select(TaxAssessment).where(TaxAssessment.assessment_id == a.assessment_id)
+                        ).scalars().first()
+                        if not assessment:
+                            continue
+                        if assessment.status == 'paid':
+                            continue
 
-                    from apps.collections.collections_service import mark_case_resolved_if_exists
-                    mark_case_resolved_if_exists(db2, case_type='tax', reference_id=a.assessment_id, note='auto_paid')
+                        payment = TaxPayment(
+                            assessment_id=assessment.assessment_id,
+                            bank_transaction_id=tx.get('transaction_id') if isinstance(tx, dict) else None,
+                            amount=_as_decimal(assessment.tax_amount),
+                        )
+                        dbw.add(payment)
+                        assessment.status = 'paid'
+                        assessment.paid_at = run_at
+                        dbw.add(assessment)
+
+                        try:
+                            from apps.collections.collections_service import mark_case_resolved_if_exists
+                            mark_case_resolved_if_exists(dbw, case_type='tax', reference_id=assessment.assessment_id, note='auto_paid')
+                        except Exception as e:
+                            print(f"[TaxService] mark_case_resolved_if_exists failed assessment_id={assessment.assessment_id} err={e}")
+
+                    auto_paid += 1
+                finally:
+                    dbw.close()
 
         finally:
             db2.close()
@@ -502,10 +519,10 @@ def pay_latest_unpaid_tax(user_id: str) -> Dict[str, Any]:
 
         amount = _as_decimal(assessment.tax_amount)
         if amount <= 0:
-            with db.begin():
-                assessment.status = 'paid'
-                assessment.paid_at = now_jst()
-                db.add(assessment)
+            assessment.status = 'paid'
+            assessment.paid_at = now_jst()
+            db.add(assessment)
+            db.commit()
             return {'success': True, 'amount': '0'}
 
         from apps.banking.bank_service import transfer_funds
@@ -521,7 +538,7 @@ def pay_latest_unpaid_tax(user_id: str) -> Dict[str, Any]:
         except Exception as e:
             return {'success': False, 'message': f'振込に失敗しました: {e}'}
 
-        with db.begin():
+        try:
             payment = TaxPayment(
                 assessment_id=assessment.assessment_id,
                 bank_transaction_id=tx.get('transaction_id') if isinstance(tx, dict) else None,
@@ -532,8 +549,16 @@ def pay_latest_unpaid_tax(user_id: str) -> Dict[str, Any]:
             assessment.paid_at = now_jst()
             db.add(assessment)
 
-            from apps.collections.collections_service import mark_case_resolved_if_exists
-            mark_case_resolved_if_exists(db, case_type='tax', reference_id=assessment.assessment_id, note='manual_paid')
+            try:
+                from apps.collections.collections_service import mark_case_resolved_if_exists
+                mark_case_resolved_if_exists(db, case_type='tax', reference_id=assessment.assessment_id, note='manual_paid')
+            except Exception as e:
+                print(f"[TaxService] mark_case_resolved_if_exists failed assessment_id={assessment.assessment_id} err={e}")
+
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            return {'success': False, 'message': f'納付は実行されましたが、記録更新に失敗しました: {e}'}
 
         return {'success': True, 'amount': str(amount), 'transaction_id': tx.get('transaction_id') if isinstance(tx, dict) else None}
     finally:

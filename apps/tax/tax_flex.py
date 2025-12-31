@@ -13,6 +13,15 @@ def _yen(v) -> str:
         return "-"
 
 
+def _tax_status_ja(status: Any) -> str:
+    s = str(status) if status is not None else ''
+    mapping = {
+        'assessed': '未納',
+        'paid': '納付済み',
+    }
+    return mapping.get(s, s or '-')
+
+
 def build_tax_dashboard_flex(
     *,
     tax_account_text: str,
@@ -30,7 +39,7 @@ def build_tax_dashboard_flex(
     else:
         status_lines = [
             {"type": "text", "text": f"税額: {_yen(latest.get('tax_amount'))}", "size": "sm"},
-            {"type": "text", "text": f"状態: {latest.get('status')}", "size": "sm"},
+            {"type": "text", "text": f"状態: {_tax_status_ja(latest.get('status'))}", "size": "sm"},
             {"type": "text", "text": f"納付期限: {latest.get('due_text')}", "size": "sm"},
         ]
 
@@ -106,7 +115,7 @@ def build_tax_history_flex(items: List[Dict]) -> FlexSendMessage:
             contents.extend(
                 [
                     {"type": "text", "text": f"{it.get('period')}  {_yen(it.get('tax_amount'))}", "size": "sm"},
-                    {"type": "text", "text": f"状態: {it.get('status')}", "size": "xs", "color": "#666666"},
+                    {"type": "text", "text": f"状態: {_tax_status_ja(it.get('status'))}", "size": "xs", "color": "#666666"},
                 ]
             )
 
