@@ -66,6 +66,21 @@ class StockAPI:
         return stock_service.sell_stock(user_id, symbol_code, quantity)
 
     @staticmethod
+    def sell_short(user_id: str, symbol_code: str, quantity: int) -> Tuple[bool, str, Optional[Dict]]:
+        """株式を空売り"""
+        return stock_service.sell_short(user_id, symbol_code, quantity)
+
+    @staticmethod
+    def buy_to_cover(user_id: str, symbol_code: str, quantity: int) -> Tuple[bool, str, Optional[Dict]]:
+        """空売りを買い戻し"""
+        return stock_service.buy_to_cover(user_id, symbol_code, quantity)
+
+    @staticmethod
+    def get_short_positions(user_id: str) -> List[Dict]:
+        """空売り建玉を取得"""
+        return stock_service.get_short_positions(user_id)
+
+    @staticmethod
     def get_transaction_history(user_id: str, limit: int = 20) -> List[Dict]:
         """取引履歴を取得"""
         return stock_service.get_transaction_history(user_id, limit)
@@ -86,6 +101,11 @@ class StockAPI:
     def pay_dividends():
         """配当金を支払い（バックグラウンド用）"""
         price_service.pay_dividends()
+
+    @staticmethod
+    def accrue_short_interest():
+        """空売り貸株料計算（バックグラウンド用）"""
+        price_service.accrue_short_interest()
 
     @staticmethod
     def get_price_history(symbol_code: str, limit: int = 100) -> List[Dict]:

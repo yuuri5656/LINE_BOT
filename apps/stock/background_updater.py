@@ -108,6 +108,15 @@ class StockBackgroundUpdater:
                         # エラーでも今日の処理は完了扱いにする
                         self.last_dividend_date = current_date
 
+                    # 貸株料計算も同時に実行
+                    try:
+                        print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] 貸株料計算開始")
+                        stock_api.accrue_short_interest()
+                    except Exception as fee_error:
+                        import traceback
+                        print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] 貸株料計算エラー: {fee_error}")
+                        print(f"エラー詳細:\n{traceback.format_exc()}")
+
                 # 次のチェックまで待機
                 time.sleep(check_interval)
 

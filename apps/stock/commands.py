@@ -92,8 +92,12 @@ def handle_stock_detail(event, symbol_code: str, user_id: str):
     holdings = stock_api.get_user_holdings(user_id)
     has_holding = any(h['symbol_code'] == symbol_code for h in holdings)
 
+    # 空売りチェック
+    shorts = stock_api.get_short_positions(user_id)
+    has_short = any(s['symbol_code'] == symbol_code for s in shorts)
+
     # 詳細FlexMessage
-    detail_flex = stock_flex.get_stock_detail_flex(stock, has_holding)
+    detail_flex = stock_flex.get_stock_detail_flex(stock, has_holding, has_short)
 
     # チャート画像生成（1週間分: 2016ポイント → 自動間引きで約400ポイントに削減）
     chart_url = stock_api.generate_stock_chart(symbol_code, days=2016)
@@ -127,6 +131,26 @@ def handle_my_holdings(event, user_id: str):
 
     # 保有株カルーセル
     carousel = stock_flex.get_holdings_carousel(holdings)
+    line_bot_api.reply_message(event.reply_token, carousel)
+
+
+def handle_my_short_positions(event, user_id: str):
+    """空売り建玉一覧表示"""
+    # ローディングアニメーション表示
+    from core.api import show_loading_animation
+    show_loading_animation(user_id, loading_seconds=5)
+
+    shorts = stock_api.get_short_positions(user_id)
+
+    if not shorts or len(shorts) == 0:
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="現在、空売りポジションはありません。")
+        )
+        return
+
+    # 空売りカルーセル
+    carousel = stock_flex.get_short_positions_carousel(shorts)
     line_bot_api.reply_message(event.reply_token, carousel)
 
 
@@ -217,6 +241,69 @@ def handle_sell_stock_start(event, symbol_code: str, user_id: str):
     )
 
 
+def handle_sell_short_start(event, symbol_code: str, user_id: str):
+    """空売り開始"""
+    if event.source.type != 'user':
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="空売りは個別チャットでのみ可能です。")
+        )
+        return
+
+    from core.api import show_loading_animation
+    show_loading_animation(user_id, loading_seconds=5)
+
+    stock = stock_api.get_stock_by_code(symbol_code)
+    if not stock:
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="指定された銘柄が見つかりません。")
+        )
+        return
+
+    # セッション開始
+    stock_api.start_trade_session(user_id, 'short', symbol_code)
+
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=f"【空売り】\n{stock['name']} ({symbol_code})\n現在価格: ¥{stock['current_price']:,}\n\n空売りする株数を入力してください。")
+    )
+
+
+def handle_buy_to_cover_start(event, symbol_code: str, user_id: str):
+    """買い戻し開始"""
+    if event.source.type != 'user':
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="買い戻しは個別チャットでのみ可能です。")
+        )
+        return
+
+    from core.api import show_loading_animation
+    show_loading_animation(user_id, loading_seconds=5)
+
+    shorts = stock_api.get_short_positions(user_id)
+    # 合算
+    total_short_qty = sum(s['quantity'] for s in shorts if s['symbol_code'] == symbol_code)
+
+    if total_short_qty == 0:
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="この銘柄の空売りポジションを保有していません。")
+        )
+        return
+    
+    stock = stock_api.get_stock_by_code(symbol_code)
+
+    # セッション開始
+    stock_api.start_trade_session(user_id, 'cover', symbol_code)
+
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=f"【買い戻し】\n{stock['name']} ({symbol_code})\n空売り残高: {total_short_qty}株\n現在価格: ¥{stock['current_price']:,}\n\n返済する株数を入力してください。")
+    )
+
+
 def handle_trade_quantity_input(event, user_id: str, message_text: str):
     """株数入力処理"""
     session = stock_api.get_session(user_id)
@@ -277,8 +364,14 @@ def handle_confirm_trade(event, trade_type: str, symbol_code: str, quantity: int
 
     if trade_type == 'buy':
         success, message, result = stock_api.buy_stock(user_id, symbol_code, quantity)
-    else:
+    elif trade_type == 'sell':
         success, message, result = stock_api.sell_stock(user_id, symbol_code, quantity)
+    elif trade_type == 'short':
+        success, message, result = stock_api.sell_short(user_id, symbol_code, quantity)
+    elif trade_type == 'cover':
+        success, message, result = stock_api.buy_to_cover(user_id, symbol_code, quantity)
+    else:
+        success, message, result = False, "不明な取引タイプです", None
 
     # セッション終了
     stock_api.end_session(user_id)
@@ -334,6 +427,9 @@ def handle_stock_postback(event, data: dict, user_id: str):
     elif action == 'my_holdings':
         handle_my_holdings(event, user_id)
 
+    elif action == 'my_short_positions':
+        handle_my_short_positions(event, user_id)
+
     elif action == 'market_news':
         handle_market_news(event)
 
@@ -352,7 +448,17 @@ def handle_stock_postback(event, data: dict, user_id: str):
         if symbol:
             handle_sell_stock_start(event, symbol, user_id)
 
-    elif action == 'confirm_buy' or action == 'confirm_sell':
+    elif action == 'sell_short':
+        symbol = data.get('symbol')
+        if symbol:
+            handle_sell_short_start(event, symbol, user_id)
+
+    elif action == 'buy_to_cover':
+        symbol = data.get('symbol')
+        if symbol:
+            handle_buy_to_cover_start(event, symbol, user_id)
+
+    elif action == 'confirm_buy' or action == 'confirm_sell' or action == 'confirm_short' or action == 'confirm_cover':
         symbol = data.get('symbol')
         quantity = int(data.get('quantity', 0))
         trade_type = action.replace('confirm_', '')

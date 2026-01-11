@@ -19,6 +19,7 @@ from apps.stock.models import (
     StockEvent,
     DividendPayment,
     UserStockHolding,
+    UserStockShortPosition,
     StockAccount
 )
 from apps.banking.api import banking_api
@@ -227,69 +228,132 @@ class PriceService:
         try:
             quantity = decision['quantity']
             action = decision['action']
+            current_price = stock.current_price
+
+            holding = db.query(AITraderHolding).filter_by(
+                trader_id=trader.trader_id,
+                symbol_id=stock.symbol_id
+            ).first()
 
             if action == 'buy':
-                # 購入処理
-                cost = stock.current_price * quantity
+                # BUY: Long Entry or Short Cover
+                # Simplified: Spending Cash -> Acq Asset (or reducing liability)
+                # If Short (Qty < 0): Buying to cover.
+                # If Long (Qty >= 0): Buying more.
+                
+                cost = current_price * quantity
+                # Check cash for Long? 
+                # If Short, covering costs money.
+                # If we assume AI manages cash loosely:
                 if trader.cash >= cost:
                     trader.cash = Decimal(str(float(trader.cash) - cost))
 
-                    # 保有株更新
-                    holding = db.query(AITraderHolding).filter_by(
-                        trader_id=trader.trader_id,
-                        symbol_id=stock.symbol_id
-                    ).first()
-
                     if holding:
-                        new_total = float(holding.average_price) * holding.quantity + cost
-                        holding.quantity += quantity
-                        holding.average_price = Decimal(str(new_total / holding.quantity))
-                        holding.updated_at = now_jst()
+                        # Existing position (Long or Short)
+                        old_qty = holding.quantity
+                        new_qty = old_qty + quantity
+                        
+                        if old_qty > 0:
+                            # Averaging Long
+                            total_val = float(holding.average_price) * old_qty + cost
+                            holding.average_price = Decimal(str(total_val / new_qty))
+                            holding.quantity = new_qty
+                        elif old_qty < 0:
+                            # Covering Short
+                            # Logic: Close position partly. Average price of remaining short stays same?
+                            # Or we just accept weighted average if we flip to long?
+                            # Simplification: Just add quantities.
+                            # If flip from Short to Long, Price becomes current_price?
+                            if new_qty > 0:
+                                # Flipped to Long
+                                holding.average_price = Decimal(str(current_price))
+                            # else: Short reduced, avg price same.
+                            
+                            holding.quantity = new_qty
+                            if new_qty == 0:
+                                db.delete(holding)
+                        else:
+                            # 0? Should be deleted but if not
+                            holding.quantity = quantity
+                            holding.average_price = Decimal(str(current_price))
+                        
+                        if holding and holding.quantity != 0:
+                            holding.updated_at = now_jst()
+
                     else:
+                        # New Long
                         holding = AITraderHolding(
                             trader_id=trader.trader_id,
                             symbol_id=stock.symbol_id,
                             quantity=quantity,
-                            average_price=Decimal(str(stock.current_price))
+                            average_price=Decimal(str(current_price))
                         )
                         db.add(holding)
 
-                    # 取引履歴
+                    # Transaction Record
                     tx = AITraderTransaction(
                         trader_id=trader.trader_id,
                         symbol_id=stock.symbol_id,
                         trade_type='buy',
                         quantity=quantity,
-                        price=Decimal(str(stock.current_price))
+                        price=Decimal(str(current_price))
                     )
                     db.add(tx)
 
             elif action == 'sell':
-                # 売却処理
-                holding = db.query(AITraderHolding).filter_by(
-                    trader_id=trader.trader_id,
-                    symbol_id=stock.symbol_id
-                ).first()
+                # SELL: Long Exit or Short Entry
+                # Receiving Cash (Long Exit) or Getting Proceeds (Short Entry)
+                proceeds = current_price * quantity
+                trader.cash = Decimal(str(float(trader.cash) + proceeds))
 
-                if holding and holding.quantity >= quantity:
-                    proceeds = stock.current_price * quantity
-                    trader.cash = Decimal(str(float(trader.cash) + proceeds))
-
-                    if holding.quantity == quantity:
-                        db.delete(holding)
+                if holding:
+                    old_qty = holding.quantity
+                    new_qty = old_qty - quantity
+                    
+                    if old_qty > 0:
+                        # Selling Long
+                        if new_qty < 0:
+                            # Flipped to Short
+                            holding.average_price = Decimal(str(current_price))
+                        
+                        holding.quantity = new_qty
+                        if new_qty == 0:
+                            db.delete(holding)
                     else:
-                        holding.quantity -= quantity
+                        # Start/Add Short
+                        # Average Sell Price calculation?
+                        # If adding to short, weighted average.
+                        # Current Avg * Abs(Old) + Price * Qty / Abs(New)
+                        if old_qty == 0:
+                             holding.average_price = Decimal(str(current_price))
+                        else:
+                            total_val = float(holding.average_price) * abs(old_qty) + proceeds
+                            holding.average_price = Decimal(str(total_val / abs(new_qty)))
+                        
+                        holding.quantity = new_qty
+
+                    if holding and holding.quantity != 0:
                         holding.updated_at = now_jst()
 
-                    # 取引履歴
-                    tx = AITraderTransaction(
+                else:
+                    # New Short
+                    holding = AITraderHolding(
                         trader_id=trader.trader_id,
                         symbol_id=stock.symbol_id,
-                        trade_type='sell',
-                        quantity=quantity,
-                        price=Decimal(str(stock.current_price))
+                        quantity=-quantity, # Negative for Short
+                        average_price=Decimal(str(current_price))
                     )
-                    db.add(tx)
+                    db.add(holding)
+
+                # Transaction Record
+                tx = AITraderTransaction(
+                    trader_id=trader.trader_id,
+                    symbol_id=stock.symbol_id,
+                    trade_type='sell',
+                    quantity=quantity,
+                    price=Decimal(str(current_price))
+                )
+                db.add(tx)
 
         except Exception as e:
             print(f"AI取引実行エラー ({trader.name}): {e}")
@@ -411,6 +475,29 @@ class PriceService:
         finally:
             db.close()
             bank_db.close()
+
+    @staticmethod
+    def accrue_short_interest():
+        """空売りの貸株料を計算（1日1回）"""
+        db = SessionLocal()
+        try:
+            shorts = db.query(UserStockShortPosition).all()
+            for s in shorts:
+                stock = db.query(StockSymbol).filter_by(symbol_id=s.symbol_id).first()
+                if not stock:
+                    continue
+                
+                # 貸株料 = 数量 * 現在値 * レート
+                daily_fee = Decimal(str(s.quantity * stock.current_price)) * stock.lending_fee_rate
+                s.accrued_interest += daily_fee
+            
+            db.commit()
+            print(f"[貸株料] 計算完了 ({len(shorts)}ポジション)")
+        except Exception as e:
+            db.rollback()
+            print(f"[貸株料] エラー: {e}")
+        finally:
+            db.close()
 
     @staticmethod
     def get_price_history(symbol_code: str, limit: int = 100) -> List[Dict]:

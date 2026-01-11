@@ -50,6 +50,10 @@ class StockSymbol(Base):
     is_tradable = Column(Integer, server_default=text('true'))
     created_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
     updated_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    
+    # Short Selling Fields
+    short_interest = Column(Integer, server_default=text('0'), nullable=False)
+    lending_fee_rate = Column(Numeric(5, 4), server_default=text('0.0010'), nullable=False)  # Default 0.1% daily
 
     # リレーション
     price_history = relationship('StockPriceHistory', back_populates='symbol', cascade='all, delete-orphan')
@@ -59,6 +63,7 @@ class StockSymbol(Base):
     ai_transactions = relationship('AITraderTransaction', back_populates='symbol')
     events = relationship('StockEvent', back_populates='symbol', cascade='all, delete-orphan')
     dividends = relationship('DividendPayment', back_populates='symbol')
+    short_positions = relationship('UserStockShortPosition', back_populates='symbol')
 
     def __repr__(self):
         return f"<StockSymbol(symbol_id={self.symbol_id}, code={self.symbol_code}, name={self.name}, price={self.current_price})>"
@@ -102,11 +107,15 @@ class StockAccount(Base):
     registered_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
     last_traded_at = Column(DateTime, nullable=True)
     is_active = Column(Integer, server_default=text('true'))
+    
+    # Margin for Short Selling
+    margin_deposit = Column(Numeric(18, 2), server_default=text('0'), nullable=False)
 
     # リレーション（外部キーのみ、Accountクラスへの参照は避ける）
     holdings = relationship('UserStockHolding', back_populates='stock_account')
     transactions = relationship('StockTransaction', back_populates='stock_account')
     dividends = relationship('DividendPayment', back_populates='stock_account')
+    short_positions = relationship('UserStockShortPosition', back_populates='stock_account')
 
     def __repr__(self):
         return f"<StockAccount(stock_account_id={self.stock_account_id}, user_id={self.user_id}, cash_balance={self.cash_balance})>"
@@ -282,6 +291,32 @@ class DividendPayment(Base):
 
     def __repr__(self):
         return f"<DividendPayment(dividend_id={self.dividend_id}, user_id={self.user_id}, total_dividend={self.total_dividend})>"
+
+
+class UserStockShortPosition(Base):
+    """user_stock_short_positions テーブルの ORM 定義
+
+    ユーザー空売りポジション
+    """
+    __tablename__ = 'user_stock_short_positions'
+
+    short_id = Column(Integer, primary_key=True)
+    user_id = Column(String(255), nullable=False)
+    symbol_id = Column(Integer, ForeignKey('stock_symbols.symbol_id'), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    average_sell_price = Column(Numeric(18, 4), nullable=False)
+    total_proceeds = Column(Numeric(18, 2), nullable=False)
+    accrued_interest = Column(Numeric(18, 2), server_default=text('0'))
+    stock_account_id = Column(Integer, ForeignKey('stock_accounts.stock_account_id'), nullable=False)
+    created_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    updated_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+
+    # リレーション
+    symbol = relationship('StockSymbol', back_populates='short_positions')
+    stock_account = relationship('StockAccount', back_populates='short_positions')
+
+    def __repr__(self):
+        return f"<UserStockShortPosition(short_id={self.short_id}, user_id={self.user_id}, symbol_id={self.symbol_id}, quantity={self.quantity})>"
 
 
 # セッションファクトリ

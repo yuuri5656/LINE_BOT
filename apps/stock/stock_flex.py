@@ -142,6 +142,48 @@ def get_stock_dashboard(user_id: str, has_account: bool) -> FlexSendMessage:
     }
     bubbles.append(market_bubble)
 
+    # 4. 空売り情報
+    short_bubble = {
+        "type": "bubble",
+        "size": "kilo",
+        "hero": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": "📉", "size": "xxl", "align": "center", "color": "#FFFFFF"},
+                {"type": "text", "text": "空売り状況", "size": "lg", "align": "center", "weight": "bold", "color": "#FFFFFF", "margin": "md"}
+            ],
+            "backgroundColor": "#607D8B",
+            "paddingAll": "20px"
+        },
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": "現在保有している空売りポジションを確認できます", "wrap": True, "color": "#666666", "size": "sm"}
+            ],
+            "paddingAll": "20px"
+        },
+        "footer": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "button",
+                    "action": {
+                        "type": "postback",
+                        "label": "空売りを確認",
+                        "data": "action=my_short_positions"
+                    },
+                    "style": "primary",
+                    "color": "#607D8B"
+                }
+            ],
+            "paddingAll": "15px"
+        }
+    }
+    bubbles.append(short_bubble)
+
     return FlexSendMessage(
         alt_text="株式ダッシュボード",
         contents={"type": "carousel", "contents": bubbles}
@@ -234,14 +276,74 @@ def get_stock_list_carousel(stocks: List[Dict], page: int = 0, per_page: int = 1
     )
 
 
-def get_stock_detail_flex(stock: Dict, has_holding: bool = False) -> FlexSendMessage:
+def get_stock_detail_flex(stock: Dict, has_holding: bool = False, has_short_position: bool = False) -> FlexSendMessage:
     """
     銘柄詳細FlexMessage
 
     Args:
         stock: 銘柄情報
         has_holding: 保有株があるか
+        has_short_position: 空売りポジションがあるか
     """
+    
+    # ボタンリスト作成
+    buttons = []
+    
+    # 1. 購入 (Buy)
+    buttons.append({
+        "type": "button",
+        "action": {
+            "type": "postback",
+            "label": "購入する (現物)",
+            "data": f"action=buy_stock&symbol={stock['symbol_code']}"
+        },
+        "style": "primary",
+        "color": "#4CAF50"
+    })
+
+    # 2. 売却 (Sell) - 保有時のみ
+    if has_holding:
+        buttons.append({
+            "type": "button",
+            "action": {
+                "type": "postback",
+                "label": "売却する (現物)",
+                "data": f"action=sell_stock&symbol={stock['symbol_code']}"
+            },
+            "style": "primary",
+            "color": "#F44336",
+            "margin": "md"
+        })
+
+    # 3. 空売り (Sell Short) - 保有がない場合、または追加で空売り
+    # 簡略化して常に表示、またはボタンテキストを変える？
+    buttons.append({
+        "type": "button",
+        "action": {
+            "type": "postback",
+            "label": "空売りする",
+            "data": f"action=sell_short&symbol={stock['symbol_code']}"
+        },
+        "style": "secondary",
+        "color": "#607D8B",
+        "margin": "md"
+    })
+
+    # 4. 買い戻し (Buy to Cover) - 空売りポジションがある場合のみ
+    if has_short_position:
+        buttons.append({
+            "type": "button",
+            "action": {
+                "type": "postback",
+                "label": "買い戻す (返済)",
+                "data": f"action=buy_to_cover&symbol={stock['symbol_code']}"
+            },
+            "style": "primary",
+            "color": "#FF9800",
+            "margin": "md"
+        })
+
+
     bubble = {
         "type": "bubble",
         "size": "mega",
@@ -278,6 +380,7 @@ def get_stock_detail_flex(stock: Dict, has_holding: bool = False) -> FlexSendMes
                         _create_info_row("安値", f"¥{stock.get('daily_low', 0):,}" if stock.get('daily_low') else "N/A"),
                         _create_info_row("時価総額", f"¥{stock['market_cap']:,}" if stock.get('market_cap') else "N/A"),
                         _create_info_row("配当利回り", f"{stock['dividend_yield']:.2f}%"),
+                        _create_info_row("空売り残", f"{stock.get('short_interest', 0):,}株"),
                     ],
                     "margin": "lg",
                     "spacing": "md"
@@ -298,28 +401,7 @@ def get_stock_detail_flex(stock: Dict, has_holding: bool = False) -> FlexSendMes
         "footer": {
             "type": "box",
             "layout": "vertical",
-            "contents": [
-                {
-                    "type": "button",
-                    "action": {
-                        "type": "postback",
-                        "label": "購入する",
-                        "data": f"action=buy_stock&symbol={stock['symbol_code']}"
-                    },
-                    "style": "primary",
-                    "color": "#4CAF50"
-                }
-            ] + ([{
-                "type": "button",
-                "action": {
-                    "type": "postback",
-                    "label": "売却する",
-                    "data": f"action=sell_stock&symbol={stock['symbol_code']}"
-                },
-                "style": "primary",
-                "color": "#F44336",
-                "margin": "md"
-            }] if has_holding else []),
+            "contents": buttons,
             "paddingAll": "15px"
         }
     }
@@ -440,8 +522,23 @@ def get_trade_confirmation_flex(stock_info: Dict, trade_type: str, quantity: int
         quantity: 数量
     """
     total_amount = stock_info['current_price'] * quantity
-    action_text = "購入" if trade_type == 'buy' else "売却"
-    color = "#4CAF50" if trade_type == 'buy' else "#F44336"
+    total_amount = stock_info['current_price'] * quantity
+    
+    if trade_type == 'buy':
+        action_text = "購入"
+        color = "#4CAF50"
+    elif trade_type == 'sell':
+        action_text = "売却"
+        color = "#F44336"
+    elif trade_type == 'short':
+        action_text = "空売り"
+        color = "#607D8B"
+    elif trade_type == 'cover':
+        action_text = "買い戻し"
+        color = "#FF9800"
+    else:
+        action_text = "取引"
+        color = "#999999"
 
     bubble = {
         "type": "bubble",
@@ -528,7 +625,16 @@ def get_trade_result_flex(success: bool, trade_type: str, result_data: Optional[
         result_data: 取引データ
         error_message: エラーメッセージ
     """
-    action_text = "購入" if trade_type == 'buy' else "売却"
+    if trade_type == 'buy':
+        action_text = "購入"
+    elif trade_type == 'sell':
+        action_text = "売却"
+    elif trade_type == 'short':
+        action_text = "空売り"
+    elif trade_type == 'cover':
+        action_text = "買い戻し"
+    else:
+        action_text = "取引"
 
     if success and result_data:
         bubble = {
@@ -734,3 +840,106 @@ def _create_info_row(label: str, value: str) -> Dict:
             {"type": "text", "text": value, "size": "sm", "flex": 7, "align": "end", "wrap": True}
         ]
     }
+
+
+def get_short_positions_carousel(shorts: List[Dict]) -> FlexSendMessage:
+    """
+    空売り建玉一覧カルーセル
+
+    Args:
+        shorts: 空売りポジションリスト
+    """
+    bubbles = []
+
+    for s in shorts:
+        profit_color = "#4CAF50" if s['profit_loss'] >= 0 else "#F44336"
+        profit_sign = "+" if s['profit_loss'] >= 0 else ""
+
+        bubble = {
+            "type": "bubble",
+            "size": "kilo",
+            "hero": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": s['symbol_code'], "size": "xl", "weight": "bold", "color": "#FFFFFF", "align": "center"},
+                    {"type": "text", "text": s['name'], "size": "sm", "color": "#FFFFFF", "align": "center", "margin": "md", "wrap": True}
+                ],
+                "backgroundColor": "#607D8B",
+                "paddingAll": "20px"
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "box",
+                        "layout": "baseline",
+                        "contents": [
+                            {"type": "text", "text": "数量", "size": "sm", "color": "#666666", "flex": 3},
+                            {"type": "text", "text": f"{s['quantity']}株", "size": "sm", "flex": 5, "align": "end", "weight": "bold"}
+                        ]
+                    },
+                    {
+                        "type": "box",
+                        "layout": "baseline",
+                        "contents": [
+                            {"type": "text", "text": "売建単価", "size": "sm", "color": "#666666", "flex": 3},
+                            {"type": "text", "text": f"¥{s['average_sell_price']:,.2f}", "size": "sm", "flex": 5, "align": "end"}
+                        ],
+                        "margin": "md"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "baseline",
+                        "contents": [
+                            {"type": "text", "text": "現在値", "size": "sm", "color": "#666666", "flex": 3},
+                            {"type": "text", "text": f"¥{s['current_price']:,}", "size": "sm", "flex": 5, "align": "end", "weight": "bold"}
+                        ],
+                        "margin": "md"
+                    },
+                    {"type": "separator", "margin": "lg"},
+                    {
+                        "type": "box",
+                        "layout": "baseline",
+                        "contents": [
+                            {"type": "text", "text": "評価損益", "size": "sm", "color": "#666666", "flex": 3, "weight": "bold"},
+                            {"type": "text", "text": f"{profit_sign}¥{s['profit_loss']:,.0f}", "size": "md", "flex": 5, "align": "end", "weight": "bold", "color": profit_color}
+                        ],
+                        "margin": "md"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "baseline",
+                        "contents": [
+                            {"type": "text", "text": " ", "size": "sm", "color": "#666666", "flex": 3},
+                            {"type": "text", "text": f"({profit_sign}{s['profit_loss_rate']:,.1f}%)", "size": "sm", "flex": 5, "align": "end", "color": profit_color}
+                        ]
+                    }
+                ],
+                "paddingAll": "20px"
+            },
+            "footer": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "button",
+                        "action": {
+                            "type": "postback",
+                            "label": "買い戻す",
+                            "data": f"action=stock_detail&symbol={s['symbol_code']}"
+                        },
+                        "style": "primary",
+                        "color": "#FF9800"
+                    }
+                ],
+                "paddingAll": "15px"
+            }
+        }
+        bubbles.append(bubble)
+
+    return FlexSendMessage(
+        alt_text="空売り建玉一覧",
+        contents={"type": "carousel", "contents": bubbles}
+    )
