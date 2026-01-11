@@ -140,18 +140,25 @@ def handle_my_short_positions(event, user_id: str):
     from core.api import show_loading_animation
     show_loading_animation(user_id, loading_seconds=5)
 
-    shorts = stock_api.get_short_positions(user_id)
+    try:
+        shorts = stock_api.get_short_positions(user_id)
 
-    if not shorts or len(shorts) == 0:
+        if not shorts or len(shorts) == 0:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="現在、空売りポジションはありません。")
+            )
+            return
+
+        # 空売りカルーセル
+        carousel = stock_flex.get_short_positions_carousel(shorts)
+        line_bot_api.reply_message(event.reply_token, carousel)
+    except Exception as e:
+        print(f"Error in handle_my_short_positions: {e}")
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text="現在、空売りポジションはありません。")
+            TextSendMessage(text="空売り情報の取得中にエラーが発生しました。")
         )
-        return
-
-    # 空売りカルーセル
-    carousel = stock_flex.get_short_positions_carousel(shorts)
-    line_bot_api.reply_message(event.reply_token, carousel)
 
 
 def handle_market_news(event):
@@ -168,6 +175,9 @@ def handle_market_news(event):
     # イベント情報をテキストで表示
     text = "📰 最近の経済ニュース\n\n"
     for e in events[:5]:
+        occurred_at = e.get('occurred_at')
+        time_str = occurred_at.strftime('%Y/%m/%d %H:%M') if occurred_at else ""
+        text += f"📅 {time_str}\n"
         text += f"• {e['event_text']}\n"
         text += f"  {e['name']} ({e['symbol_code']})\n"
         text += f"  影響: {'+' if e['impact'] > 0 else ''}{e['impact']*100:.1f}%\n\n"

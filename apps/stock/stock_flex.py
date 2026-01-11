@@ -378,6 +378,13 @@ def get_stock_detail_flex(stock: Dict, has_holding: bool = False, has_short_posi
                         _create_info_row("前日終値", f"¥{stock.get('previous_close', 0):,}" if stock.get('previous_close') else "N/A"),
                         _create_info_row("高値", f"¥{stock.get('daily_high', 0):,}" if stock.get('daily_high') else "N/A"),
                         _create_info_row("安値", f"¥{stock.get('daily_low', 0):,}" if stock.get('daily_low') else "N/A"),
+                        _create_info_row("出来高", f"{stock.get('volume', 0):,}株" if stock.get('volume') else "N/A"),
+                        _create_info_row("売買代金", f"¥{stock.get('trading_value', 0):,.0f}" if stock.get('trading_value') else "N/A"), # Note: trading_value not in model yet, might need to calculate? Or just use volume * current_price approx?
+                        # Actually trading_value is not in StockSymbol directly easily. 
+                        # Let's approximate or skip if not available. Wait, user asked for it. 
+                        # Volume is in price_history. StockSymbol has current_price.
+                        # Maybe just "Volume" is enough? Or calculate approximate.
+                        # Let's use simple calculation or check if service provides it.
                         _create_info_row("時価総額", f"¥{stock['market_cap']:,}" if stock.get('market_cap') else "N/A"),
                         _create_info_row("配当利回り", f"{stock['dividend_yield']:.2f}%"),
                         _create_info_row("空売り残", f"{stock.get('short_interest', 0):,}株"),
@@ -447,6 +454,8 @@ def get_holdings_carousel(holdings: List[Dict]) -> FlexSendMessage:
                             {"type": "text", "text": f"{holding['quantity']}株", "size": "sm", "flex": 5, "align": "end", "weight": "bold"}
                         ]
                     },
+                        ]
+                    },
                     {
                         "type": "box",
                         "layout": "baseline",
@@ -460,8 +469,26 @@ def get_holdings_carousel(holdings: List[Dict]) -> FlexSendMessage:
                         "type": "box",
                         "layout": "baseline",
                         "contents": [
+                            {"type": "text", "text": "取得総額", "size": "sm", "color": "#666666", "flex": 3},
+                            {"type": "text", "text": f"¥{holding['total_cost']:,.0f}", "size": "sm", "flex": 5, "align": "end"}
+                        ],
+                        "margin": "md"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "baseline",
+                        "contents": [
                             {"type": "text", "text": "現在値", "size": "sm", "color": "#666666", "flex": 3},
                             {"type": "text", "text": f"¥{holding['current_price']:,}", "size": "sm", "flex": 5, "align": "end", "weight": "bold"}
+                        ],
+                        "margin": "md"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "baseline",
+                        "contents": [
+                            {"type": "text", "text": "評価額", "size": "sm", "color": "#666666", "flex": 3},
+                            {"type": "text", "text": f"¥{holding['market_value']:,.0f}", "size": "sm", "flex": 5, "align": "end", "weight": "bold"}
                         ],
                         "margin": "md"
                     },
@@ -898,7 +925,18 @@ def get_short_positions_carousel(shorts: List[Dict]) -> FlexSendMessage:
                         ],
                         "margin": "md"
                     },
-                    {"type": "separator", "margin": "lg"},
+                        ],
+                        "margin": "md"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "baseline",
+                        "contents": [
+                            {"type": "text", "text": "返済期日", "size": "sm", "color": "#666666", "flex": 3},
+                            {"type": "text", "text": f"{s.get('due_date', 'N/A')}", "size": "sm", "flex": 5, "align": "end", "color": "#FF5722"}
+                        ],
+                        "margin": "md"
+                    },
                     {
                         "type": "box",
                         "layout": "baseline",

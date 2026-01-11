@@ -307,6 +307,7 @@ class UserStockShortPosition(Base):
     average_sell_price = Column(Numeric(18, 4), nullable=False)
     total_proceeds = Column(Numeric(18, 2), nullable=False)
     accrued_interest = Column(Numeric(18, 2), server_default=text('0'))
+    due_date = Column(DateTime(timezone=True), nullable=True)
     stock_account_id = Column(Integer, ForeignKey('stock_accounts.stock_account_id'), nullable=False)
     created_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
     updated_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))

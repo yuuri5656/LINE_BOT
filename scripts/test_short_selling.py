@@ -37,24 +37,21 @@ def setup_test_environment():
     bank_account = db.query(Account).filter_by(user_id=USER_ID).first()
     if not bank_account:
         print("Creating User Bank Account...")
-        bank_account = Account(
-            customer_id=customer.customer_id,
-            account_number="999888111",
-            branch_id=1, # Assuming branch 1 exists or create
-            balance=10000000, # 10M JPY
-            currency='JPY',
-            user_id=USER_ID
-        )
-        # Note: Branch ID 1 usually exists if seeded. If not, needs creation.
-        # Check Branch
-        from apps.banking.main_bank_system import Branch
+        
         branch = db.query(Branch).first()
         if not branch:
              branch = Branch(code="001", name="Test Branch")
              db.add(branch)
              db.commit()
-        bank_account.branch_id = branch.branch_id
-        
+             
+        bank_account = Account(
+            customer_id=customer.customer_id,
+            account_number="999888111",
+            branch_id=branch.branch_id, 
+            balance=10000000, # 10M JPY
+            currency='JPY',
+            user_id=USER_ID
+        )
         db.add(bank_account)
         db.commit()
     else:
@@ -80,7 +77,6 @@ def setup_test_environment():
             db.add(sys_customer)
             db.commit()
 
-        # Branch
         branch = db.query(Branch).first()
 
         reserve = Account(
@@ -101,11 +97,19 @@ def setup_test_environment():
         print("Creating Stock Account...")
         stock_api.create_stock_account(USER_ID, bank_account_id)
     
-    # 4. Ensure Stock Symbol
+    # 4. Cleanup existing short positions for test user
+    db = SessionLocal()
+    existing_shorts = db.query(UserStockShortPosition).filter_by(user_id=USER_ID).all()
+    if existing_shorts:
+        print(f"Cleaning up {len(existing_shorts)} existing short positions...")
+        for s in existing_shorts:
+            db.delete(s)
+        db.commit()
+    
+    # 5. Ensure Stock Symbol
     stock = stock_api.get_stock_by_code(SYMBOL_CODE)
     if not stock:
         # Create dummy stock if not exists
-        db = SessionLocal()
         stock = StockSymbol(
             symbol_code=SYMBOL_CODE,
             name="Test Motor",
@@ -117,7 +121,13 @@ def setup_test_environment():
         )
         db.add(stock)
         db.commit()
-        db.close()
+    else:
+        # Reset price
+        stock = db.query(StockSymbol).filter_by(symbol_code=SYMBOL_CODE).first()
+        stock.current_price = 2000
+        db.commit()
+        
+    db.close()
 
 def test_short_selling():
     print("\n--- Testing Short Selling ---")
@@ -131,24 +141,30 @@ def test_short_selling():
     print(f"SUCCESS: {msg}")
     print(f"Result: {result}")
     
+    # Verify Result has due_date
+    assert 'due_date' in result, "Result should contain due_date"
+    print(f"Due Date in Result: {result['due_date']}")
+
     # Verify Position
     shorts = stock_api.get_short_positions(USER_ID)
     print(f"Short Positions: {len(shorts)}")
     if len(shorts) == 0:
         print("FAILED: No short position found.")
-        return
+        return 
     
     pos = shorts[0]
     print(f"Position: {pos}")
     assert pos['quantity'] == QUANTITY
     assert pos['symbol_code'] == SYMBOL_CODE
-    
+    assert 'due_date' in pos, "Position should contain due_date"
+    print(f"Due Date in Position: {pos['due_date']}")
+
     # Verify Margin Deposit
     account = stock_api.get_stock_account(USER_ID)
-    print(f"Stock Account: {account}")
+    print(f"Stock Account Margin: {account['margin_deposit']}")
     # Margin req = 2000 * 100 * 0.5 = 100,000
     expected_margin = float(pos['average_sell_price']) * QUANTITY * 0.5
-    print(f"Expected Margin: {expected_margin}, Deposit: {account['margin_deposit']}")
+    assert float(account['margin_deposit']) == expected_margin
     
     # Simulate Interest Accrual
     print("\n--- Testing Interest Accrual ---")
@@ -164,7 +180,6 @@ def test_short_selling():
     # Test Buy to Cover
     print("\n--- Testing Buy to Cover ---")
     # First, let's lower the price to make profit
-    # Hack price in logic? No, update DB directly
     db = SessionLocal()
     stock = db.query(StockSymbol).filter_by(symbol_code=SYMBOL_CODE).first()
     stock.current_price = 1800 # 200 profit per share
@@ -179,9 +194,6 @@ def test_short_selling():
     print(f"Result: {result}")
     
     # Verify Profit
-    # Profit = (2000 - 1800) * 100 = 20,000
-    # Interest ~200
-    # Net Profit ~19,800
     print(f"Profit: {result['profit']}")
     
     # Verify Position Gone
