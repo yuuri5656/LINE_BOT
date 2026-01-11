@@ -70,6 +70,7 @@
 
     <script>
         let userId = null;
+        let ownedTokens = 0;
 
         async function init() {
             try {
@@ -77,7 +78,8 @@
                 if (liff.isLoggedIn()) {
                     const profile = await liff.getProfile();
                     userId = profile.userId;
-                    fetchGachas();
+                    await fetchInventory(); // Load tokens first
+                    await fetchGachas();
                 } else {
                     alert('LINEでログインしてください');
                 }
@@ -85,8 +87,23 @@
                 console.error(err);
                 // Dev mock
                 userId = 'dev_user';
-                fetchGachas();
+                await fetchInventory();
+                await fetchGachas();
             }
+        }
+
+        async function fetchInventory() {
+            try {
+                const res = await fetch(`/api/inventory/list?userId=${userId}`);
+                const inventory = await res.json();
+                // Find Token (Card ID 100)
+                const token = inventory.find(i => i.card_id === 100);
+                ownedTokens = token ? token.quantity : 0;
+
+                // Update header or somewhere?
+                const header = document.querySelector('h1');
+                header.innerHTML = `散財の時間よ♡ <br><span class="text-xs font-normal">所持チケット: ${ownedTokens}枚</span>`;
+            } catch (e) { console.error(e); }
         }
 
         async function fetchGachas() {
@@ -99,12 +116,20 @@
                 gachas.forEach(g => {
                     const el = document.createElement('div');
                     el.className = 'glass-panel p-4 flex flex-col items-center';
+
+                    let costDisplay = '';
+                    if (g.currency === 'TOKEN') {
+                        costDisplay = `チケット ${g.cost}枚`;
+                    } else {
+                        costDisplay = `${g.cost} ${g.currency}`;
+                    }
+
                     el.innerHTML = `
                         ${g.image_url ? `<img src="${g.image_url}" class="w-full h-32 object-cover rounded mb-2">` : ''}
                         <h2 class="font-bold text-lg">${g.name}</h2>
                         <p class="text-xs text-gray-500 mb-4">${g.description || ''}</p>
                         <button onclick="draw('${g.gacha_id}', ${g.cost}, '${g.currency}')" class="w-full bg-gradient-to-r from-pink-500 to-purple-500 text-white py-3 rounded-xl font-bold shadow-lg transform active:scale-95 transition">
-                            ${g.cost} ${g.currency} で引く
+                            ${costDisplay} で引く
                         </button>
                     `;
                     container.appendChild(el);
@@ -115,7 +140,20 @@
         }
 
         async function draw(gachaId, cost, currency) {
-            if (!confirm(`${cost} ${currency} 消費します。\nよろしいですか？（返品不可よ♡）`)) return;
+            let msg = '';
+            if (currency === 'TOKEN') {
+                if (ownedTokens < cost) {
+                    alert('チケットが足りません！ショップで買ってきなさいよ！');
+                    liff.openWindow({ url: `https://liff.line.me/${liff.id}/shop`, external: false }); // Direct link to shop? Setup URL scheme or just suggest.
+                    // Or redirect: window.location.href = '/liff/shop';
+                    return;
+                }
+                msg = `チケット ${cost}枚 消費します。\nよろしいですか？`;
+            } else {
+                msg = `${cost} ${currency} 消費します。\nよろしいですか？（返品不可よ♡）`;
+            }
+
+            if (!confirm(msg)) return;
 
             // Loading UI?
 
@@ -128,6 +166,8 @@
                 const data = await res.json();
 
                 if (data.success) {
+                    // Refresh inventory to update token count
+                    await fetchInventory();
                     showResult(data.items);
                 } else {
                     alert('エラー: ' + data.message);

@@ -14,32 +14,48 @@ class GachaService:
                 return False, "ガチャが見つかりません", []
 
             # Calculate total cost
-            total_cost = float(gacha.cost_amount) * count
+            cost = gacha.cost_amount * count
+            currency = gacha.currency_type
+        
+            # 2. Check Balance & Pay
+            if currency == 'JPY':
+                # Creating a helper to find user's main active account.
+                from apps.banking.main_bank_system import Account
+                # Simplification: Find first active account for user
+                account = db.query(Account).filter_by(user_id=user_id, status='active').first()
+                if not account:
+                    return False, '銀行口座が見つかりません。開設してください。', []
+                
+                if account.balance < cost:
+                    return False, f'残高不足です（必要: {cost} {currency}）', []
+                    
+                # Execute Payment
+                try:
+                    banking_api.transfer(
+                        from_account_number=account.account_number,
+                        to_account_number='7777777', # Reserve Account
+                        amount=cost,
+                        currency='JPY',
+                        description=f"ガチャ: {gacha.name} x{count}"
+                    )
+                except Exception as e:
+                    return False, f"支払い失敗: {e}", []
             
-            # Payment (Assumes JPY for now. Future: Support Chip)
-            # Find linked bank account... this is tricky without account_id.
-            # Using StockService to find linked account, or assume Main Account?
-            # Creating a helper to find user's main active account.
-            from apps.banking.main_bank_system import Account
-            # Simplification: Find first active account for user
-            account = db.query(Account).filter_by(user_id=user_id, status='active').first()
-            if not account:
-                return False, "支払い可能な銀行口座がありません", []
-            
-            if float(account.balance) < total_cost:
-                return False, "残高不足です", []
-            
-            # Execute Payment
-            try:
-                banking_api.transfer(
-                    from_account_number=account.account_number,
-                    to_account_number='7777777', # Reserve Account
-                    amount=total_cost,
-                    currency='JPY',
-                    description=f"ガチャ: {gacha.name} x{count}"
-                )
-            except Exception as e:
-                return False, f"支払い失敗: {e}", []
+            elif currency == 'TOKEN':
+                # Check Inventory for Token (Card ID 100)
+                # TODO: Token Card ID should be config or dynamic, hardcoded 100 for now based on decision
+                TOKEN_CARD_ID = 100 
+                
+                from apps.inventory.models import UserCollection
+                token_item = db.query(UserCollection).filter_by(user_id=user_id, card_id=TOKEN_CARD_ID).first()
+                
+                if not token_item or token_item.quantity < cost:
+                    return False, f'ガチャチケットが足りません（必要: {int(cost)}枚）', []
+                    
+                token_item.quantity -= int(cost)
+                
+            else:
+                return False, f'未対応の通貨タイプです: {currency}', []
 
             # Draw Logic
             items = db.query(GachaItem).filter_by(gacha_id=gacha_id).all()

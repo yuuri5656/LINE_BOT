@@ -85,3 +85,25 @@ def trade_accept():
     success, msg = trade_service.accept_trade(trade_id, user_id)
     return jsonify({'success': success, 'message': msg})
 
+# Shop Routes
+@liff_blueprint.route('/liff/shop')
+def shop():
+    return render_template('shop.html', liff_id=os.environ.get('LIFF_ID', ''))
+
+@liff_blueprint.route('/api/shop/list')
+def shop_list():
+    category = request.args.get('category', 'gacha_tokens')
+    from apps.shop.shop_service import get_items_by_category
+    items = get_items_by_category(category)
+    return jsonify(items)
+
+@liff_blueprint.route('/api/shop/buy', methods=['POST'])
+def shop_buy():
+    data = request.json
+    user_id = data.get('userId')
+    item_id = data.get('itemId')
+    
+    from apps.shop.shop_service import purchase_item
+    result = purchase_item(user_id, item_id)
+    return jsonify(result)
+

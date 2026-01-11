@@ -311,6 +311,8 @@ def purchase_item(user_id: str, item_id: int) -> Dict:
         # カテゴリ別の処理
         if item.category == 'casino_chips':
             return _purchase_chip_item(db, user_id, item, payment_info)
+        elif item.category == 'gacha_tokens':
+            return _purchase_gacha_token(db, user_id, item, payment_info)
         elif item.category == 'special_items':
             return _purchase_special_item(db, user_id, item, payment_info)
         elif item.category == 'boosters':
@@ -350,9 +352,56 @@ def _purchase_chip_item(db, user_id: str, item, payment_info: Dict) -> Dict:
     if not result['success']:
         return result
 
-    # 購入履歴を記録
+    _record_purchase(db, user_id, item)
+
+    return {
+        'success': True,
+        'item_name': item.name,
+        'chips_received': total_chips,
+        'new_base_balance': result['new_base_balance'],
+        'new_bonus_balance': 0
+    }
+
+
+def _purchase_gacha_token(db, user_id: str, item, payment_info: Dict) -> Dict:
+    """ガチャトークンの購入処理"""
+    from apps.inventory.inventory_service import inventory_service
+    from apps.banking.api import banking_api
+
+    token_card_id = get_item_attribute(item.item_id, 'token_card_id')
+    amount = get_item_attribute(item.item_id, 'amount', 1)
+
+    if not token_card_id:
+        return {'success': False, 'error': '商品設定エラー: トークンIDが未設定です'}
+
+    # 1. 銀行振込（支払い）
     try:
-        with db.begin():
+        banking_api.transfer(
+            from_account_number=payment_info['account_number'],
+            to_account_number=SHOP_OPERATIONS_ACCOUNT['account_number'], # 運営口座へ
+            amount=float(item.price),
+            currency='JPY',
+            description=f"ショップ購入: {item.name}"
+        )
+    except Exception as e:
+        return {'success': False, 'error': f"支払い失敗: {str(e)}"}
+
+    # 2. インベントリに追加
+    inventory_service.add_item(user_id, token_card_id, amount)
+
+    # 3. 履歴記録
+    _record_purchase(db, user_id, item)
+
+    return {
+        'success': True,
+        'item_name': item.name,
+        'amount': amount
+    }
+
+
+def _record_purchase(db, user_id, item):
+    try:
+        with db.begin_nested():
             purchase = ShopPurchase(
                 user_id=user_id,
                 item_id=item.item_id,
@@ -364,14 +413,6 @@ def _purchase_chip_item(db, user_id: str, item, payment_info: Dict) -> Dict:
             db.flush()
     except Exception as e:
         print(f"[Shop] Failed to record purchase history: {e}")
-
-    return {
-        'success': True,
-        'item_name': item.name,
-        'chips_received': total_chips,
-        'new_base_balance': result['new_base_balance'],
-        'new_bonus_balance': 0
-    }
 
 
 def _purchase_special_item(db, user_id: str, item, payment_info: Dict) -> Dict:

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>塩爺の売店</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        .shiojii-bg {
+            background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+        }
+
+        .glass-panel {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+
+<body class="shiojii-bg min-h-screen p-4 pb-20 text-gray-800">
+    <!-- Header -->
+    <div class="mb-6 flex items-center justify-between">
+        <h1 class="text-2xl font-bold text-gray-700">アイテムショップ</h1>
+        <div class="text-right">
+            <p class="text-xs text-gray-500">銀行残高</p>
+            <p id="bank-balance" class="font-bold">--- JPY</p>
+        </div>
+    </div>
+
+    <!-- Category Tabs -->
+    <div class="flex space-x-2 mb-6 overflow-x-auto">
+        <button class="px-4 py-2 bg-blue-600 text-white rounded-full text-sm font-bold whitespace-nowrap">ガチャ券</button>
+        <button class="px-4 py-2 bg-gray-200 text-gray-600 rounded-full text-sm font-bold whitespace-nowrap">チップ
+            (未)</button>
+        <button class="px-4 py-2 bg-gray-200 text-gray-600 rounded-full text-sm font-bold whitespace-nowrap">その他
+            (未)</button>
+    </div>
+
+    <!-- Shop Items -->
+    <div id="shop-list" class="grid grid-cols-1 gap-4">
+        <p class="text-center text-gray-500">読み込み中...</p>
+    </div>
+
+    <script>
+        let userId = null;
+
+        async function init() {
+            await liff.init({ liffId: "{{ liff_id }}" });
+            if (liff.isLoggedIn()) {
+                userId = (await liff.getProfile()).userId;
+                loadShop();
+                loadBalance(); // TODO: Add API for balance
+            } else {
+                userId = 'dev_user';
+                loadShop();
+            }
+        }
+
+        async function loadShop() {
+            const res = await fetch('/api/shop/list?category=gacha_tokens');
+            const items = await res.json();
+            const container = document.getElementById('shop-list');
+            container.innerHTML = '';
+
+            if (items.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-500">商品がありません</p>';
+                return;
+            }
+
+            items.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'glass-panel p-4 flex items-center';
+                el.innerHTML = `
+                    <div class="w-16 h-16 bg-yellow-100 rounded-lg mr-4 flex-shrink-0 flex items-center justify-center text-2xl">
+                        🎫
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-bold text-lg">${item.name}</h3>
+                        <p class="text-xs text-gray-500">${item.description || ''}</p>
+                        <p class="text-blue-600 font-bold mt-1">¥${item.price.toLocaleString()}</p>
+                    </div>
+                    <button onclick="buy('${item.item_id}', '${item.name}', ${item.price})" class="bg-blue-500 text-white px-4 py-2 rounded-lg font-bold text-sm shadow hover:bg-blue-600 transition">
+                        購入
+                    </button>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        async function loadBalance() {
+            // Need an API to get user balance easily. 
+            // For now, placeholder or maybe parse from inventory/profile if available.
+            document.getElementById('bank-balance').innerText = "確認中...";
+        }
+
+        async function buy(itemId, itemName, price) {
+            if (!confirm(`「${itemName}」を ¥${price.toLocaleString()} で購入しますか？`)) return;
+
+            // Loading state...
+
+            const res = await fetch('/api/shop/buy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, itemId })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                alert('購入しました！');
+                // Updating inventory count display isn't implemented here, but user can go to Inventory
+            } else {
+                if (data.error === 'payment_account_not_registered') {
+                    alert('支払い用口座が登録されていません。\nLINE Botで「口座開設」または「ショップ登録」を行ってください。');
+                } else {
+                    alert('エラー: ' + data.error);
+                }
+            }
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
