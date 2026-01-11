@@ -471,13 +471,54 @@ class StockService:
             except Exception as tax_err:
                 print(f"[StockService] tax income record failed user={user_id} err={tax_err}")
 
+            # =========================================
+            # Fee Deduction Logic (Integrated with Inventory)
+            # =========================================
+            try:
+                from apps.inventory.inventory_service import inventory_service
+                
+                # Default Fee Rate (e.g. 5%)
+                DEFAULT_FEE_RATE = Decimal('0.05')
+                
+                # Get User Effects
+                effects = inventory_service.get_active_effects(user_id)
+                fee_reduction = Decimal(str(effects.get('stock_sell_fee_reduction', 0)))
+                
+                # Calculate Fee Rate (Min 0%)
+                final_fee_rate = max(DEFAULT_FEE_RATE - fee_reduction, Decimal('0'))
+                
+                fee_amount = total_amount * final_fee_rate
+                
+                if fee_amount > 0:
+                    # Deduct Fee from User's Bank Account (transfer to Reserve)
+                    # Note: We just transferred Proceeds to User. Now we take back Fee.
+                    # Ideally this should be net transfer, but for transparency we do 2 txs or net?
+                    # Let's do a separate Fee transaction.
+                    
+                    banking_api.transfer(
+                        from_account_number=bank_account.account_number,
+                        to_account_number=RESERVE_ACCOUNT_NUMBER,
+                        amount=float(fee_amount),
+                        currency='JPY',
+                        description=f"株式売却手数料 ({stock.symbol_code})"
+                    )
+                    
+                    # Update Transaction Record
+                    transaction.fee = fee_amount
+                    db.commit()
+                    
+            except Exception as fee_err:
+                print(f"[StockService] fee deduction failed: {fee_err}")
+                # Don't fail the whole trade if fee fails, but maybe log it.
+
             return True, "売却が完了しました", {
                 'symbol_code': symbol_code,
                 'name': stock.name,
                 'quantity': quantity,
                 'price': stock.current_price,
                 'total_amount': float(total_amount),
-                'transaction_id': transaction.transaction_id
+                'transaction_id': transaction.transaction_id,
+                'fee': float(fee_amount) if 'fee_amount' in locals() else 0
             }
         except Exception as e:
             db.rollback()

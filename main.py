@@ -6,8 +6,10 @@ from apps.stock.background_updater import start_background_updater
 from apps.prison.rehabilitation_scheduler import start_rehabilitation_distribution_scheduler
 from apps.tax.tax_scheduler import start_tax_collections_loan_scheduler
 from apps.rich_menu import create_rich_menus, set_default_rich_menu
+from apps.web.routes import liff_blueprint
 
 app = Flask(__name__)
+app.register_blueprint(liff_blueprint)
 
 # 株価バックグラウンド更新を開始
 start_background_updater()

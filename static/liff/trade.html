@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>塩爺の闇市</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        .shiojii-bg {
+            background: linear-gradient(135deg, #1f1c2c 0%, #928dab 100%);
+        }
+
+        /* Darker theme for trade */
+    </style>
+</head>
+
+<body class="shiojii-bg min-h-screen p-4 pb-20 text-gray-100">
+    <h1 class="text-2xl font-bold mb-6 text-center">闇市（トレード）</h1>
+
+    <div class="space-y-6">
+        <!-- Create Trade -->
+        <div class="bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700">
+            <h2 class="font-bold mb-4 text-purple-400">トレード作成</h2>
+
+            <div class="mb-2">
+                <label class="text-xs text-gray-400">相手のID (LINE User ID)</label>
+                <input type="text" id="target-id"
+                    class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white" placeholder="U01234...">
+            </div>
+
+            <!-- Simplified UI: Select 1 item to give -->
+            <div class="mb-4">
+                <label class="text-xs text-gray-400">あげるもの (Card ID)</label>
+                <input type="number" id="give-item-id"
+                    class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white" placeholder="1">
+            </div>
+
+            <button onclick="createTrade()"
+                class="w-full bg-purple-600 hover:bg-purple-500 py-2 rounded font-bold transition">作成する</button>
+        </div>
+
+        <!-- Accept Trade -->
+        <div class="bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700">
+            <h2 class="font-bold mb-4 text-green-400">トレード受取</h2>
+
+            <div class="mb-4">
+                <label class="text-xs text-gray-400">トレードID</label>
+                <input type="number" id="trade-id"
+                    class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white" placeholder="101">
+            </div>
+
+            <button onclick="acceptTrade()"
+                class="w-full bg-green-600 hover:bg-green-500 py-2 rounded font-bold transition">受け取る</button>
+        </div>
+    </div>
+
+    <script>
+        let userId = null;
+        async function init() {
+            await liff.init({ liffId: "{{ liff_id }}" });
+            if (liff.isLoggedIn()) userId = (await liff.getProfile()).userId;
+            else userId = 'dev_user';
+        }
+
+        async function createTrade() {
+            const receiverId = document.getElementById('target-id').value;
+            const cardId = document.getElementById('give-item-id').value;
+
+            if (!receiverId || !cardId) return alert('入力してね');
+
+            const res = await fetch('/api/trade/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    senderId: userId,
+                    receiverId: receiverId,
+                    offered: [{ type: 'card', id: parseInt(cardId), amount: 1 }],
+                    requested: [] // Nothing requested (Gift)
+                })
+            });
+            const data = await res.json();
+            if (data.success) alert(`作成しました！ID: ${data.tradeId}\n相手にIDを教えてね。`);
+            else alert(data.message);
+        }
+
+        async function acceptTrade() {
+            const tradeId = document.getElementById('trade-id').value;
+            if (!tradeId) return alert('ID入れてね');
+
+            const res = await fetch('/api/trade/accept', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, tradeId })
+            });
+            const data = await res.json();
+            if (data.success) alert('成立しました！');
+            else alert(data.message);
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

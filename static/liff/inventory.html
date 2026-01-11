@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>塩爺の倉庫</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        .shiojii-bg {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        }
+    </style>
+</head>
+
+<body class="shiojii-bg min-h-screen p-4 pb-20">
+    <!-- Header -->
+    <div class="bg-white rounded-xl p-4 shadow mb-4 flex justify-between items-center">
+        <h1 class="font-bold text-gray-700">インベントリ</h1>
+        <span class="text-xs text-gray-400">整理整頓できる？</span>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex space-x-2 mb-4">
+        <button onclick="switchTab('items')"
+            class="flex-1 bg-white py-2 rounded-lg shadow text-sm font-bold text-gray-700">アイテム</button>
+        <button onclick="switchTab('equip')"
+            class="flex-1 bg-white opacity-50 py-2 rounded-lg shadow text-sm font-bold text-gray-700">装備</button>
+    </div>
+
+    <!-- Interface -->
+    <div id="items-view" class="grid grid-cols-2 gap-3">
+        <!-- Load Items -->
+        <p class="col-span-2 text-center text-gray-500">読み込み中...</p>
+    </div>
+
+    <div id="equip-view" class="hidden space-y-4">
+        <div class="bg-white p-4 rounded-xl shadow">
+            <h3 class="font-bold mb-2">キャラクタースロット</h3>
+            <div id="slot-character"
+                class="h-12 bg-gray-100 rounded border border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-sm">
+                未装備
+            </div>
+            <button onclick="openEquipModal('character')"
+                class="w-full mt-2 bg-blue-500 text-white py-1 rounded text-sm">変更</button>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow">
+            <h3 class="font-bold mb-2">スキルスロット 1</h3>
+            <div id="slot-skill_1"
+                class="h-12 bg-gray-100 rounded border border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-sm">
+                未装備
+            </div>
+            <button onclick="openEquipModal('skill_1')"
+                class="w-full mt-2 bg-blue-500 text-white py-1 rounded text-sm">変更</button>
+        </div>
+        <!-- More slots can be added -->
+    </div>
+
+    <!-- Equip Modal -->
+    <div id="equip-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-end z-50">
+        <div class="bg-white w-full rounded-t-xl p-4 h-3/4 overflow-y-auto">
+            <div class="flex justify-between mb-4">
+                <h3 class="font-bold">装備を選択</h3>
+                <button onclick="closeEquipModal()">✕</button>
+            </div>
+            <div id="equip-list" class="space-y-2">
+                <!-- Selectable items -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let userId = null;
+        let inventory = [];
+        let currentSlot = null;
+
+        async function init() {
+            try {
+                await liff.init({ liffId: "{{ liff_id }}" });
+                if (liff.isLoggedIn()) {
+                    const profile = await liff.getProfile();
+                    userId = profile.userId;
+                    loadInventory();
+                } else {
+                    userId = 'dev_user'; // Mock
+                    loadInventory();
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadInventory() {
+            const res = await fetch(`/api/inventory/list?userId=${userId}`);
+            inventory = await res.json();
+            renderItems();
+        }
+
+        function renderItems() {
+            const container = document.getElementById('items-view');
+            container.innerHTML = '';
+
+            if (inventory.length === 0) {
+                container.innerHTML = '<p class="col-span-2 text-center text-gray-500">アイテムがありません（ざぁこｗ）</p>';
+                return;
+            }
+
+            inventory.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'bg-white p-3 rounded-lg shadow flex flex-col items-center';
+                el.innerHTML = `
+                    <div class="w-full h-24 bg-gray-200 mb-2 rounded overflow-hidden">
+                         ${item.image_url ? `<img src="${item.image_url}" class="w-full h-full object-cover">` : ''}
+                    </div>
+                    <p class="font-bold text-sm truncate w-full text-center">${item.name}</p>
+                    <p class="text-xs text-gray-500">x${item.quantity}</p>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        function switchTab(tab) {
+            if (tab === 'items') {
+                document.getElementById('items-view').classList.remove('hidden');
+                document.getElementById('equip-view').classList.add('hidden');
+            } else {
+                document.getElementById('items-view').classList.add('hidden');
+                document.getElementById('equip-view').classList.remove('hidden');
+                // TODO: Load current equipment state (not implemented API yet)
+            }
+        }
+
+        function openEquipModal(slot) {
+            currentSlot = slot;
+            const container = document.getElementById('equip-list');
+            container.innerHTML = '';
+
+            // Filter candidates
+            const neededType = slot === 'character' ? 'character' : 'skill';
+            const candidates = inventory.filter(i => i.type === neededType);
+
+            if (candidates.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-500">装備できるアイテムがありません</p>';
+            } else {
+                candidates.forEach(item => {
+                    const btn = document.createElement('button');
+                    btn.className = 'w-full p-3 bg-gray-50 rounded flex items-center text-left';
+                    btn.innerHTML = `
+                        <span class="font-bold flex-1">${item.name}</span>
+                        ${item.effects ? `<span class="text-xs text-blue-500">効果あり</span>` : ''}
+                    `;
+                    btn.onclick = () => doEquip(item.card_id);
+                    container.appendChild(btn);
+                });
+            }
+
+            document.getElementById('equip-modal').classList.remove('hidden');
+        }
+
+        function closeEquipModal() {
+            document.getElementById('equip-modal').classList.add('hidden');
+        }
+
+        async function doEquip(cardId) {
+            const res = await fetch('/api/inventory/equip', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, slot: currentSlot, cardId })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert('装備しました！');
+                closeEquipModal();
+                // Update UI (Simple text update)
+                document.getElementById(`slot-${currentSlot}`).innerText = "装備中 (ID: " + cardId + ")";
+            } else {
+                alert(data.message);
+            }
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

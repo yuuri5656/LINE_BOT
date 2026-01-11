@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>塩爺の部屋</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f3f4f6;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            touch-action: manipulation;
+        }
+        .shiojii-bg {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .btn-premium {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transition: transform 0.1s;
+        }
+        .btn-premium:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body class="shiojii-bg min-h-screen flex flex-col items-center p-4">
+
+    <!-- Shiojii Header -->
+    <div class="glass-panel w-full max-w-md p-6 mb-6 text-center relative overflow-hidden">
+        <div class="absolute -top-4 -right-4 w-24 h-24 bg-pink-300 rounded-full opacity-50 blur-xl"></div>
+        <div class="relative z-10">
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">塩爺の秘密の部屋♡</h1>
+            <p id="shiojii-msg" class="text-gray-600 italic">「あら、また来たの？<br>暇人なのねぇ～♡」</p>
+        </div>
+    </div>
+
+    <!-- Menu Grid -->
+    <div class="grid grid-cols-2 gap-4 w-full max-w-md">
+        
+        <!-- Gacha -->
+        <div onclick="location.href='/liff/gacha'" class="glass-panel p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white transition h-32">
+            <span class="text-4xl mb-2">🎰</span>
+            <span class="font-bold text-gray-700">ガチャ</span>
+            <span class="text-xs text-gray-500 mt-1">散財しちゃえ♡</span>
+        </div>
+
+        <!-- Inventory -->
+        <div onclick="location.href='/liff/inventory'" class="glass-panel p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white transition h-32">
+            <span class="text-4xl mb-2">🎒</span>
+            <span class="font-bold text-gray-700">インベントリ</span>
+            <span class="text-xs text-gray-500 mt-1">装備変える？</span>
+        </div>
+
+        <!-- Trade -->
+        <div onclick="location.href='/liff/trade'" class="glass-panel p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white transition h-32">
+            <span class="text-4xl mb-2">🤝</span>
+            <span class="font-bold text-gray-700">トレード</span>
+            <span class="text-xs text-gray-500 mt-1">カモにするの？</span>
+        </div>
+
+        <!-- Status/Misc -->
+        <div class="glass-panel p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white transition h-32 opacity-75">
+            <span class="text-4xl mb-2">📊</span>
+            <span class="font-bold text-gray-700">ステータス</span>
+            <span class="text-xs text-gray-500 mt-1">（準備中よ）</span>
+        </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-8 text-center text-gray-500 text-sm">
+        <p>User ID: <span id="user-id">Loading...</span></p>
+    </div>
+
+    <script>
+        // LIFF Initialization
+        async function main() {
+            try {
+                await liff.init({ liffId: "{{ liff_id }}" });
+                if (liff.isLoggedIn()) {
+                    const profile = await liff.getProfile();
+                    document.getElementById('user-id').textContent = profile.userId.substring(0, 8) + '...';
+                } else {
+                    document.getElementById('user-id').textContent = 'Guest';
+                    // For dev/browser testing without LIFF
+                    if (!liff.isInClient()) {
+                        console.log("Not in LINE client");
+                    }
+                }
+            } catch (err) {
+                console.error('LIFF Init failed', err);
+                document.getElementById('user-id').textContent = 'Error';
+            }
+        }
+        main();
+
+        // Shiojii Random Talk
+        const messages = [
+            "「あら、また来たの？<br>暇人なのねぇ～♡」",
+            "「そんな装備で大丈夫？<br>ザコ確定ねｗ」",
+            "「ねぇ、もっと課金して<br>私を楽させてよ～」",
+            "「株で損したの？<br>メシウマ～♡」"
+        ];
+        document.getElementById('shiojii-msg').innerHTML = messages[Math.floor(Math.random() * messages.length)];
+    </script>
+</body>
+</html>
