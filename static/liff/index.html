@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,9 +13,11 @@
             font-family: 'Helvetica Neue', Arial, sans-serif;
             touch-action: manipulation;
         }
+
         .shiojii-bg {
             background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
         }
+
         .glass-panel {
             background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(10px);
@@ -22,16 +25,19 @@
             border: 1px solid rgba(255, 255, 255, 0.5);
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
+
         .btn-premium {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             transition: transform 0.1s;
         }
+
         .btn-premium:active {
             transform: scale(0.95);
         }
     </style>
 </head>
+
 <body class="shiojii-bg min-h-screen flex flex-col items-center p-4">
 
     <!-- Shiojii Header -->
@@ -45,30 +51,42 @@
 
     <!-- Menu Grid -->
     <div class="grid grid-cols-2 gap-4 w-full max-w-md">
-        
+
         <!-- Gacha -->
-        <div onclick="location.href='/liff/gacha'" class="glass-panel p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white transition h-32">
+        <div onclick="location.href='/liff/gacha'"
+            class="glass-panel p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white transition h-32">
             <span class="text-4xl mb-2">🎰</span>
             <span class="font-bold text-gray-700">ガチャ</span>
             <span class="text-xs text-gray-500 mt-1">散財しちゃえ♡</span>
         </div>
 
         <!-- Inventory -->
-        <div onclick="location.href='/liff/inventory'" class="glass-panel p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white transition h-32">
+        <div onclick="location.href='/liff/inventory'"
+            class="glass-panel p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white transition h-32">
             <span class="text-4xl mb-2">🎒</span>
             <span class="font-bold text-gray-700">インベントリ</span>
             <span class="text-xs text-gray-500 mt-1">装備変える？</span>
         </div>
 
         <!-- Trade -->
-        <div onclick="location.href='/liff/trade'" class="glass-panel p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white transition h-32">
+        <div onclick="location.href='/liff/trade'"
+            class="glass-panel p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white transition h-32">
             <span class="text-4xl mb-2">🤝</span>
             <span class="font-bold text-gray-700">トレード</span>
             <span class="text-xs text-gray-500 mt-1">カモにするの？</span>
         </div>
 
+        <!-- Shop -->
+        <div onclick="location.href='/liff/shop'"
+            class="glass-panel p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white transition h-32">
+            <span class="text-4xl mb-2">🏪</span>
+            <span class="font-bold text-gray-700">ショップ</span>
+            <span class="text-xs text-gray-500 mt-1">貢ぎなさい♡</span>
+        </div>
+
         <!-- Status/Misc -->
-        <div class="glass-panel p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white transition h-32 opacity-75">
+        <div
+            class="glass-panel p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-white transition h-32 opacity-75">
             <span class="text-4xl mb-2">📊</span>
             <span class="font-bold text-gray-700">ステータス</span>
             <span class="text-xs text-gray-500 mt-1">（準備中よ）</span>
@@ -113,4 +131,5 @@
         document.getElementById('shiojii-msg').innerHTML = messages[Math.floor(Math.random() * messages.length)];
     </script>
 </body>
+
 </html>
