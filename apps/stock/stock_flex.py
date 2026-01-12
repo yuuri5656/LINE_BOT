@@ -486,7 +486,7 @@ def get_holdings_carousel(holdings: List[Dict]) -> FlexSendMessage:
                         "layout": "baseline",
                         "contents": [
                             {"type": "text", "text": "評価額", "size": "sm", "color": "#666666", "flex": 3},
-                            {"type": "text", "text": f"¥{holding['market_value']:,.0f}", "size": "sm", "flex": 5, "align": "end", "weight": "bold"}
+                            {"type": "text", "text": f"¥{holding['current_value']:,.0f}", "size": "sm", "flex": 5, "align": "end", "weight": "bold"}
                         ],
                         "margin": "md"
                     },
