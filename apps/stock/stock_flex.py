@@ -923,9 +923,6 @@ def get_short_positions_carousel(shorts: List[Dict]) -> FlexSendMessage:
                         ],
                         "margin": "md"
                     },
-                        ],
-                        "margin": "md"
-                    },
                     {
                         "type": "box",
                         "layout": "baseline",
