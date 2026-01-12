@@ -768,3 +768,7 @@ class StockService:
             return False, f"買い戻し処理中にエラーが発生しました: {str(e)}", None
         finally:
             db.close()
+
+
+# グローバルサービスインスタンス
+stock_service = StockService()
